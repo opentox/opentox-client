@@ -5,8 +5,9 @@ module OpenTox
 
   # Initialize OpenTox object with optional uri
   # @param [optional, String] URI
-  def initialize(uri=nil)
+  def initialize(uri=nil,subjectid=nil)
     @metadata = {}
+    @subjectid = subjectid
     self.uri = uri if uri
   end
 
@@ -25,11 +26,15 @@ module OpenTox
 
   # Load (and return) metadata from object URI
   # @return [Hash] Metadata
-  def load_metadata(subjectid=nil)
-    @metadata = Parser::Owl::Generic.new(@uri).load_metadata(subjectid)
+  def load_metadata
+    @metadata = Parser::Owl::Generic.new(@uri).load_metadata
     @metadata
   end
 
+  # Add/modify metadata, existing entries will be overwritten
+  # @example
+  #   dataset.add_metadata({DC.title => "any_title", DC.creator => "my_email"})
+  # @param [Hash] metadata Hash mapping predicate_uris to values
   def add_metadata(metadata)
     metadata.each do |k,v|
       if v.is_a? Array
@@ -46,13 +51,12 @@ module OpenTox
   def to_rdfxml
     s = Serializer::Owl.new
     s.add_metadata(@uri,@metadata)
-    #s.add_parameters(@uri,@parameters) if @parameters
     s.to_rdfxml
   end
 
   # deletes the resource, deletion should have worked when no RestCallError raised
-  def delete(subjectid=nil)
-    RestClientWrapper.delete(uri,:subjectid => subjectid)
+  def delete
+    RestClientWrapper.delete(uri,:subjectid => @subjectid)
   end
 
 end

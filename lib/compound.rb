@@ -29,30 +29,21 @@ module OpenTox
     # @param [String] smiles Smiles string
     # @return [OpenTox::Compound] Compound
     def self.from_smiles(smiles)
-      c = Compound.new
-      c.inchi = Compound.smiles2inchi(smiles)
-      c.uri = File.join(CONFIG[:services]["opentox-compound"],URI.escape(c.inchi))
-      c
+      Compound.new  RestClientWrapper.post(CONFIG[:services]["opentox-compound"], smiles, :content_type => 'chemical/x-daylight-smiles').to_s.chomp 
     end
 
     # Create a compound from inchi string
     # @param [String] smiles InChI string
     # @return [OpenTox::Compound] Compound
     def self.from_inchi(inchi)
-      c = Compound.new
-      c.inchi = inchi
-      c.uri = File.join(CONFIG[:services]["opentox-compound"],URI.escape(c.inchi))
-      c
+      Compound.new  RestClientWrapper.post(CONFIG[:services]["opentox-compound"], inchi, :content_type => 'chemical/x-inchi').to_s.chomp 
     end
 
     # Create a compound from sdf string
     # @param [String] smiles SDF string
     # @return [OpenTox::Compound] Compound
     def self.from_sdf(sdf)
-      c = Compound.new
-      c.inchi = Compound.sdf2inchi(sdf)
-      c.uri = File.join(CONFIG[:services]["opentox-compound"],URI.escape(c.inchi))
-      c
+      Compound.new  RestClientWrapper.post(CONFIG[:services]["opentox-compound"], sdf, :content_type => 'chemical/x-mdl-sdfile').to_s.chomp 
     end
 
     # Create a compound from name. Relies on an external service for name lookups.
@@ -77,13 +68,13 @@ module OpenTox
 		# Get (canonical) smiles
     # @return [String] Smiles string
 		def to_smiles
-			Compound.obconversion(@inchi,'inchi','can')
+      RestClientWrapper.get(@uri, :accept => 'chemical/x-daylight-smiles').chomp
 		end
 
     # Get sdf
     # @return [String] SDF string
 		def to_sdf
-			Compound.obconversion(@inchi,'inchi','sdf')
+      RestClientWrapper.get(@uri, :accept => 'chemical/x-mdl-sdfile').chomp
 		end
 
     # Get gif image
@@ -118,6 +109,7 @@ module OpenTox
       end
 		end
 
+=begin
 		# Match a smarts string
     # @example
     #   compound = OpenTox::Compound.from_name("Benzene")
@@ -195,5 +187,6 @@ module OpenTox
 				obconversion.write_string(obmol)
 			end
 		end
+=end
 	end
 end

@@ -1,8 +1,8 @@
 # R integration
 # workaround to initialize R non-interactively (former rinruby versions did this by default)
 # avoids compiling R with X
-R = nil
-require "rinruby" 
+#R = nil
+#require "rinruby" 
 
 module OpenTox
 
@@ -16,6 +16,7 @@ module OpenTox
     # @param [optional,OpenTox::Task] waiting_task (can be a OpenTox::Subtask as well), progress is updated accordingly
     # @return [String] URI of new resource (dataset, model, ...)
     def run(params=nil, waiting_task=nil)
+      #puts @uri
       RestClientWrapper.post(@uri, params, {:accept => 'text/uri-list'}, waiting_task).to_s
     end
     
@@ -37,7 +38,7 @@ module OpenTox
       def self.find(uri, subjectid=nil)
         return nil unless uri
         alg = Generic.new(uri)
-        alg.load_metadata( subjectid )
+        alg.load_metadata
         raise "cannot load algorithm metadata" if alg.metadata==nil or alg.metadata.size==0
         alg
       end
@@ -54,7 +55,7 @@ module OpenTox
         # Initialize bbrc algorithm
         def initialize(subjectid=nil)
           super File.join(CONFIG[:services]["opentox-algorithm"], "fminer/bbrc")
-          load_metadata(subjectid)
+          load_metadata
         end
       end
 
@@ -64,7 +65,7 @@ module OpenTox
         # Initialize last algorithm
         def initialize(subjectid=nil)
           super File.join(CONFIG[:services]["opentox-algorithm"], "fminer/last")
-          load_metadata(subjectid)
+          load_metadata
         end
       end
 
@@ -76,10 +77,11 @@ module OpenTox
       # Initialize lazar algorithm
       def initialize(subjectid=nil)
         super File.join(CONFIG[:services]["opentox-algorithm"], "lazar")
-        load_metadata(subjectid)
+        load_metadata
       end
     end
 
+=begin
     # Utility methods without dedicated webservices
 
     # Similarity calculations
@@ -399,6 +401,7 @@ module OpenTox
       m_pos = array.size / 2
       return array.size % 2 == 1 ? array[m_pos] : (array[m_pos-1] + array[m_pos])/2
     end
+=end
 
   end
 end

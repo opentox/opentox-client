@@ -1,12 +1,14 @@
-opentox-ruby
-============
+opentox-ruby-minimal
+====================
 
-Ruby wrapper for the [OpenTox](http://www.opentox.org) REST API 
+Thin Ruby wrapper for the [OpenTox](http://www.opentox.org) REST API 
 
 Installation
 ------------
 
-opentox-ruby depends on many third party programs and libraries, which makes the setup complicated and error prone. For this reason we recommend to use the installer from [opentox-install](http://github.com/opentox/opentox-install). If you want to install manually you can find the necessary steps in the installation scripts.
+  sudo gem install opentox-ruby-minimal
+
+opentox-ruby depends on [rapper](http://librdf.org/raptor/rapper.html) for parsing OWL-DL in RDFXML format. 
 
 Quickstart
 ----------
@@ -32,7 +34,7 @@ This example shows how to create a lazar model and predict a compound, it assume
     prediction = OpenTox::LazarPrediction.find(prediction_uri, subjectid)
     puts prediction.to_yaml
 
-[API documentation](http://rdoc.info/gems/opentox-ruby/1.0.0/frames)
+[API documentation](http://rdoc.info/gems/opentox-ruby-minimal)
 -------------------------------------------------------------------
 
 Copyright

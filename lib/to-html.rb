@@ -1,4 +1,3 @@
-
 OT_LOGO = File.join(CONFIG[:services]["opentox-validation"],"resources/ot-logo.png")
 
 class String

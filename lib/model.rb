@@ -4,6 +4,24 @@ module OpenTox
 
     include OpenTox
 
+    # Find a lazar model
+    # @param [String] uri Model URI
+    # @return [OpenTox::Model::Lazar] lazar model
+    def self.find(uri, subjectid=nil)
+      if CONFIG[:yaml_hosts].include?(URI.parse(uri).host)
+        YAML.load RestClientWrapper.get(uri,{:accept => 'application/x-yaml', :subjectid => subjectid})
+      else
+        parser = Parser::Owl::Feature.new(uri, @subjectid)
+        @metadata = parser.load_uri.metadata
+      end
+    end
+
+    # Get URIs of all models
+    # @return [Array] List of lazar model URIs
+    def self.all(subjectid=nil)
+      RestClientWrapper.get(CONFIG[:services]["opentox-model"], :subjectid => subjectid).to_s.split("\n")
+    end
+
     # Run a model with parameters
     # @param [Hash] params Parameters for OpenTox model
     # @param [optional,OpenTox::Task] waiting_task (can be a OpenTox::Subtask as well), progress is updated accordingly
@@ -29,35 +47,35 @@ module OpenTox
       # @return [OpenTox::Model::Generic] Model instance
       def self.find(uri,subjectid=nil)
         return nil unless uri
-        model = Generic.new(uri)
-        model.load_metadata(subjectid)
+        model = Generic.new(uri,subjectid)
+        model.load_metadata
         raise "could not load model metadata '"+uri.to_s+"'" if model.metadata==nil or model.metadata.size==0
         model
       end
 
       # provides feature type, possible types are "regression" or "classification"
       # @return [String] feature type, "unknown" if type could not be estimated
-      def feature_type(subjectid=nil)
+      def feature_type
         unless @feature_type
-          load_predicted_variables( subjectid ) unless @predicted_variable
-          @feature_type = OpenTox::Feature.find( @predicted_variable, subjectid ).feature_type
+          load_predicted_variables unless @predicted_variable
+          @feature_type = OpenTox::Feature.find( @predicted_variable, @subjectid ).feature_type
         end
         @feature_type
       end
     
-      def predicted_variable( subjectid )
-        load_predicted_variables( subjectid ) unless @predicted_variable
+      def predicted_variable
+        load_predicted_variables unless @predicted_variable
         @predicted_variable
       end
 
-      def predicted_confidence( subjectid )
-        load_predicted_variables( subjectid ) unless @predicted_confidence
+      def predicted_confidence
+        load_predicted_variables unless @predicted_confidence
         @predicted_confidence
       end
   
       private
-      def load_predicted_variables( subjectid=nil )
-        load_metadata(subjectid) if @metadata==nil or @metadata.size==0 or (@metadata.size==1 && @metadata.values[0]==@uri)
+      def load_predicted_variables
+        load_metadata if @metadata==nil or @metadata.size==0 or (@metadata.size==1 && @metadata.values[0]==@uri)
         if @metadata[OT.predictedVariables]
           predictedVariables = @metadata[OT.predictedVariables]
           if predictedVariables.is_a?(Array)
@@ -86,14 +104,14 @@ module OpenTox
     end
 
     # Lazy Structure Activity Relationship class
-    class Lazar
+    class Lazar < Generic
 
-      include Model
+      #include Model
       include Algorithm
 
       attr_accessor :compound, :prediction_dataset, :features, :effects, :activities, :p_values, :fingerprints, :feature_calculation_algorithm, :similarity_algorithm, :prediction_algorithm, :min_sim, :subjectid, :prop_kernel, :value_map
 
-      def initialize(uri=nil)
+      def initialize(uri=nil,subjectid=nil)
 
         if uri
           super uri
@@ -119,17 +137,15 @@ module OpenTox
 
       end
 
-      # Get URIs of all lazar models
-      # @return [Array] List of lazar model URIs
-      def self.all(subjectid=nil)
-        RestClientWrapper.get(CONFIG[:services]["opentox-model"], :subjectid => subjectid).to_s.split("\n")
-      end
-
-      # Find a lazar model
+      # Find a lazar model via URI, and loads metadata, could raise NotFound/NotAuthorized error 
       # @param [String] uri Model URI
-      # @return [OpenTox::Model::Lazar] lazar model
-      def self.find(uri, subjectid=nil)
-        YAML.load RestClientWrapper.get(uri,{:accept => 'application/x-yaml', :subjectid => subjectid})
+      # @return [OpenTox::Model::Generic] Model instance
+      def self.find(uri,subjectid=nil)
+        return nil unless uri
+        model = Lazar.new(uri,subjectid)
+        model.load_metadata
+        raise "could not load model metadata '"+uri.to_s+"'" if model.metadata==nil or model.metadata.size==0
+        model
       end
 
       # Create a new lazar model
@@ -142,6 +158,7 @@ module OpenTox
         OpenTox::Model::Lazar.find(model_uri, subjectid)      
       end
 
+=begin
       # Get a parameter value
       # @param [String] param Parameter name
       # @return [String] Parameter value
@@ -465,6 +482,7 @@ module OpenTox
         RestClientWrapper.delete(@uri, :subjectid => subjectid) unless @uri == CONFIG[:services]["opentox-model"]
       end
 
+=end
     end
   end
 end

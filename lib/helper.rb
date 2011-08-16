@@ -1,3 +1,4 @@
+=begin
 helpers do
 
   # Authentification
@@ -94,4 +95,4 @@ before do
     protected!(@subjectid)
   end
 end
-
+=end

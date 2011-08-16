@@ -1,4 +1,3 @@
-
 # adding additional fields to Exception class to format errors according to OT-API
 class Exception
   attr_accessor :errorCause

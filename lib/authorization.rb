@@ -2,7 +2,7 @@ module OpenTox
 
   #Module for Authorization and Authentication
   #@example Authentication
-  #  require "opentox-ruby-api-wrapper" 
+  #  require "opentox-ruby" 
   #  OpenTox::Authorization::AA_SERVER = "https://opensso.in-silico.ch" #if not set in .opentox/conf/[environment].yaml 
   #  token = OpenTox::Authorization.authenticate("benutzer", "passwort") 
   #@see http://www.opentox.org/dev/apis/api-1.2/AA OpenTox A&A API 1.2 specification

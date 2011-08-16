@@ -1,6 +1,7 @@
 module OpenTox
   
   # Ruby wrapper for OpenTox Dataset Webservices (http://opentox.org/dev/apis/api-1.2/dataset).
+  # TODO: fix API Doc
   class Dataset 
 
     include OpenTox
@@ -15,7 +16,7 @@ module OpenTox
     # @param [optional, String] uri Dataset URI
     # @return [OpenTox::Dataset] Dataset object
     def initialize(uri=nil,subjectid=nil)
-      super uri
+      super uri, subjectid
       @features = {}
       @compounds = []
       @data_entries = {}
@@ -28,7 +29,17 @@ module OpenTox
     # @return [OpenTox::Dataset] Dataset object
     def self.create(uri=CONFIG[:services]["opentox-dataset"], subjectid=nil)
       dataset = Dataset.new(nil,subjectid)
-      dataset.save(subjectid)
+      dataset.save
+      dataset
+    end
+    
+    # Find a dataset and load all data. This can be time consuming, use Dataset.new together with one of the load_* methods for a fine grained control over data loading.
+    # @param [String] uri Dataset URI
+    # @return [OpenTox::Dataset] Dataset object with all data
+    def self.find(uri, subjectid=nil)
+      return nil unless uri
+      dataset = Dataset.new(uri, subjectid)
+      dataset.load_metadata
       dataset
     end
 
@@ -40,20 +51,9 @@ module OpenTox
     # @return [OpenTox::Dataset] Dataset object with CSV data
     def self.create_from_csv_file(file, subjectid=nil) 
       dataset = Dataset.create(CONFIG[:services]["opentox-dataset"], subjectid)
-      parser = Parser::Spreadsheets.new
-      parser.dataset = dataset
-      parser.load_csv(File.open(file).read)
-      dataset.save(subjectid)
-      dataset
-    end
-    
-    # Find a dataset and load all data. This can be time consuming, use Dataset.new together with one of the load_* methods for a fine grained control over data loading.
-    # @param [String] uri Dataset URI
-    # @return [OpenTox::Dataset] Dataset object with all data
-    def self.find(uri, subjectid=nil)
-      return nil unless uri
-      dataset = Dataset.new(uri, subjectid)
-      dataset.load_all(subjectid)
+      #RestClientWrapper.post(dataset.uri,File.read(file), {:content_type => "text/csv", :subjectid => @subjectid}) 
+      RestClientWrapper.post(dataset.uri,{:file => File.new(file)},{:accept => "text/uri-list", :subjectid => subjectid})#, {:content_type => "text/csv", :subjectid => @subjectid}) 
+      dataset.load_metadata
       dataset
     end
     
@@ -64,7 +64,7 @@ module OpenTox
       return false unless uri
       dataset = Dataset.new(uri, subjectid)
       begin
-        dataset.load_metadata( subjectid ).size > 0
+        dataset.load_metadata.size > 0
       rescue
         false
       end
@@ -80,26 +80,20 @@ module OpenTox
     # Load YAML representation into the dataset
     # @param [String] yaml YAML representation of the dataset
     # @return [OpenTox::Dataset] Dataset object with YAML data
-    def load_yaml(yaml)
-      copy YAML.load(yaml)
+    def store_yaml(yaml)
+      RestClientWrapper.post(@uri,yaml, {:content_type => "application/x-yaml", :subjectid => @subjectid}) 
     end
 
-    def load_rdfxml(rdfxml)
-      raise "rdfxml data is empty" if rdfxml.to_s.size==0
-      file = Tempfile.new("ot-rdfxml")
-      file.puts rdfxml
-      file.close
-      load_rdfxml_file file
-      file.delete
+    def store_rdfxml(rdfxml)
+      RestClientWrapper.post(@uri, rdfxml, {:content_type => "application/rdf+xml", :subjectid => @subjectid}) 
     end
 
     # Load RDF/XML representation from a file
     # @param [String] file File with RDF/XML representation of the dataset
     # @return [OpenTox::Dataset] Dataset object with RDF/XML data
-    def load_rdfxml_file(file, subjectid=nil)
-      parser = Parser::Owl::Dataset.new @uri, subjectid
-      parser.uri = file.path
-      copy parser.load_uri(subjectid)
+    def store_rdfxml_file(file)
+      #RestClientWrapper.post(@uri, :file => File.new(file))#, {:content_type => "application/rdf+xml", :subjectid => @subjectid}) 
+      RestClientWrapper.post(@uri, File.read(file), {:content_type => "application/rdf+xml", :subjectid => @subjectid}) 
     end
 
     # Load CSV string (format specification: http://toxcreate.org/help)
@@ -108,11 +102,8 @@ module OpenTox
     # - you will have to set remaining metadata manually
     # @param [String] csv CSV representation of the dataset
     # @return [OpenTox::Dataset] Dataset object with CSV data
-    def load_csv(csv, subjectid=nil) 
-      save(subjectid) unless @uri # get a uri for creating features
-      parser = Parser::Spreadsheets.new
-      parser.dataset = self
-      parser.load_csv(csv)
+    def store_csv(csv) 
+      RestClientWrapper.post(@uri, csv, {:content_type => "text/csv", :subjectid => @subjectid}) 
     end
 
     # Load Spreadsheet book (created with roo gem http://roo.rubyforge.org/, excel format specification: http://toxcreate.org/help)
@@ -121,35 +112,36 @@ module OpenTox
     # - you will have to set remaining metadata manually
     # @param [Excel] book Excel workbook object (created with roo gem)
     # @return [OpenTox::Dataset] Dataset object with Excel data
-    def load_spreadsheet(book, subjectid=nil)
-      save(subjectid) unless @uri # get a uri for creating features
-      parser = Parser::Spreadsheets.new
-      parser.dataset = self
-      parser.load_spreadsheet(book)
+    def store_spreadsheet_file(file)
+      RestClientWrapper.post(@uri, :file => File.new(file))#, {:content_type => "application/vnd.ms-excel", :subjectid => @subjectid}) 
     end
     
     # Load and return only metadata of a Dataset object
     # @return [Hash] Metadata of the dataset
-    def load_metadata(subjectid=nil)
-      add_metadata Parser::Owl::Dataset.new(@uri, subjectid).load_metadata(subjectid)
+    def load_metadata
+      if (CONFIG[:yaml_hosts].include?(URI.parse(@uri).host))
+        @metadata = YAML.load(RestClientWrapper.get(File.join(@uri,"metadata"), {:accept => "application/x-yaml", :subjectid => @subjectid}))
+      else
+        add_metadata Parser::Owl::Dataset.new(@uri, @subjectid).load_metadata
+      end
       self.uri = @uri if @uri # keep uri
       @metadata
     end
 
     # Load all data (metadata, data_entries, compounds and features) from URI
-    def load_all(subjectid=nil)
+    def load_all
       if (CONFIG[:yaml_hosts].include?(URI.parse(@uri).host))
-        copy YAML.load(RestClientWrapper.get(@uri, {:accept => "application/x-yaml", :subjectid => subjectid}))
+        copy YAML.load(RestClientWrapper.get(@uri, {:accept => "application/x-yaml", :subjectid => @subjectid}))
       else
-        parser = Parser::Owl::Dataset.new(@uri, subjectid)
-        copy parser.load_uri(subjectid)
+        parser = Parser::Owl::Dataset.new(@uri, @subjectid)
+        copy parser.load_uri
       end
     end
 
     # Load and return only compound URIs from the dataset service
     # @return [Array]  Compound URIs in the dataset
-    def load_compounds(subjectid=nil)
-      RestClientWrapper.get(File.join(uri,"compounds"),{:accept=> "text/uri-list", :subjectid => subjectid}).to_s.each_line do |compound_uri|
+    def load_compounds
+      RestClientWrapper.get(File.join(uri,"compounds"),{:accept=> "text/uri-list", :subjectid => @subjectid}).to_s.each_line do |compound_uri|
         @compounds << compound_uri.chomp
       end
       @compounds.uniq!
@@ -157,12 +149,12 @@ module OpenTox
 
     # Load and return only features from the dataset service
     # @return [Hash]  Features of the dataset
-    def load_features(subjectid=nil)
+    def load_features
       if (CONFIG[:yaml_hosts].include?(URI.parse(@uri).host))
-        @features = YAML.load(RestClientWrapper.get(File.join(@uri,"features"), {:accept => "application/x-yaml", :subjectid => subjectid}))
+        @features = YAML.load(RestClientWrapper.get(File.join(@uri,"features"), {:accept => "application/x-yaml", :subjectid => @subjectid}))
       else
-        parser = Parser::Owl::Dataset.new(@uri, subjectid)
-        @features = parser.load_features(subjectid)
+        parser = Parser::Owl::Dataset.new(@uri, @subjectid)
+        @features = parser.load_features
       end
       @features
     end
@@ -171,6 +163,7 @@ module OpenTox
     # @param [String] feature the URI of the feature
     # @return [Array] return array with strings, nil if value is not set (e.g. when feature is numeric)
     def accept_values(feature)
+      load_features
       accept_values = features[feature][OT.acceptValue]
       accept_values.sort if accept_values
       accept_values
@@ -178,8 +171,8 @@ module OpenTox
 
     # Detect feature type(s) in the dataset
     # @return [String] `classification", "regression", "mixed" or unknown`
-    def feature_type(subjectid=nil)
-      load_features(subjectid)
+    def feature_type
+      load_features
       feature_types = @features.collect{|f,metadata| metadata[RDF.type]}.flatten.uniq
       if feature_types.include?(OT.NominalFeature)
         "classification"
@@ -189,13 +182,11 @@ module OpenTox
         "unknown"
       end
     end
-=begin
-=end
 
     # Get Spreadsheet representation
     # @return [Spreadsheet::Workbook] Workbook which can be written with the spreadsheet gem (data_entries only, metadata will will be discarded))
     def to_spreadsheet
-      Serializer::Spreadsheets.new(self).to_spreadsheet
+      Spreadsheet::Workbook.new(RestClientWrapper.get(@uri, {:accept => "application/vnd.ms-excel", :subjectid => @subjectid}))
     end
 
     # Get Excel representation (alias for to_spreadsheet)
@@ -207,33 +198,31 @@ module OpenTox
     # Get CSV string representation (data_entries only, metadata will be discarded)
     # @return [String] CSV representation
     def to_csv
-      Serializer::Spreadsheets.new(self).to_csv
+      RestClientWrapper.get(@uri, {:accept => "text/csv", :subjectid => @subjectid})
     end
 
     # Get OWL-DL in ntriples format
     # @return [String] N-Triples representation
     def to_ntriples
-      s = Serializer::Owl.new
-      s.add_dataset(self)
-      s.to_ntriples
+      RestClientWrapper.get(@uri, {:accept => "application/rdf+xml", :subjectid => @subjectid})
     end
 
     # Get OWL-DL in RDF/XML format
     # @return [String] RDF/XML representation
     def to_rdfxml
-      s = Serializer::Owl.new
-      s.add_dataset(self)
-      s.to_rdfxml
+      RestClientWrapper.get(@uri, {:accept => "application/rdf+xml", :subjectid => @subjectid})
     end
 
     # Get name (DC.title) of a feature
     # @param [String] feature Feature URI
     # @return [String] Feture title
     def feature_name(feature)
+      load_features
       @features[feature][DC.title]
     end
 
     def title
+      load_metadata
       @metadata[DC.title]
     end
 
@@ -249,14 +238,6 @@ module OpenTox
       @data_entries[compound] = {} unless @data_entries[compound]
       @data_entries[compound][feature] = [] unless @data_entries[compound][feature]
       @data_entries[compound][feature] << value if value!=nil
-    end
-
-    # Add/modify metadata, existing entries will be overwritten
-    # @example
-    #   dataset.add_metadata({DC.title => "any_title", DC.creator => "my_email"})
-    # @param [Hash] metadata Hash mapping predicate_uris to values
-    def add_metadata(metadata)
-      metadata.each { |k,v| @metadata[k] = v }
     end
 
     # Add a feature
@@ -285,10 +266,10 @@ module OpenTox
     # @param [Hash] metadata Hash containing the metadata for the new dataset
     # @param [String] subjectid
     # @return [OpenTox::Dataset] newly created dataset, already saved
-    def split( compounds, features, metadata, subjectid=nil)
+    def split( compounds, features, metadata)
       LOGGER.debug "split dataset using "+compounds.size.to_s+"/"+@compounds.size.to_s+" compounds"
       raise "no new compounds selected" unless compounds and compounds.size>0
-      dataset = OpenTox::Dataset.create(CONFIG[:services]["opentox-dataset"],subjectid)
+      dataset = OpenTox::Dataset.create(CONFIG[:services]["opentox-dataset"],@subjectid)
       if features.size==0
         compounds.each{ |c| dataset.add_compound(c) }
       else
@@ -311,7 +292,7 @@ module OpenTox
         end
       end
       dataset.add_metadata(metadata)
-      dataset.save(subjectid)
+      dataset.save
       dataset
     end
 
@@ -319,29 +300,23 @@ module OpenTox
     # - creates a new dataset if uri is not set
     # - overwrites dataset if uri exists
     # @return [String] Dataset URI
-    def save(subjectid=nil)
-      # TODO: rewrite feature URI's ??
+    def save
       @compounds.uniq!
-      if @uri
-        if (CONFIG[:yaml_hosts].include?(URI.parse(@uri).host))
-          RestClientWrapper.post(@uri,self.to_yaml,{:content_type =>  "application/x-yaml", :subjectid => subjectid})
-        else
-          File.open("ot-post-file.rdf","w+") { |f| f.write(self.to_rdfxml); @path = f.path }
-          task_uri = RestClient.post(@uri, {:file => File.new(@path)},{:accept => "text/uri-list" , :subjectid => subjectid}).to_s.chomp
-          #task_uri = `curl -X POST -H "Accept:text/uri-list" -F "file=@#{@path};type=application/rdf+xml" http://apps.ideaconsult.net:8080/ambit2/dataset`
-          Task.find(task_uri).wait_for_completion
-          self.uri = RestClientWrapper.get(task_uri,{:accept => 'text/uri-list', :subjectid => subjectid})
-        end
+      # create dataset if uri is empty
+      self.uri = RestClientWrapper.post(CONFIG[:services]["opentox-dataset"],{:subjectid => @subjectid}).to_s.chomp unless @uri
+      if (CONFIG[:yaml_hosts].include?(URI.parse(@uri).host))
+        RestClientWrapper.post(@uri,self.to_yaml,{:content_type =>  "application/x-yaml", :subjectid => @subjectid})
       else
-        # create dataset if uri is empty
-        self.uri = RestClientWrapper.post(CONFIG[:services]["opentox-dataset"],{:subjectid => subjectid}).to_s.chomp
+        s = Serializer::Owl.new
+        s.add_dataset(self)
+        RestClientWrapper.post(@uri, s.to_rdfxml,{:content_type => "application/rdf+xml" , :subjectid => @subjectid})
       end
       @uri
     end
 
     # Delete dataset at the dataset service
-    def delete(subjectid=nil)
-      RestClientWrapper.delete(@uri, :subjectid => subjectid)
+    def delete
+      RestClientWrapper.delete(@uri, :subjectid => @subjectid)
     end
 
     private
@@ -367,7 +342,7 @@ module OpenTox
     # @return [OpenTox::Dataset] Prediction dataset object with all data
     def self.find(uri, subjectid=nil)
       prediction = LazarPrediction.new(uri, subjectid)
-      prediction.load_all(subjectid)
+      prediction.load_all
       prediction
     end
 
@@ -391,11 +366,6 @@ module OpenTox
     def neighbors(compound)
       @data_entries[compound.uri].collect{|f,v| @features[f] if f.match(/neighbor/)}.compact
     end
-
-#    def errors(compound)
-#      features = @data_entries[compound.uri].keys
-#      features.collect{|f| @features[f][OT.error]}.join(" ") if features
-#    end
 
   end
 end

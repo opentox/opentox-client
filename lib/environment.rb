@@ -24,7 +24,7 @@ end
 
 # database
 #`redis-server /opt/redis/redis.conf` unless File.exists? "/var/run/redis.pid" # removed by AM
-Ohm.connect :thread_safe => true
+# Ohm.connect :thread_safe => true
 
 # load mail settings for error messages
 #load File.join config_dir,"mail.rb" if File.exists?(File.join config_dir,"mail.rb")
@@ -69,15 +69,15 @@ class OwlNamespace
 
 end
 
-AA_SERVER = CONFIG[:authorization] ? (CONFIG[:authorization][:server] ? CONFIG[:authorization][:server] : nil) : nil
-CONFIG[:authorization][:authenticate_request] = [""] unless CONFIG[:authorization][:authenticate_request]
-CONFIG[:authorization][:authorize_request] =  [""] unless CONFIG[:authorization][:authorize_request]
-CONFIG[:authorization][:free_request] =  [""] unless CONFIG[:authorization][:free_request]
-
 RDF = OwlNamespace.new 'http://www.w3.org/1999/02/22-rdf-syntax-ns#'
 OWL = OwlNamespace.new 'http://www.w3.org/2002/07/owl#'
 DC =  OwlNamespace.new 'http://purl.org/dc/elements/1.1/'
 OT =  OwlNamespace.new 'http://www.opentox.org/api/1.1#'
 OTA =  OwlNamespace.new 'http://www.opentox.org/algorithmTypes.owl#'
 XSD = OwlNamespace.new 'http://www.w3.org/2001/XMLSchema#'
+
+AA_SERVER = CONFIG[:authorization] ? (CONFIG[:authorization][:server] ? CONFIG[:authorization][:server] : nil) : nil
+CONFIG[:authorization][:authenticate_request] = [""] unless CONFIG[:authorization][:authenticate_request]
+CONFIG[:authorization][:authorize_request] =  [""] unless CONFIG[:authorization][:authorize_request]
+CONFIG[:authorization][:free_request] =  [""] unless CONFIG[:authorization][:free_request]
 

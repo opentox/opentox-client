@@ -1,3 +1,4 @@
+=begin
 # class overwrites aka monkey patches
 # hack: store sinatra instance in global var $url_provider to make url_for and halt methods accessible
 before {
@@ -61,6 +62,7 @@ class Sinatra::Base
     end
   end
 end
+=end
 
 class String
   def task_uri?
@@ -143,8 +145,10 @@ class OTLogger < Logger
 end
 
 # make migration from datamapper more straightforward
+=begin
 class Ohm::Model
   def self.get(id)
     self[id]
   end
 end
+=end
