@@ -53,7 +53,7 @@ module OpenTox
     private
     def self.execute( rest_call, uri, payload=nil, headers={}, waiting_task=nil, wait=true )
       
-      raise OpenTox::BadRequestError.new "uri is null" unless uri
+      raise OpenTox::BadRequestError.new "uri is nil" unless uri
       raise OpenTox::BadRequestError.new "not a uri: "+uri.to_s unless uri.to_s.uri?
       raise "headers are no hash: "+headers.inspect unless headers==nil or headers.is_a?(Hash)
       raise OpenTox::BadRequestError.new "accept should go into the headers" if payload and payload.is_a?(Hash) and payload[:accept] 

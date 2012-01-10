@@ -1,5 +1,5 @@
-require 'spreadsheet'
-require 'roo'
+#require 'spreadsheet'
+#require 'roo'
 
 class String
 
@@ -259,6 +259,7 @@ module OpenTox
 
     end
 
+=begin
     # Parser for getting spreadsheet data into a dataset
     class Spreadsheets
 
@@ -440,5 +441,6 @@ module OpenTox
       end
 
     end
+=end
   end
 end

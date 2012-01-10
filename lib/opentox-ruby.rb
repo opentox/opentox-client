@@ -1,5 +1,5 @@
 #['rubygems', 'sinatra', 'sinatra/url_for', 'ohm', 'rest_client', 'yaml', 'cgi', 'spork', 'error', 'overwrite', 'environment'].each do |lib|
-['rubygems', 'rest_client', 'yaml', 'cgi', 'spork', 'error', 'overwrite', 'environment'].each do |lib|
+['rubygems', 'rest_client', 'yaml', 'cgi', 'error', 'overwrite', 'environment'].each do |lib|
 	require lib
 end
 

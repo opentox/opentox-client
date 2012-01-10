@@ -231,7 +231,7 @@ module OpenTox
       else
         raise "content type for tasks not supported: "+content_type.to_s
       end
-      raise "uri is null after loading" unless @uri and @uri.to_s.strip.size>0
+      raise "uri is nil after loading" unless @uri and @uri.to_s.strip.size>0
     end
 =end
 
