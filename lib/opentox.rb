@@ -1,13 +1,18 @@
-require "./parser.rb"
-require "./rest_client_wrapper.rb"
-require "./error.rb"
+require 'rdf'
+require 'rdf/raptor'
+#require "parser.rb"
+require "rest_client_wrapper.rb"
+require "overwrite.rb"
+require "error.rb"
 
+RDF::OT =  RDF::Vocabulary.new 'http://www.opentox.org/api/1.1#'
+RDF::OTA =  RDF::Vocabulary.new 'http://www.opentox.org/algorithmTypes.owl#'
 SERVICES = ["Compound", "Feature", "Dataset", "Algorithm", "Model", "Validation", "Task"]
 
 module OpenTox
 
-  attr_accessor :subjectid, :uri
-  attr_writer :metadata
+  attr_accessor :subjectid, :uri #, :service_uri
+  #attr_writer :metadata
 
   # Initialize OpenTox object with optional subjectid
   # @param [optional, String] subjectid
@@ -17,7 +22,13 @@ module OpenTox
   end
 
   def metadata
-    @metadata ||= Parser::Owl::Generic.from_rdf get(:accept => "application/rdf+xml")
+    metadata = {}
+    RDF::Reader.open(@uri) do |reader|
+      reader.each_statement do |statement|
+        metadata[statement.predicate] = statement.object if statement.subject == @uri
+      end
+    end
+    metadata
   end
 
   # REST API
@@ -31,7 +42,7 @@ module OpenTox
   # @return [OpenTox::WrapperResult] a String containing the result-body of the REST call
   def get headers={}, wait=true 
     headers[:subjectid] = @subjectid
-    RestClientWrapper.get(@uri, headers, nil, wait).chomp
+    RestClientWrapper.get(@uri.to_s, headers, nil, wait).chomp
   end
 
   # performs a POST REST call
@@ -41,9 +52,9 @@ module OpenTox
   # @param [optional,Hash] headers contains params like accept-header
   # @param [wait,Boolean] wait set to false to NOT wait for task if result is task
   # @return [OpenTox::WrapperResult] a String containing the result-body of the REST call
-  def post payload=nil, headers={}, wait=true 
+  def post payload={}, headers={}, wait=true 
     headers[:subjectid] = @subjectid
-    RestClientWrapper.post(@uri, payload, headers, nil, wait).chomp
+    RestClientWrapper.post(@uri.to_s, payload, headers, nil, wait).chomp
   end
 
   # performs a PUT REST call
@@ -51,39 +62,32 @@ module OpenTox
   # @param [optional,String] payload data put to the service
   # @param [optional,Hash] headers contains params like accept-header
   # @return [OpenTox::WrapperResult] a String containing the result-body of the REST call
-  def put payload=nil, headers={} 
+  def put payload={}, headers={} 
     headers[:subjectid] = @subjectid
-    RestClientWrapper.put(@uri, payload, headers).chomp
+    RestClientWrapper.put(@uri.to_s, payload, headers).chomp
   end
 
   # performs a DELETE REST call
   # raises OpenTox::Error if call fails (rescued in overwrite.rb -> halt 502)
   # @return [OpenTox::WrapperResult] a String containing the result-body of the REST call
   def delete 
-    RestClientWrapper.delete(@uri,:subjectid => @subjectid)
-  end
-
-  # Tools
-
-  # Get OWL-DL representation in RDF/XML format
-  # @return [application/rdf+xml] RDF/XML representation
-  def to_rdfxml
-    s = Serializer::Owl.new
-    s.add_metadata(@uri,@metadata)
-    s.to_rdfxml
-  end
-
-  def uri_available?
-    url = URI.parse(@uri)
-    #TODO: move subjectid to header
-    subjectidstr = @subjectid ? "?subjectid=#{CGI.escape @subjectid}" : ""
-    Net::HTTP.start(url.host, url.port) do |http|
-      return http.head("#{url.request_uri}#{subjectidstr}").code == "200"
-    end
+    RestClientWrapper.delete(@uri.to_s,:subjectid => @subjectid)
   end
 
   # create default classes
   SERVICES.each { |s| eval "class #{s}; include OpenTox; end" }
+
+=begin
+  # Tools
+
+  def uri_available?
+    url = URI.parse(@uri)
+    req = Net::HTTP.new(url.host,url.port)
+    req['subjectid'] = @subjectid if @subjectid
+    req.start(url.host, url.port) do |http|
+      return http.head("#{url.request_uri}#{subjectidstr}").code == "200"
+    end
+  end
 
   module Collection
 
@@ -115,6 +119,7 @@ module OpenTox
     SERVICES.each { |s| eval "class #{s}; include Collection; end" }
 
   end
+=end
 
 end
 

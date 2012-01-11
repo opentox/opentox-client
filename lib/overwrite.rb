@@ -1,3 +1,4 @@
+require 'uri'
 =begin
 # class overwrites aka monkey patches
 # hack: store sinatra instance in global var $url_provider to make url_for and halt methods accessible

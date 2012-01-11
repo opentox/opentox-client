@@ -1,3 +1,4 @@
+require 'rest-client'
 module OpenTox
   
   class WrapperResult < String
