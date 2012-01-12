@@ -17,11 +17,8 @@ class FeatureTest < Test::Unit::TestCase
 
   def test_feature
     @features.each do |uri|
-      puts uri
       f = OpenTox::Feature.new(uri)
-      metadata = f.metadata
-      puts metadata.inspect
-      assert_equal RDF::OT.Feature, metadata[RDF.type]
+      assert_equal RDF::OT.Feature, f.metadata[RDF.type]
     end
   end
 
