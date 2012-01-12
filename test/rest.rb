@@ -1,6 +1,6 @@
 $LOAD_PATH << File.expand_path( File.dirname(__FILE__) + '/../lib' )
 require 'rubygems'
-require 'opentox.rb'
+require 'opentox-ruby-minimal.rb'
 require 'test/unit'
 
 class RestTest < Test::Unit::TestCase
