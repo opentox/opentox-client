@@ -6,44 +6,27 @@ module OpenTox
   # Ruby wrapper for OpenTox Compound Webservices (http://opentox.org/dev/apis/api-1.2/structure).
 	class Compound 
 
-		attr_accessor :inchi, :uri
-
-		# Create compound with optional uri
-    # @example
-    #   compound = OpenTox::Compound.new("http://webservices.in-silico.ch/compound/InChI=1S/C6H6/c1-2-4-6-5-3-1/h1-6H"")
-    # @param [optional, String] uri Compound URI
-    # @return [OpenTox::Compound] Compound
-		def initialize(uri=nil)
-      @uri = uri
-      case @uri
-      when /InChI/ # shortcut for IST services
-        @inchi = @uri.sub(/^.*InChI/, 'InChI')
-      else
-        @inchi = RestClientWrapper.get(@uri, :accept => 'chemical/x-inchi').to_s.chomp if @uri
-      end
-    end
-
     # Create a compound from smiles string
     # @example
     #   compound = OpenTox::Compound.from_smiles("c1ccccc1")
     # @param [String] smiles Smiles string
     # @return [OpenTox::Compound] Compound
-    def self.from_smiles(smiles)
-      Compound.new  RestClientWrapper.post(CONFIG[:services]["opentox-compound"], smiles, :content_type => 'chemical/x-daylight-smiles').to_s.chomp 
+    def self.from_smiles service_uri, smiles, subjectid=nil
+      Compound.new  RestClientWrapper.post(service_uri, smiles, :content_type => 'chemical/x-daylight-smiles').to_s.chomp 
     end
 
     # Create a compound from inchi string
     # @param [String] smiles InChI string
     # @return [OpenTox::Compound] Compound
-    def self.from_inchi(inchi)
-      Compound.new  RestClientWrapper.post(CONFIG[:services]["opentox-compound"], inchi, :content_type => 'chemical/x-inchi').to_s.chomp 
+    def self.from_inchi(service_uri, inchi)
+      Compound.new  RestClientWrapper.post(service_uri, inchi, :content_type => 'chemical/x-inchi').to_s.chomp 
     end
 
     # Create a compound from sdf string
     # @param [String] smiles SDF string
     # @return [OpenTox::Compound] Compound
-    def self.from_sdf(sdf)
-      Compound.new  RestClientWrapper.post(CONFIG[:services]["opentox-compound"], sdf, :content_type => 'chemical/x-mdl-sdfile').to_s.chomp 
+    def self.from_sdf(service_uri, sdf)
+      Compound.new  RestClientWrapper.post(service_uri, sdf, :content_type => 'chemical/x-mdl-sdfile').to_s.chomp 
     end
 
     # Create a compound from name. Relies on an external service for name lookups.
@@ -51,18 +34,16 @@ module OpenTox
     #   compound = OpenTox::Compound.from_name("Benzene")
     # @param [String] name name can be also an InChI/InChiKey, CAS number, etc
     # @return [OpenTox::Compound] Compound
-    def self.from_name(name)
-      c = Compound.new
+    def self.from_name(service_uri, name)
       # paranoid URI encoding to keep SMILES charges and brackets
-      c.inchi = RestClientWrapper.get("#{@@cactus_uri}#{URI.encode(name, Regexp.new("[^#{URI::PATTERN::UNRESERVED}]"))}/stdinchi").to_s.chomp
-      c.uri = File.join(CONFIG[:services]["opentox-compound"],URI.escape(c.inchi))
-      c
+      inchi = RestClientWrapper.get("#{@@cactus_uri}#{URI.encode(name, Regexp.new("[^#{URI::PATTERN::UNRESERVED}]"))}/stdinchi").to_s.chomp
+      Compound.new File.join(service_uri,URI.escape(inchi))
     end
 
 		# Get InChI
     # @return [String] InChI string
 		def to_inchi
-      @inchi
+      RestClientWrapper.get(@uri, :accept => 'chemical/x-inchi').to_s.chomp if @uri
 		end
 
 		# Get (canonical) smiles

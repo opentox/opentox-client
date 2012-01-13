@@ -1,0 +1,2 @@
+require "opentox"
+require "compound"

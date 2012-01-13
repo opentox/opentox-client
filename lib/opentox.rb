@@ -11,8 +11,8 @@ SERVICES = ["Compound", "Feature", "Dataset", "Algorithm", "Model", "Validation"
 
 module OpenTox
 
-  attr_accessor :subjectid, :uri #, :service_uri
-  #attr_writer :metadata
+  attr_accessor :subjectid, :uri 
+  attr_writer :metadata
 
   # Initialize OpenTox object with optional subjectid
   # @param [optional, String] subjectid
@@ -21,14 +21,26 @@ module OpenTox
     @subjectid = subjectid
   end
 
-  def metadata
-    metadata = {}
-    RDF::Reader.open(@uri) do |reader|
-      reader.each_statement do |statement|
-        metadata[statement.predicate] = statement.object if statement.subject == @uri
+  # Ruby interface
+
+  def metadata reload=true
+    if reload
+      @metadata = {}
+      RDF::Reader.open(@uri) do |reader|
+        reader.each_statement do |statement|
+          @metadata[statement.predicate] = statement.object if statement.subject == @uri
+        end
       end
     end
-    metadata
+    @metadata
+  end
+
+  def save
+    rdf = RDF::Writer.buffer do |writer|
+      @metadata.each { |p,o| writer << RDF::Statement.new(RDF::URI.new(@uri), p, o) }
+    end
+    puts rdf
+    #post(@uri, rdf, { :content_type => 'application/rdf+xml', :subjectid => subjectid}).to_s.chomp, @subjectid 
   end
 
   # REST API
@@ -74,17 +86,31 @@ module OpenTox
     RestClientWrapper.delete(@uri.to_s,:subjectid => @subjectid)
   end
 
+
+  module Service
+    def create service_uri, subjectid=nil
+      service = eval("#{self}.new(\"#{service_uri}\", #{subjectid})")
+      uri = service.post({}, {}, subjectid).to_s
+      eval "#{self}.new(\"#{uri}\", #{subjectid})"
+    end
+  end
+
   # create default classes
-  SERVICES.each { |s| eval "class #{s}; include OpenTox; end" }
+  SERVICES.each do |s|
+    eval "class #{s}
+      include OpenTox
+      extend OpenTox::Service
+    end"
+  end
 
 =begin
-  # Tools
+  private
 
   def uri_available?
     url = URI.parse(@uri)
-    req = Net::HTTP.new(url.host,url.port)
-    req['subjectid'] = @subjectid if @subjectid
-    req.start(url.host, url.port) do |http|
+    #req = Net::HTTP.new(url.host,url.port)
+    #req['subjectid'] = @subjectid if @subjectid
+    Net::HTTP.start(url.host, url.port) do |http|
       return http.head("#{url.request_uri}#{subjectidstr}").code == "200"
     end
   end
@@ -92,10 +118,6 @@ module OpenTox
   module Collection
 
     include OpenTox
-
-    def find 
-      uri_available? ? object_class.new(@uri, @subjectid) : nil
-    end
 
     def create metadata
       object_class.new post(service_uri, metadata.to_rdfxml, { :content_type => 'application/rdf+xml', :subjectid => subjectid}).to_s.chomp, @subject_id 
@@ -105,14 +127,6 @@ module OpenTox
     # @return [Array] List of available Objects
     def all
       get(:accept => "text/uri-list").to_s.split(/\n/).collect{|uri| object_class.new uri,@subjectid}
-    end
-
-    def save object
-      object_class.new post(object.to_rdfxml, :content_type => 'application/rdf+xml').to_s, @subjectid
-    end
-
-    def object_class
-      eval self.class.to_s.sub(/::Collection/,'')
     end
 
     # create collection classes
