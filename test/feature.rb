@@ -1,8 +1,6 @@
-$LOAD_PATH << File.expand_path( File.dirname(__FILE__) + '/../lib' )
-require 'rubygems'
-require 'opentox-ruby-minimal'
 require 'test/unit'
-#require 'validate-owl'
+$LOAD_PATH << File.join(File.dirname(__FILE__),'..','lib')
+require File.join File.dirname(__FILE__),'..','lib','opentox-client.rb'
 
 class FeatureTest < Test::Unit::TestCase
 
@@ -18,7 +16,7 @@ class FeatureTest < Test::Unit::TestCase
   def test_feature
     @features.each do |uri|
       f = OpenTox::Feature.new(uri)
-      assert_equal RDF::OT.Feature, f.metadata[RDF.type]
+      assert_equal RDF::OT1.Feature, f.metadata[RDF.type]
     end
   end
 

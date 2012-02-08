@@ -4,9 +4,9 @@ module OpenTox
   # TODO: fix API Doc
   class Dataset 
 
-    include OpenTox
+    #include OpenTox
 
-    attr_reader :features, :compounds, :data_entries, :metadata
+    #attr_reader :features, :compounds, :data_entries, :metadata
 
     # Create dataset with optional URI. Does not load data into the dataset - you will need to execute one of the load_* methods to pull data from a service or to insert it from other representations.
     # @example Create an empty dataset
@@ -22,78 +22,19 @@ module OpenTox
       @data_entries = {}
     end
 
-    # Create an empty dataset and save it at the dataset service (assigns URI to dataset)
-    # @example Create new dataset and save it to obtain a URI 
-    #   dataset = OpenTox::Dataset.create
-    # @param [optional, String] uri Dataset URI
-    # @return [OpenTox::Dataset] Dataset object
-    def self.create(uri=CONFIG[:services]["opentox-dataset"], subjectid=nil)
-      dataset = Dataset.new(nil,subjectid)
-      dataset.save
-      dataset
-    end
-    
-    # Find a dataset and load all data. This can be time consuming, use Dataset.new together with one of the load_* methods for a fine grained control over data loading.
-    # @param [String] uri Dataset URI
-    # @return [OpenTox::Dataset] Dataset object with all data
-    def self.find(uri, subjectid=nil)
-      return nil unless uri
-      dataset = Dataset.new(uri, subjectid)
-      dataset.load_metadata
-      dataset
-    end
-
-    # Create dataset from CSV file (format specification: http://toxcreate.org/help)
-    # - loads data_entries, compounds, features
-    # - sets metadata (warnings) for parser errors
-    # - you will have to set remaining metadata manually
-    # @param [String] file CSV file path
-    # @return [OpenTox::Dataset] Dataset object with CSV data
-    def self.create_from_csv_file(file, subjectid=nil) 
-      dataset = Dataset.create(CONFIG[:services]["opentox-dataset"], subjectid)
-      #RestClientWrapper.post(dataset.uri,File.read(file), {:content_type => "text/csv", :subjectid => @subjectid}) 
-      RestClientWrapper.post(dataset.uri,{:file => File.new(file)},{:accept => "text/uri-list", :subjectid => subjectid})#, {:content_type => "text/csv", :subjectid => @subjectid}) 
-      dataset.load_metadata
-      dataset
-    end
-    
-    # replaces find as exist check, takes not as long, does NOT raise an un-authorized exception
-    # @param [String] uri Dataset URI
-    # @return [Boolean] true if dataset exists and user has get rights, false else 
-    def self.exist?(uri, subjectid=nil)
-      return false unless uri
-      dataset = Dataset.new(uri, subjectid)
-      begin
-        dataset.load_metadata.size > 0
-      rescue
-        false
-      end
-    end
-
-    # Get all datasets from a service
-    # @param [optional,String] uri URI of the dataset service, defaults to service specified in configuration
-    # @return [Array] Array of dataset object without data (use one of the load_* methods to pull data from the server)
-    def self.all(uri=CONFIG[:services]["opentox-dataset"], subjectid=nil)
-      RestClientWrapper.get(uri,{:accept => "text/uri-list",:subjectid => subjectid}).to_s.each_line.collect{|u| Dataset.new(u.chomp, subjectid)}
-    end
-
+=begin
     # Load YAML representation into the dataset
     # @param [String] yaml YAML representation of the dataset
     # @return [OpenTox::Dataset] Dataset object with YAML data
-    def store_yaml(yaml)
-      RestClientWrapper.post(@uri,yaml, {:content_type => "application/x-yaml", :subjectid => @subjectid}) 
-    end
-
-    def store_rdfxml(rdfxml)
-      RestClientWrapper.post(@uri, rdfxml, {:content_type => "application/rdf+xml", :subjectid => @subjectid}) 
+    def self.from_yaml service_uri, yaml, subjectid=nil
+      Dataset.create(service_uri, subjectid).post yaml, :content_type => "application/x-yaml"
     end
 
     # Load RDF/XML representation from a file
     # @param [String] file File with RDF/XML representation of the dataset
     # @return [OpenTox::Dataset] Dataset object with RDF/XML data
-    def store_rdfxml_file(file)
-      #RestClientWrapper.post(@uri, :file => File.new(file))#, {:content_type => "application/rdf+xml", :subjectid => @subjectid}) 
-      RestClientWrapper.post(@uri, File.read(file), {:content_type => "application/rdf+xml", :subjectid => @subjectid}) 
+    def self.from_rdfxml service_uri, rdfxml, subjectid=nil
+      Dataset.create(service_uri, subjectid).post rdfxml, :content_type => "application/rdf+xml"
     end
 
     # Load CSV string (format specification: http://toxcreate.org/help)
@@ -102,8 +43,8 @@ module OpenTox
     # - you will have to set remaining metadata manually
     # @param [String] csv CSV representation of the dataset
     # @return [OpenTox::Dataset] Dataset object with CSV data
-    def store_csv(csv) 
-      RestClientWrapper.post(@uri, csv, {:content_type => "text/csv", :subjectid => @subjectid}) 
+    def self.from_csv service_uri, csv, subjectid=nil
+      Dataset.from_file(service_uri, csv, subjectid)
     end
 
     # Load Spreadsheet book (created with roo gem http://roo.rubyforge.org/, excel format specification: http://toxcreate.org/help)
@@ -112,53 +53,101 @@ module OpenTox
     # - you will have to set remaining metadata manually
     # @param [Excel] book Excel workbook object (created with roo gem)
     # @return [OpenTox::Dataset] Dataset object with Excel data
-    def store_spreadsheet_file(file)
-      RestClientWrapper.post(@uri, :file => File.new(file))#, {:content_type => "application/vnd.ms-excel", :subjectid => @subjectid}) 
+    def self.from_xls service_uri, xls, subjectid=nil
+      Dataset.create(service_uri, subjectid).post xls, :content_type => "application/vnd.ms-excel"
     end
     
-    # Load and return only metadata of a Dataset object
-    # @return [Hash] Metadata of the dataset
-    def load_metadata
-      if (CONFIG[:yaml_hosts].include?(URI.parse(@uri).host))
-        @metadata = YAML.load(RestClientWrapper.get(File.join(@uri,"metadata"), {:accept => "application/x-yaml", :subjectid => @subjectid}))
-      else
-        add_metadata Parser::Owl::Dataset.new(@uri, @subjectid).load_metadata
-      end
-      self.uri = @uri if @uri # keep uri
-      @metadata
+    def self.from_sdf service_uri, sdf, subjectid=nil
+      Dataset.create(service_uri, subjectid).post sdf, :content_type => 'chemical/x-mdl-sdfile'
     end
+=end
 
     # Load all data (metadata, data_entries, compounds and features) from URI
-    def load_all
-      if (CONFIG[:yaml_hosts].include?(URI.parse(@uri).host))
-        copy YAML.load(RestClientWrapper.get(@uri, {:accept => "application/x-yaml", :subjectid => @subjectid}))
-      else
-        parser = Parser::Owl::Dataset.new(@uri, @subjectid)
-        copy parser.load_uri
+    # TODO: move to opentox-server
+    def data_entries reload=true
+      if reload
+        file = Tempfile.new("ot-rdfxml")
+        file.puts get :accept => "application/rdf+xml"
+        file.close
+        to_delete = file.path
+            
+        data = {}
+        feature_values = {}
+        feature = {}
+        feature_accept_values = {}
+        other_statements = {}
+        `rapper -i rdfxml -o ntriples #{file.path} 2>/dev/null`.each_line do |line|
+          triple = line.chomp.split(' ',3)
+          triple = triple[0..2].collect{|i| i.sub(/\s+.$/,'').gsub(/[<>"]/,'')}
+          case triple[1] 
+          when /#{RDF::OT.values}|#{RDF::OT1.values}/i
+            data[triple[0]] = {:compound => "", :values => []} unless data[triple[0]]
+            data[triple[0]][:values] << triple[2]  
+          when /#{RDF::OT.value}|#{RDF::OT1.value}/i
+            feature_values[triple[0]] = triple[2] 
+          when /#{RDF::OT.compound}|#{RDF::OT1.compound}/i
+            data[triple[0]] = {:compound => "", :values => []} unless data[triple[0]]
+            data[triple[0]][:compound] = triple[2]
+          when /#{RDF::OT.feature}|#{RDF::OT1.feature}/i
+            feature[triple[0]] = triple[2]
+          when /#{RDF.type}/i
+            if triple[2]=~/#{RDF::OT.Compound}|#{RDF::OT1.Compound}/i and !data[triple[0]]
+              data[triple[0]] = {:compound => triple[0], :values => []} 
+            end
+          when /#{RDF::OT.acceptValue}|#{RDF::OT1.acceptValue}/i # acceptValue in ambit datasets is only provided in dataset/<id> no in dataset/<id>/features  
+            feature_accept_values[triple[0]] = [] unless feature_accept_values[triple[0]]
+            feature_accept_values[triple[0]] << triple[2]
+          else 
+          end
+        end
+        File.delete(to_delete) if to_delete
+        data.each do |id,entry|
+          if entry[:values].size==0
+            # no feature values add plain compounds
+            @compounds << entry[:compound] unless @compounds.include? entry[:compound]
+          else
+            entry[:values].each do |value_id|
+              if feature_values[value_id]
+                split = feature_values[value_id].split(/\^\^/)
+                case split[-1]
+                when RDF::XSD.double, RDF::XSD.float 
+                  value = split.first.to_f
+                when RDF::XSD.boolean
+                  value = split.first=~/(?i)true/ ? true : false                
+                else
+                  value = split.first
+                end
+              end
+              @compounds << entry[:compound] unless @compounds.include? entry[:compound]
+              @features[feature[value_id][value_id]] = {}  unless @features[feature[value_id]]
+              @data_entries[entry[:compound].to_s] = {} unless @data_entries[entry[:compound].to_s]
+              @data_entries[entry[:compound].to_s][feature[value_id]] = [] unless @data_entries[entry[:compound]][feature[value_id]]
+              @data_entries[entry[:compound].to_s][feature[value_id]] << value if value!=nil
+            end
+          end
+        end
+        features subjectid
+        #feature_accept_values.each do |feature, values|
+          #self.features[feature][OT.acceptValue] = values
+        #end
+        self.metadata = metadata(subjectid)
       end
+      @data_entries
     end
 
     # Load and return only compound URIs from the dataset service
     # @return [Array]  Compound URIs in the dataset
-    def load_compounds
-      RestClientWrapper.get(File.join(uri,"compounds"),{:accept=> "text/uri-list", :subjectid => @subjectid}).to_s.each_line do |compound_uri|
-        @compounds << compound_uri.chomp
-      end
-      @compounds.uniq!
+    def compounds reload=true
+      reload ? @compounds = Compound.all(File.join(@uri,"compounds")) : @compounds
     end
 
     # Load and return only features from the dataset service
     # @return [Hash]  Features of the dataset
-    def load_features
-      if (CONFIG[:yaml_hosts].include?(URI.parse(@uri).host))
-        @features = YAML.load(RestClientWrapper.get(File.join(@uri,"features"), {:accept => "application/x-yaml", :subjectid => @subjectid}))
-      else
-        parser = Parser::Owl::Dataset.new(@uri, @subjectid)
-        @features = parser.load_features
-      end
-      @features
+    def features reload=true
+      reload ? @features = Feature.all(File.join(@uri,"features")) : @features
     end
 
+=begin
     # returns the accept_values of a feature, i.e. the classification domain / all possible feature values 
     # @param [String] feature the URI of the feature
     # @return [Array] return array with strings, nil if value is not set (e.g. when feature is numeric)
@@ -182,48 +171,46 @@ module OpenTox
         "unknown"
       end
     end
-
-    # Get Spreadsheet representation
-    # @return [Spreadsheet::Workbook] Workbook which can be written with the spreadsheet gem (data_entries only, metadata will will be discarded))
-    def to_spreadsheet
-      Spreadsheet::Workbook.new(RestClientWrapper.get(@uri, {:accept => "application/vnd.ms-excel", :subjectid => @subjectid}))
-    end
+=end
 
     # Get Excel representation (alias for to_spreadsheet)
     # @return [Spreadsheet::Workbook] Workbook which can be written with the spreadsheet gem (data_entries only, metadata will will be discarded))
     def to_xls
-      to_spreadsheet
+      get :accept => "application/vnd.ms-excel"
     end
 
     # Get CSV string representation (data_entries only, metadata will be discarded)
     # @return [String] CSV representation
     def to_csv
-      RestClientWrapper.get(@uri, {:accept => "text/csv", :subjectid => @subjectid})
+      get :accept => "text/csv"
     end
+
+    def to_sdf
+      get :accept => 'chemical/x-mdl-sdfile'
+    end
+
 
     # Get OWL-DL in ntriples format
     # @return [String] N-Triples representation
     def to_ntriples
-      RestClientWrapper.get(@uri, {:accept => "application/rdf+xml", :subjectid => @subjectid})
+      get :accept => "application/rdf+xml"
     end
 
     # Get OWL-DL in RDF/XML format
     # @return [String] RDF/XML representation
     def to_rdfxml
-      RestClientWrapper.get(@uri, {:accept => "application/rdf+xml", :subjectid => @subjectid})
+      get :accept => "application/rdf+xml"
     end
 
     # Get name (DC.title) of a feature
     # @param [String] feature Feature URI
     # @return [String] Feture title
     def feature_name(feature)
-      load_features
-      @features[feature][DC.title]
+      features[feature][DC.title]
     end
 
     def title
-      load_metadata
-      @metadata[DC.title]
+      metadata[DC.title]
     end
 
     # Insert a statement (compound_uri,feature_uri,value)
@@ -314,11 +301,6 @@ module OpenTox
       @uri
     end
 
-    # Delete dataset at the dataset service
-    def delete
-      RestClientWrapper.delete(@uri, :subjectid => @subjectid)
-    end
-
     private
     # Copy a dataset (rewrites URI)
     def copy(dataset)
@@ -332,40 +314,5 @@ module OpenTox
         @uri = dataset.metadata[XSD.anyURI]
       end
     end
-  end
-
-  # Class with special methods for lazar prediction datasets
-  class LazarPrediction < Dataset
-
-    # Find a prediction dataset and load all data. 
-    # @param [String] uri Prediction dataset URI
-    # @return [OpenTox::Dataset] Prediction dataset object with all data
-    def self.find(uri, subjectid=nil)
-      prediction = LazarPrediction.new(uri, subjectid)
-      prediction.load_all
-      prediction
-    end
-
-    def value(compound)
-      @data_entries[compound.uri].collect{|f,v| v.first if f.match(/value/)}.compact.first
-    end
-
-    def confidence(compound)
-      @data_entries[compound.uri].collect{|f,v| v.first if f.match(/confidence/)}.compact.first
-    end
-
-    def descriptors(compound)
-      @data_entries[compound.uri].collect{|f,v| @features[f] if f.match(/descriptor/)}.compact if @data_entries[compound.uri]
-    end
-
-    def measured_activities(compound)
-      source = @metadata[OT.hasSource]
-      @data_entries[compound.uri].collect{|f,v| v if f.match(/#{source}/)}.compact.flatten
-    end
-
-    def neighbors(compound)
-      @data_entries[compound.uri].collect{|f,v| @features[f] if f.match(/neighbor/)}.compact
-    end
-
   end
 end

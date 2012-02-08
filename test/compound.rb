@@ -1,7 +1,6 @@
-$LOAD_PATH << File.expand_path( File.dirname(__FILE__) + '/../lib' )
-require 'rubygems'
-require 'opentox-ruby-minimal.rb'
 require 'test/unit'
+$LOAD_PATH << File.join(File.dirname(__FILE__),'..','lib')
+require File.join File.dirname(__FILE__),'..','lib','opentox-client.rb'
 
 class CompoundTest < Test::Unit::TestCase
 

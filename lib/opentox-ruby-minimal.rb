@@ -1,2 +1,0 @@
-require "opentox"
-require "compound"

@@ -1,23 +1,100 @@
-require 'rdf'
-require 'rdf/raptor'
-#require "parser.rb"
-require "rest_client_wrapper.rb"
-require "overwrite.rb"
-require "error.rb"
-
-RDF::OT =  RDF::Vocabulary.new 'http://www.opentox.org/api/1.1#'
+#TODO: switch services to 1.2
+#TODO: error handling
+RDF::OT =  RDF::Vocabulary.new 'http://www.opentox.org/api/1.2#'
+RDF::OT1 =  RDF::Vocabulary.new 'http://www.opentox.org/api/1.1#'
 RDF::OTA =  RDF::Vocabulary.new 'http://www.opentox.org/algorithmTypes.owl#'
 SERVICES = ["Compound", "Feature", "Dataset", "Algorithm", "Model", "Validation", "Task"]
 
+# not working
+RestClient.add_before_execution_proc do |req, params|
+  params[:subjectid] = @subjectid
+end
+
+class String
+    def to_object
+      # TODO: fix, this is unsafe
+      self =~ /dataset/ ? uri = File.join(self.chomp,"metadata") : uri = self.chomp
+      raise "#{uri} is not a valid URI." unless RDF::URI.new(uri).uri? 
+      RDF::Reader.open(uri) do |reader|
+        reader.each_statement do |statement|
+          if statement.predicate == RDF.type and statement.subject == uri
+            klass = "OpenTox::#{statement.object.to_s.split("#").last}"
+            object = eval "#{klass}.new \"#{uri}\""
+          end
+        end
+      end
+      # fallback: guess class from uri
+      # TODO: fix services and remove
+      unless object
+        case uri
+        when /compound/
+          object = OpenTox::Compound.new uri
+        when /feature/
+          object = OpenTox::Feature.new uri
+        when /dataset/
+          object = OpenTox::Dataset.new uri.sub(/\/metadata/,'')
+        when /algorithm/
+          object = OpenTox::Algorithm.new uri
+        when /model/
+          object = OpenTox::Model.new uri
+        when /validation/
+          object = OpenTox::Validation.new uri
+        when /task/
+          object = OpenTox::Task.new uri
+        else
+          raise "Class for #{uri} not found."
+        end
+      end
+      if object.class == Task # wait for tasks
+        object.wait_for_completion
+        object = object.result_uri.to_s.to_object
+      end
+      object
+    end
+
+=begin
+  def object_from_uri 
+    # TODO: fix, this is unsafe
+    self =~ /dataset/ ? uri = File.join(self.chomp,"metadata") : uri = self.chomp
+    RDF::Reader.open(uri) do |reader|
+      reader.each_statement do |statement|
+        if statement.predicate == RDF.type and statement.subject == uri
+          klass = "OpenTox::#{statement.object.to_s.split("#").last}"
+          return eval "#{klass}.new \"#{uri}\""
+        end
+      end
+    end
+    # guess class from uri
+    # TODO: fix services and remove
+    case uri
+    when /compound/
+      return OpenTox::Compound.new uri
+    when /feature/
+      return OpenTox::Feature.new uri
+    when /dataset/
+      return OpenTox::Dataset.new uri.sub(/\/metadata/,'')
+    when /algorithm/
+      return OpenTox::Algorithm.new uri
+    when /model/
+      return OpenTox::Model.new uri
+    when /validation/
+      return OpenTox::Validation.new uri
+    when /task/
+      return OpenTox::Task.new uri
+    else
+      raise "Class for #{uri} not found."
+    end
+  end
+=end
+end
+
 module OpenTox
 
-  attr_accessor :subjectid, :uri 
+  attr_accessor :subjectid, :uri, :response
   attr_writer :metadata
 
-  # Initialize OpenTox object with optional subjectid
-  # @param [optional, String] subjectid
   def initialize uri=nil, subjectid=nil
-    @uri = uri
+    @uri = uri.chomp
     @subjectid = subjectid
   end
 
@@ -36,104 +113,73 @@ module OpenTox
   end
 
   def save
-    rdf = RDF::Writer.buffer do |writer|
+    rdf = RDF::Writer.for(:rdfxml).buffer do |writer|
       @metadata.each { |p,o| writer << RDF::Statement.new(RDF::URI.new(@uri), p, o) }
     end
-    puts rdf
-    #post(@uri, rdf, { :content_type => 'application/rdf+xml', :subjectid => subjectid}).to_s.chomp, @subjectid 
+    post rdf, { :content_type => 'application/rdf+xml'}
   end
 
   # REST API
-  # returns OpenTox::WrapperResult, not OpenTox objects
-
-  # perfoms a GET REST call
-  # raises OpenTox::Error if call fails (rescued in overwrite.rb -> halt 502)
-  # per default: waits for Task to finish and returns result URI of Task
-  # @param [optional,Hash] headers contains params like accept-header
-  # @param [wait,Boolean] wait set to false to NOT wait for task if result is task
-  # @return [OpenTox::WrapperResult] a String containing the result-body of the REST call
-  def get headers={}, wait=true 
-    headers[:subjectid] = @subjectid
-    RestClientWrapper.get(@uri.to_s, headers, nil, wait).chomp
+  def get params={}
+    params[:subjectid] ||= @subjectid
+    params[:accept] ||= 'application/rdf+xml'
+    @response = RestClient.get @uri, params
   end
 
-  # performs a POST REST call
-  # raises OpenTox::Error if call fails (rescued in overwrite.rb -> halt 502)
-  # per default: waits for Task to finish and returns result URI of Task
-  # @param [optional,String] payload data posted to the service
-  # @param [optional,Hash] headers contains params like accept-header
-  # @param [wait,Boolean] wait set to false to NOT wait for task if result is task
-  # @return [OpenTox::WrapperResult] a String containing the result-body of the REST call
-  def post payload={}, headers={}, wait=true 
-    headers[:subjectid] = @subjectid
-    RestClientWrapper.post(@uri.to_s, payload, headers, nil, wait).chomp
-  end
-
-  # performs a PUT REST call
-  # raises OpenTox::Error if call fails (rescued in overwrite.rb -> halt 502)
-  # @param [optional,String] payload data put to the service
-  # @param [optional,Hash] headers contains params like accept-header
-  # @return [OpenTox::WrapperResult] a String containing the result-body of the REST call
-  def put payload={}, headers={} 
-    headers[:subjectid] = @subjectid
-    RestClientWrapper.put(@uri.to_s, payload, headers).chomp
-  end
-
-  # performs a DELETE REST call
-  # raises OpenTox::Error if call fails (rescued in overwrite.rb -> halt 502)
-  # @return [OpenTox::WrapperResult] a String containing the result-body of the REST call
-  def delete 
-    RestClientWrapper.delete(@uri.to_s,:subjectid => @subjectid)
-  end
-
-
-  module Service
-    def create service_uri, subjectid=nil
-      service = eval("#{self}.new(\"#{service_uri}\", #{subjectid})")
-      uri = service.post({}, {}, subjectid).to_s
-      eval "#{self}.new(\"#{uri}\", #{subjectid})"
+  def post payload={}, params={}
+    params[:subjectid] ||= @subjectid
+    params[:accept] ||= 'application/rdf+xml'
+    @response = RestClient.post(@uri.to_s, payload, params)
+    begin
+      @response.to_s.to_object
+    rescue
+      @response
     end
+  end
+
+  def put payload={}, params={} 
+    params[:subjectid] ||= @subjectid
+    params[:accept] ||= 'application/rdf+xml'
+    @response = RestClient.put(@uri.to_s, payload, params)
+  end
+
+  def delete params={}
+    params[:subjectid] ||= @subjectid
+    params[:accept] ||= 'application/rdf+xml'
+    @response = RestClient.delete(@uri.to_s,:subjectid => @subjectid)
+  end
+
+  # class methods
+  module ClassMethods
+
+    def create service_uri, subjectid=nil
+      uri = RestClient.post(service_uri, {}, :subjectid => subjectid).chomp
+      eval("#{self}.new(\"#{uri}\", #{subjectid})")
+    end
+
+    def from_file service_uri, file, subjectid=nil
+      RestClient.post(service_uri, :file => File.new(file), :subjectid => subjectid).chomp.to_object
+    end
+
+    def all service_uri, subjectid=nil
+      uris = RestClient.get(service_uri, {:accept => 'text/uri-list'}).split("\n").compact
+      uris.collect{|uri| eval "#{self}.new(\"#{uri}\", #{subjectid})"}
+    end
+
+  end
+
+  class FromUri
   end
 
   # create default classes
   SERVICES.each do |s|
     eval "class #{s}
       include OpenTox
-      extend OpenTox::Service
+      extend OpenTox::ClassMethods
     end"
   end
 
-=begin
   private
-
-  def uri_available?
-    url = URI.parse(@uri)
-    #req = Net::HTTP.new(url.host,url.port)
-    #req['subjectid'] = @subjectid if @subjectid
-    Net::HTTP.start(url.host, url.port) do |http|
-      return http.head("#{url.request_uri}#{subjectidstr}").code == "200"
-    end
-  end
-
-  module Collection
-
-    include OpenTox
-
-    def create metadata
-      object_class.new post(service_uri, metadata.to_rdfxml, { :content_type => 'application/rdf+xml', :subjectid => subjectid}).to_s.chomp, @subject_id 
-    end
-
-    # Get all objects from a service
-    # @return [Array] List of available Objects
-    def all
-      get(:accept => "text/uri-list").to_s.split(/\n/).collect{|uri| object_class.new uri,@subjectid}
-    end
-
-    # create collection classes
-    SERVICES.each { |s| eval "class #{s}; include Collection; end" }
-
-  end
-=end
 
 end
 
