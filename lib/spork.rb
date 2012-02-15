@@ -81,4 +81,3 @@ if defined? Passenger::Rack::RequestHandler
     end
   end
 end
-

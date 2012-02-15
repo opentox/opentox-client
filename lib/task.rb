@@ -5,7 +5,7 @@ module OpenTox
   # Class for handling asynchronous tasks
   class Task
 
-    def self.create service_uri, params
+    def self.create service_uri, params={}
       task = Task.new RestClient.post(service_uri,params).chomp
       pid = Spork.spork { yield }
       task.pid = pid
@@ -45,10 +45,10 @@ module OpenTox
       when /=/
         res = RestClient.put(File.join(@uri,method.sub(/=/,'')),{})
         super unless res.code == 200
-      when /?/
+      when /\?/
         return metadata[RDF::OT.hasStatus] == method.sub(/\?/,'').capitalize
       else
-        return metadata[RDF::OT[method]]
+        return metadata[RDF::OT[method]].to_s
       end
     rescue
       super

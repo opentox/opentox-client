@@ -6,9 +6,7 @@ class RestTest < Test::Unit::TestCase
 
   def test_post_get_delete
     uri = "http://ot-dev.in-silico.ch/dataset" 
-    dataset_service = OpenTox::Dataset.new uri
-    assert_match /#{uri}/, dataset_service.get
-    dataset = dataset_service.post 
+    dataset = OpenTox::Dataset.create uri
     assert_match /#{uri}/, dataset.uri.to_s
     metadata =  dataset.metadata
     assert_equal RDF::OT.Dataset, metadata[RDF.type]
