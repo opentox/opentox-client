@@ -1,7 +1,8 @@
+require 'rubygems'
 require 'rdf'
 require 'rdf/raptor'
 require "rest-client"
-require "opentox"
-require "task"
-require "compound"
-require "dataset"
+require File.join(File.dirname(__FILE__),"opentox.rb")
+require File.join(File.dirname(__FILE__),"task.rb")
+require File.join(File.dirname(__FILE__),"compound.rb")
+require File.join(File.dirname(__FILE__),"dataset.rb")

@@ -154,7 +154,7 @@ module OpenTox
 
     def create service_uri, subjectid=nil
       uri = RestClient.post(service_uri, {}, :subjectid => subjectid).chomp
-      eval("#{self}.new(\"#{uri}\", #{subjectid})")
+      subjectid ? eval("#{self}.new(\"#{uri}\", #{subjectid})") : eval("#{self}.new(\"#{uri}\")")
     end
 
     def from_file service_uri, file, subjectid=nil
@@ -163,7 +163,7 @@ module OpenTox
 
     def all service_uri, subjectid=nil
       uris = RestClient.get(service_uri, {:accept => 'text/uri-list'}).split("\n").compact
-      uris.collect{|uri| eval "#{self}.new(\"#{uri}\", #{subjectid})"}
+      uris.collect{|uri| subjectid ? eval("#{self}.new(\"#{uri}\", #{subjectid})") : eval("#{self}.new(\"#{uri}\")")}
     end
 
   end
