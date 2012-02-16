@@ -1,7 +1,6 @@
-require 'rubygems'
-require 'rake'
+require "bundler/gem_tasks"
 
-begin
+=begin
   require 'jeweler'
   Jeweler::Tasks.new do |gem|
     gem.name = "opentox-client"
@@ -20,7 +19,7 @@ begin
   Jeweler::GemcutterTasks.new
 rescue LoadError
   puts "Jeweler (or a dependency) not available. Install it with: sudo gem install jeweler"
-end
+=end
 
 require 'rake/testtask'
 Rake::TestTask.new do |t|
