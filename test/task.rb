@@ -2,7 +2,7 @@ require 'test/unit'
 $LOAD_PATH << File.join(File.dirname(__FILE__),'..','lib')
 require File.join File.dirname(__FILE__),'..','lib','opentox-client.rb'
 #require "./validate-owl.rb"
-#
+
 TASK_SERVICE_URI = "http://ot-dev.in-silico.ch/task"
 
 class TaskTest < Test::Unit::TestCase
@@ -14,9 +14,12 @@ class TaskTest < Test::Unit::TestCase
   end
 
   def test_create_and_complete
-    task = OpenTox::Task.create TASK_SERVICE_URI
+    task = OpenTox::Task.create TASK_SERVICE_URI do
+      sleep 1
+      "http://test.org"
+    end
     assert_equal "Running", task.hasStatus
-    task.completed "http://test.org"
+    task.wait_for_completion
     assert_equal "Completed", task.hasStatus
     assert_equal "http://test.org", task.resultURI
   end
@@ -26,9 +29,6 @@ class TaskTest < Test::Unit::TestCase
     task = OpenTox::Task.all(TASK_SERVICE_URI).last
     assert_equal OpenTox::Task, task.class
     #validate_owl(task.uri)
-    #puts task.uri
   end
-=begin
-=end
 
 end

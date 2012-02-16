@@ -1,4 +1,6 @@
+require "opentox-client/version"
 require 'rubygems'
+require "bundler/setup"
 require 'rdf'
 require 'rdf/raptor'
 require "rest-client"

@@ -7,7 +7,13 @@ module OpenTox
 
     def self.create service_uri, params={}
       task = Task.new RestClient.post(service_uri,params).chomp
-      pid = Spork.spork { yield }
+      pid = Spork.spork do
+        begin
+          task.completed yield 
+        rescue => error
+          task.error error
+        end
+      end
       task.pid = pid
       task
     end
@@ -33,6 +39,7 @@ module OpenTox
     def wait_for_completion(dur=0.3)
       due_to_time = Time.new + DEFAULT_TASK_MAX_DURATION
       while self.running?
+        sleep dur
         raise "max wait time exceeded ("+DEFAULT_TASK_MAX_DURATION.to_s+"sec), task: '"+@uri.to_s+"'" if (Time.new > due_to_time)
       end
     end
@@ -46,7 +53,7 @@ module OpenTox
         res = RestClient.put(File.join(@uri,method.sub(/=/,'')),{})
         super unless res.code == 200
       when /\?/
-        return metadata[RDF::OT.hasStatus] == method.sub(/\?/,'').capitalize
+        return hasStatus == method.sub(/\?/,'').capitalize
       else
         return metadata[RDF::OT[method]].to_s
       end
