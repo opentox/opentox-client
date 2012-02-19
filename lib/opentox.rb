@@ -1,5 +1,4 @@
 #TODO: switch services to 1.2
-#TODO: error handling
 RDF::OT =  RDF::Vocabulary.new 'http://www.opentox.org/api/1.2#'
 RDF::OT1 =  RDF::Vocabulary.new 'http://www.opentox.org/api/1.1#'
 RDF::OTA =  RDF::Vocabulary.new 'http://www.opentox.org/algorithmTypes.owl#'
@@ -11,82 +10,61 @@ RestClient.add_before_execution_proc do |req, params|
 end
 
 class String
-    def to_object
-      # TODO: fix, this is unsafe
-      self =~ /dataset/ ? uri = File.join(self.chomp,"metadata") : uri = self.chomp
-      raise "#{uri} is not a valid URI." unless RDF::URI.new(uri).uri? 
-      RDF::Reader.open(uri) do |reader|
-        reader.each_statement do |statement|
-          if statement.predicate == RDF.type and statement.subject == uri
-            klass = "OpenTox::#{statement.object.to_s.split("#").last}"
-            object = eval "#{klass}.new \"#{uri}\""
-          end
-        end
-      end
-      # fallback: guess class from uri
-      # TODO: fix services and remove
-      unless object
-        case uri
-        when /compound/
-          object = OpenTox::Compound.new uri
-        when /feature/
-          object = OpenTox::Feature.new uri
-        when /dataset/
-          object = OpenTox::Dataset.new uri.sub(/\/metadata/,'')
-        when /algorithm/
-          object = OpenTox::Algorithm.new uri
-        when /model/
-          object = OpenTox::Model.new uri
-        when /validation/
-          object = OpenTox::Validation.new uri
-        when /task/
-          object = OpenTox::Task.new uri
-        else
-          raise "Class for #{uri} not found."
-        end
-      end
-      if object.class == Task # wait for tasks
-        object.wait_for_completion
-        object = object.result_uri.to_s.to_object
-      end
-      object
-    end
-
-=begin
-  def object_from_uri 
+  def to_object
     # TODO: fix, this is unsafe
     self =~ /dataset/ ? uri = File.join(self.chomp,"metadata") : uri = self.chomp
+    raise "#{uri} is not a valid URI." unless RDF::URI.new(uri).uri? 
     RDF::Reader.open(uri) do |reader|
       reader.each_statement do |statement|
         if statement.predicate == RDF.type and statement.subject == uri
           klass = "OpenTox::#{statement.object.to_s.split("#").last}"
-          return eval "#{klass}.new \"#{uri}\""
+          object = eval "#{klass}.new \"#{uri}\""
         end
       end
     end
-    # guess class from uri
+    # fallback: guess class from uri
     # TODO: fix services and remove
-    case uri
-    when /compound/
-      return OpenTox::Compound.new uri
-    when /feature/
-      return OpenTox::Feature.new uri
-    when /dataset/
-      return OpenTox::Dataset.new uri.sub(/\/metadata/,'')
-    when /algorithm/
-      return OpenTox::Algorithm.new uri
-    when /model/
-      return OpenTox::Model.new uri
-    when /validation/
-      return OpenTox::Validation.new uri
-    when /task/
-      return OpenTox::Task.new uri
-    else
-      raise "Class for #{uri} not found."
+    unless object
+      case uri
+      when /compound/
+        object = OpenTox::Compound.new uri
+      when /feature/
+        object = OpenTox::Feature.new uri
+      when /dataset/
+        object = OpenTox::Dataset.new uri.sub(/\/metadata/,'')
+      when /algorithm/
+        object = OpenTox::Algorithm.new uri
+      when /model/
+        object = OpenTox::Model.new uri
+      when /validation/
+        object = OpenTox::Validation.new uri
+      when /task/
+        object = OpenTox::Task.new uri
+      else
+        raise "Class for #{uri} not found."
+      end
+    end
+    if object.class == Task # wait for tasks
+      object.wait_for_completion
+      object = object.result_uri.to_s.to_object
+    end
+    object
+  end
+
+  def uri?
+    begin
+      Net::HTTP.get_response(URI.parse(self))
+      true
+    rescue
+      false
     end
   end
-=end
 end
+
+
+# defaults to stderr, may be changed to file output
+$logger = OTLogger.new(STDERR) # no rotation
+$logger.level = Logger::DEBUG
 
 module OpenTox
 
@@ -103,10 +81,15 @@ module OpenTox
   def metadata reload=true
     if reload
       @metadata = {}
-      RDF::Reader.open(@uri) do |reader|
-        reader.each_statement do |statement|
-          @metadata[statement.predicate] = statement.object if statement.subject == @uri
+      begin
+        RDF::Reader.open(@uri) do |reader|
+          reader.each_statement do |statement|
+            @metadata[statement.predicate] = statement.object if statement.subject == @uri
+          end
         end
+      rescue
+        $logger.error "Cannot read RDF metadata from #{@uri}: #{$!}.\n#{$!.backtrace.join("\n")}"
+        raise
       end
     end
     @metadata

@@ -1,4 +1,3 @@
-
 # adding additional fields to Exception class to format errors according to OT-API
 class Exception
   attr_accessor :errorCause
@@ -50,7 +49,7 @@ module OpenTox
     # @param [String] actor, URI of the call that cause the error
     def self.create( error, actor )
       rest_params = error.rest_params if error.is_a?(OpenTox::RestCallError) and error.rest_params
-      backtrace = error.backtrace.short_backtrace if CONFIG[:backtrace]
+      backtrace = error.backtrace.short_backtrace #if CONFIG[:backtrace]
       ErrorReport.new( error.http_code, error.class.to_s, error.message, actor, error.errorCause, rest_params, backtrace )
     end
     

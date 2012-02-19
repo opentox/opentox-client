@@ -41,8 +41,8 @@ module OpenTox
         xml = get_xml(uri)
         ret = false
         ret = Authorization.create_policy(xml, @subjectid)
-        LOGGER.debug "Policy send with subjectid: #{@subjectid}"
-        LOGGER.warn "Not created Policy is: #{xml}" if !ret
+        @@logger.debug "Policy send with subjectid: #{@subjectid}"
+        @@logger.warn "Not created Policy is: #{xml}" if !ret
         ret
       end
 
@@ -200,7 +200,7 @@ module OpenTox
     def self.create_policy(policy, subjectid)
       begin
         resource = RestClient::Resource.new("#{AA_SERVER}/Pol/opensso-pol")
-        LOGGER.debug "OpenTox::Authorization.create_policy policy: #{policy[168,43]} with token:" + subjectid.to_s + " length: " + subjectid.length.to_s 
+        @@logger.debug "OpenTox::Authorization.create_policy policy: #{policy[168,43]} with token:" + subjectid.to_s + " length: " + subjectid.length.to_s 
         return true if resource.post(policy, :subjectid => subjectid, :content_type =>  "application/xml")
       rescue
         return false
@@ -213,7 +213,7 @@ module OpenTox
     def self.delete_policy(policy, subjectid)
       begin
         resource = RestClient::Resource.new("#{AA_SERVER}/pol")
-        LOGGER.debug "OpenTox::Authorization.delete_policy policy: #{policy} with token: #{subjectid}"
+        @@logger.debug "OpenTox::Authorization.delete_policy policy: #{policy} with token: #{subjectid}"
         return true if resource.delete(:subjectid => subjectid, :id => policy)
       rescue
         return nil
@@ -279,7 +279,7 @@ module OpenTox
       return true if !AA_SERVER
       aa  = Authorization::AA.new(subjectid)
       ret = aa.send(uri)
-      LOGGER.debug "OpenTox::Authorization send policy for URI: #{uri} | subjectid: #{subjectid} - policy created: #{ret}"
+      @@logger.debug "OpenTox::Authorization send policy for URI: #{uri} | subjectid: #{subjectid} - policy created: #{ret}"
       ret
     end
 
@@ -291,7 +291,7 @@ module OpenTox
       if policies
         policies.each do |policy|
           ret = delete_policy(policy, subjectid)
-          LOGGER.debug "OpenTox::Authorization delete policy: #{policy} - with result: #{ret}"
+          @@logger.debug "OpenTox::Authorization delete policy: #{policy} - with result: #{ret}"
         end
       end
       return true
@@ -304,11 +304,11 @@ module OpenTox
     def self.check_policy(uri, subjectid)
       return true unless uri and subjectid
       token_valid = OpenTox::Authorization.is_token_valid(subjectid)
-      LOGGER.debug "OpenTox::Authorization.check_policy with uri: #{uri}, subjectid: #{subjectid} is valid: #{token_valid}"
+      @@logger.debug "OpenTox::Authorization.check_policy with uri: #{uri}, subjectid: #{subjectid} is valid: #{token_valid}"
       # check if subjectid is valid
       unless token_valid
         # abort if invalid
-        LOGGER.error "OpenTox::Authorization.check_policy, subjectid NOT valid: #{subjectid}"
+        @@logger.error "OpenTox::Authorization.check_policy, subjectid NOT valid: #{subjectid}"
         return false
       end
 
@@ -320,7 +320,7 @@ module OpenTox
         if authorize(uri, "POST", subjectid)
           true
        else
-          LOGGER.error "OpenTox::Authorization.check_policy, already exists, but no POST-authorization with subjectid: #{subjectid}" 
+          @@logger.error "OpenTox::Authorization.check_policy, already exists, but no POST-authorization with subjectid: #{subjectid}" 
           false
         end
       end
@@ -338,25 +338,25 @@ module OpenTox
     # @return [Boolean] true if access granted, else otherwise
     def self.authorized?(uri, request_method, subjectid)
       if CONFIG[:authorization][:free_request].include?(request_method)
-        #LOGGER.debug "authorized? >>true<< (request is free), method: #{request_method}, URI: #{uri}, subjectid: #{subjectid}"
+        #@@logger.debug "authorized? >>true<< (request is free), method: #{request_method}, URI: #{uri}, subjectid: #{subjectid}"
         true
       elsif OpenTox::Authorization.free_uri?(uri, request_method)
-        #LOGGER.debug "authorized? >>true<< (uris is free_uri), method: #{request_method}, URI: #{uri}, subjectid: #{subjectid}"
+        #@@logger.debug "authorized? >>true<< (uris is free_uri), method: #{request_method}, URI: #{uri}, subjectid: #{subjectid}"
         true
       elsif CONFIG[:authorization][:authenticate_request].include?(request_method)
         ret = OpenTox::Authorization.is_token_valid(subjectid)
-        LOGGER.debug "authorized? >>#{ret}<< (token is in/valid), method: #{request_method}, URI: #{uri}, subjectid: #{subjectid}" unless ret
+        @@logger.debug "authorized? >>#{ret}<< (token is in/valid), method: #{request_method}, URI: #{uri}, subjectid: #{subjectid}" unless ret
         ret
       elsif OpenTox::Authorization.authorize_exception?(uri, request_method)
         ret = OpenTox::Authorization.is_token_valid(subjectid)
-        LOGGER.debug "authorized? >>#{ret}<< (uris is authorize exception, token is in/valid), method: #{request_method}, URI: #{uri}, subjectid: #{subjectid}" unless ret
+        @@logger.debug "authorized? >>#{ret}<< (uris is authorize exception, token is in/valid), method: #{request_method}, URI: #{uri}, subjectid: #{subjectid}" unless ret
         ret
       elsif CONFIG[:authorization][:authorize_request].include?(request_method)
         ret = OpenTox::Authorization.authorize(uri, request_method, subjectid)
-        LOGGER.debug "authorized? >>#{ret}<< (uri (not) authorized), method: #{request_method}, URI: #{uri}, subjectid: #{subjectid}" unless ret
+        @@logger.debug "authorized? >>#{ret}<< (uri (not) authorized), method: #{request_method}, URI: #{uri}, subjectid: #{subjectid}" unless ret
         ret
       else
-        LOGGER.error "invalid request/uri method: #{request_method}, URI: #{uri}, subjectid: #{subjectid}"
+        @@logger.error "invalid request/uri method: #{request_method}, URI: #{uri}, subjectid: #{subjectid}"
         false
       end
     end

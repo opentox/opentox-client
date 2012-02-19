@@ -1,9 +1,12 @@
-require "opentox-client/version"
 require 'rubygems'
 require "bundler/setup"
 require 'rdf'
 require 'rdf/raptor'
 require "rest-client"
+require 'uri'
+require 'yaml'
+require File.join(File.dirname(__FILE__),"error.rb")
+require File.join(File.dirname(__FILE__),"logger.rb")
 require File.join(File.dirname(__FILE__),"opentox.rb")
 require File.join(File.dirname(__FILE__),"task.rb")
 require File.join(File.dirname(__FILE__),"compound.rb")
