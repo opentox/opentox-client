@@ -1,4 +1,3 @@
-require 'logger'
 class OTLogger < Logger
   
   def pwd

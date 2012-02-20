@@ -17,16 +17,22 @@ module OpenTox
   class NotFoundError < RuntimeError
     def http_code; 404; end
   end
+  
+  class LockedError < RuntimeError
+    def http_code; 423; end
+  end
 
   class ServiceUnavailableError < RuntimeError
     def http_code; 503; end
   end
   
+  # TODO: add to RestClientCalls
   class RestCallError < RuntimeError
     attr_accessor :rest_params
     def http_code; 502; end
   end
 
+  # TODO: add to Exception class??
   class ErrorReport
     
     # TODO replace params with URIs (errorCause -> OT.errorCause)
@@ -78,11 +84,14 @@ module OpenTox
       c
     end
     
+    # TODO: use rdf.rb
     def to_rdfxml
       s = Serializer::Owl.new
       s.add_resource(CONFIG[:services]["opentox-task"]+"/tmpId/ErrorReport/tmpId", OT.errorReport, rdf_content)
       s.to_rdfxml
     end
+=begin
+=end
   end
 end
 

@@ -13,7 +13,8 @@ class String
   def to_object
     # TODO: fix, this is unsafe
     self =~ /dataset/ ? uri = File.join(self.chomp,"metadata") : uri = self.chomp
-    raise "#{uri} is not a valid URI." unless RDF::URI.new(uri).uri? 
+    #raise "#{uri} is not a valid URI." unless RDF::URI.new(uri).uri? 
+    raise "#{uri} is not a valid URI." unless uri.uri? 
     RDF::Reader.open(uri) do |reader|
       reader.each_statement do |statement|
         if statement.predicate == RDF.type and statement.subject == uri
@@ -82,7 +83,10 @@ module OpenTox
     if reload
       @metadata = {}
       begin
-        RDF::Reader.open(@uri) do |reader|
+        #puts self.class
+        #self.kind_of?(OpenTox::Dataset) ? uri = URI.join(@uri,"metadata") : uri = @uri
+        #$logger.debug uri
+        RDF::Reader.open(uri) do |reader|
           reader.each_statement do |statement|
             @metadata[statement.predicate] = statement.object if statement.subject == @uri
           end
@@ -151,9 +155,6 @@ module OpenTox
 
   end
 
-  class FromUri
-  end
-
   # create default classes
   SERVICES.each do |s|
     eval "class #{s}
@@ -161,8 +162,6 @@ module OpenTox
       extend OpenTox::ClassMethods
     end"
   end
-
-  private
 
 end
 

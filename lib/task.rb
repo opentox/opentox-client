@@ -89,7 +89,7 @@ module OpenTox
       end
     rescue
       $logger.error "Unknown #{self.class} method #{method}"
-      super
+      #super
     end
   end
 

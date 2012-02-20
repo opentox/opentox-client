@@ -1,3 +1,4 @@
+require File.join(File.dirname(__FILE__),"lib","opentox-client.rb")
 require "bundler/gem_tasks"
 
 require 'rake/testtask'
