@@ -11,9 +11,11 @@ class TaskTest < Test::Unit::TestCase
 
 
   def test_all
-    t = OpenTox::Task.all(TASK_SERVICE_URI)
-    assert_equal Array, t.class
-    assert_equal RDF::OT1.Task, t.last.metadata[RDF.type]
+    all = OpenTox::Task.all(TASK_SERVICE_URI)
+    assert_equal Array, all.class
+    t = all.last
+    assert_equal OpenTox::Task, t.class
+    assert_equal RDF::OT1.Task, t.metadata[RDF.type]
   end
 
   def test_create_and_complete
@@ -21,16 +23,23 @@ class TaskTest < Test::Unit::TestCase
       sleep 1
       TASK_SERVICE_URI
     end
+    assert task.running?
     assert_equal "Running", task.hasStatus
     task.wait_for_completion
+    assert task.completed?
     assert_equal "Completed", task.hasStatus
     assert_equal TASK_SERVICE_URI, task.resultURI
   end
 
-  def test_rdf
-    task = OpenTox::Task.all(TASK_SERVICE_URI).last
-    assert_equal OpenTox::Task, task.class
-    #validate_owl(task.uri)
+
+  def test_create_and_cancel
+    task = OpenTox::Task.create TASK_SERVICE_URI do
+      sleep 2
+      TASK_SERVICE_URI
+    end
+    assert task.running?
+    task.cancel
+    assert task.cancelled?
   end
 
   def test_create_and_fail
@@ -38,8 +47,10 @@ class TaskTest < Test::Unit::TestCase
       sleep 1
       raise "an error occured"
     end
+    assert task.running?
     assert_equal "Running", task.hasStatus
     task.wait_for_completion
+    assert task.error?
     assert_equal "Error", task.hasStatus
   end
 
@@ -48,8 +59,10 @@ class TaskTest < Test::Unit::TestCase
       sleep 1
       "Asasadasd"
     end
+    assert task.running?
     assert_equal "Running", task.hasStatus
     task.wait_for_completion
+    assert task.error?
     assert_equal "Error", task.hasStatus
   end
 

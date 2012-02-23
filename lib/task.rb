@@ -5,13 +5,13 @@ module OpenTox
   # Class for handling asynchronous tasks
   class Task
 
-    attr_accessor :pid
+    attr_accessor :pid, :observer_pid
     def self.create service_uri, params={}
       task = Task.new RestClient.post(service_uri,params).chomp
       pid = fork do
         begin
           result_uri = yield 
-          if result_uri.uri?
+          if URI.accessible?(result_uri)
             task.completed result_uri
           else
             raise "#{result_uri} is not a valid URI"
@@ -26,14 +26,25 @@ module OpenTox
       end
       Process.detach(pid)
       task.pid = pid
+
+      # watch if task has been cancelled
+      observer_pid = fork do
+        task.wait_for_completion
+        begin
+          Process.kill(9,task.pid) if task.cancelled?
+        rescue
+          $logger.warn "Could not kill process of task #{task.uri}, pid: #{task.pid}"
+        end
+      end
+      Process.detach(observer_pid)
+      task.observer_pid = observer_pid
       task
     end
 
     def kill
-      begin
-        Process.kill(9,pid)
-      rescue 
-      end
+      Process.kill(9,@pid)
+      Process.kill(9,@observer_pid)
+      rescue # no need to raise an aexeption if processes are not running
     end
 
     def description
@@ -46,15 +57,17 @@ module OpenTox
     end
 
     def completed(uri)
+      #TODO: subjectid?
+      #TODO: error code
+      raise "\"#{uri}\" does not exist." unless URI.accessible? uri
       RestClient.put(File.join(@uri,'Completed'),{:resultURI => uri})
     end
 
     def error error
       $logger.error self if $logger
-      kill
       report = ErrorReport.create(error,"http://localhost")
       RestClient.put(File.join(@uri,'Error'),{:errorReport => report})
-      #RestClient.put(File.join(@uri,'Error'),{:message => error, :backtrace => error.backtrace})
+      kill
     end
 
     # waits for a task, unless time exceeds or state is no longer running
@@ -69,6 +82,23 @@ module OpenTox
 
   end
 
+  # get only header for ststus requests
+  def running?
+    RestClient.head(@uri){ |response, request, result| result.code.to_i == 202 }
+  end
+
+  def cancelled?
+    RestClient.head(@uri){ |response, request, result| result.code.to_i == 503 }
+  end
+
+  def completed?
+    RestClient.head(@uri){ |response, request, result| result.code.to_i == 200 }
+  end
+
+  def error?
+    RestClient.head(@uri){ |response, request, result| result.code.to_i == 500 }
+  end
+
   def method_missing(method,*args)
     method = method.to_s
     begin
@@ -76,8 +106,8 @@ module OpenTox
       when /=/
         res = RestClient.put(File.join(@uri,method.sub(/=/,'')),{})
         super unless res.code == 200
-      when /\?/
-        return hasStatus == method.sub(/\?/,'').capitalize
+      #when /\?/
+        #return hasStatus == method.sub(/\?/,'').capitalize
       else
         response = metadata[RDF::OT[method]].to_s
         response = metadata[RDF::OT1[method]].to_s #if response.empty?  # API 1.1 compatibility
@@ -91,23 +121,6 @@ module OpenTox
       $logger.error "Unknown #{self.class} method #{method}"
       #super
     end
-  end
-
-  # override to read all error codes
-  def metadata reload=true
-    if reload
-      @metadata = {}
-      # ignore error codes from Task services (may contain eg 500 which causes exceptions in RestClient and RDF::Reader
-      RestClient.get(@uri) do |response, request, result, &block|
-        $logger.warn "#{@uri} returned #{result}" unless response.code == 200 or response.code == 202
-        RDF::Reader.for(:rdfxml).new(response) do |reader|
-          reader.each_statement do |statement|
-            @metadata[statement.predicate] = statement.object if statement.subject == @uri
-          end
-        end
-      end
-    end
-    @metadata
   end
 
   #TODO: subtasks

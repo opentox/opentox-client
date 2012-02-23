@@ -2,66 +2,46 @@
 RDF::OT =  RDF::Vocabulary.new 'http://www.opentox.org/api/1.2#'
 RDF::OT1 =  RDF::Vocabulary.new 'http://www.opentox.org/api/1.1#'
 RDF::OTA =  RDF::Vocabulary.new 'http://www.opentox.org/algorithmTypes.owl#'
-SERVICES = ["Compound", "Feature", "Dataset", "Algorithm", "Model", "Validation", "Task"]
-
-# not working
-RestClient.add_before_execution_proc do |req, params|
-  params[:subjectid] = @subjectid
-end
+SERVICES = ["Compound", "Feature", "Dataset", "Algorithm", "Model", "Validation", "Task", "Investigation"]
 
 class String
-  def to_object
-    # TODO: fix, this is unsafe
-    self =~ /dataset/ ? uri = File.join(self.chomp,"metadata") : uri = self.chomp
-    #raise "#{uri} is not a valid URI." unless RDF::URI.new(uri).uri? 
-    raise "#{uri} is not a valid URI." unless uri.uri? 
-    RDF::Reader.open(uri) do |reader|
-      reader.each_statement do |statement|
-        if statement.predicate == RDF.type and statement.subject == uri
-          klass = "OpenTox::#{statement.object.to_s.split("#").last}"
-          object = eval "#{klass}.new \"#{uri}\""
-        end
-      end
-    end
-    # fallback: guess class from uri
-    # TODO: fix services and remove
-    unless object
-      case uri
-      when /compound/
-        object = OpenTox::Compound.new uri
-      when /feature/
-        object = OpenTox::Feature.new uri
-      when /dataset/
-        object = OpenTox::Dataset.new uri.sub(/\/metadata/,'')
-      when /algorithm/
-        object = OpenTox::Algorithm.new uri
-      when /model/
-        object = OpenTox::Model.new uri
-      when /validation/
-        object = OpenTox::Validation.new uri
-      when /task/
-        object = OpenTox::Task.new uri
-      else
-        raise "Class for #{uri} not found."
-      end
-    end
-    if object.class == Task # wait for tasks
-      object.wait_for_completion
-      object = object.result_uri.to_s.to_object
-    end
-    object
-  end
-
-  def uri?
-    begin
-      Net::HTTP.get_response(URI.parse(self))
-      true
-    rescue
-      false
-    end
+  def underscore
+    self.gsub(/::/, '/').
+    gsub(/([A-Z]+)([A-Z][a-z])/,'\1_\2').
+    gsub(/([a-z\d])([A-Z])/,'\1_\2').
+    tr("-", "_").
+    downcase
   end
 end
 
+module URI
+
+  def self.task? uri
+    uri =~ /task/ and URI.valid? uri
+  end
+  
+  def self.dataset? uri, subjectid=nil
+    uri =~ /dataset/ and URI.accessible? uri, subjectid=nil
+  end
+ 
+  def self.model? uri, subjectid=nil
+    uri =~ /model/ and URI.accessible? uri, subjectid=nil
+  end
+
+  def self.accessible? uri, subjectid=nil
+    Net::HTTP.get_response(URI.parse(uri))
+    true
+  rescue
+    false
+  end
+
+  def self.valid? uri
+    u = URI::parse(uri)
+    u.scheme!=nil and u.host!=nil
+  rescue URI::InvalidURIError
+    false
+  end
+end
 
 # defaults to stderr, may be changed to file output
 $logger = OTLogger.new(STDERR) # no rotation
@@ -79,21 +59,19 @@ module OpenTox
 
   # Ruby interface
 
+
+  # override to read all error codes
   def metadata reload=true
     if reload
       @metadata = {}
-      begin
-        #puts self.class
-        #self.kind_of?(OpenTox::Dataset) ? uri = URI.join(@uri,"metadata") : uri = @uri
-        #$logger.debug uri
-        RDF::Reader.open(uri) do |reader|
+      # ignore error codes from Task services (may contain eg 500 which causes exceptions in RestClient and RDF::Reader
+      RestClient.get(@uri) do |response, request, result, &block|
+        $logger.warn "#{@uri} returned #{result}" unless response.code == 200 or response.code == 202 or URI.task? @uri
+        RDF::Reader.for(:rdfxml).new(response) do |reader|
           reader.each_statement do |statement|
             @metadata[statement.predicate] = statement.object if statement.subject == @uri
           end
         end
-      rescue
-        $logger.error "Cannot read RDF metadata from #{@uri}: #{$!}.\n#{$!.backtrace.join("\n")}"
-        raise
       end
     end
     @metadata
