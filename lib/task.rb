@@ -7,7 +7,7 @@ module OpenTox
 
     attr_accessor :pid, :observer_pid
     def self.create service_uri, params={}
-      task = Task.new RestClient.post(service_uri,params).chomp
+      task = Task.new RestClientWrapper.post(service_uri,params).chomp
       pid = fork do
         begin
           result_uri = yield 
@@ -53,20 +53,20 @@ module OpenTox
     
     def cancel
       kill
-      RestClient.put(File.join(@uri,'Cancelled'),{})
+      RestClientWrapper.put(File.join(@uri,'Cancelled'),{})
     end
 
     def completed(uri)
       #TODO: subjectid?
       #TODO: error code
       raise "\"#{uri}\" does not exist." unless URI.accessible? uri
-      RestClient.put(File.join(@uri,'Completed'),{:resultURI => uri})
+      RestClientWrapper.put(File.join(@uri,'Completed'),{:resultURI => uri})
     end
 
     def error error
       $logger.error self if $logger
       report = ErrorReport.create(error,"http://localhost")
-      RestClient.put(File.join(@uri,'Error'),{:errorReport => report})
+      RestClientWrapper.put(File.join(@uri,'Error'),{:errorReport => report})
       kill
     end
 
@@ -104,7 +104,7 @@ module OpenTox
     begin
       case method
       when /=/
-        res = RestClient.put(File.join(@uri,method.sub(/=/,'')),{})
+        res = RestClientWrapper.put(File.join(@uri,method.sub(/=/,'')),{})
         super unless res.code == 200
       #when /\?/
         #return hasStatus == method.sub(/\?/,'').capitalize

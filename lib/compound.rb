@@ -11,21 +11,21 @@ module OpenTox
     # @param [String] smiles Smiles string
     # @return [OpenTox::Compound] Compound
     def self.from_smiles service_uri, smiles, subjectid=nil
-      Compound.new RestClient.post(service_uri, smiles, {:content_type => 'chemical/x-daylight-smiles', :subjectid => subjectid})
+      Compound.new RestClientWrapper.post(service_uri, smiles, {:content_type => 'chemical/x-daylight-smiles', :subjectid => subjectid})
     end
 
     # Create a compound from inchi string
     # @param [String] smiles InChI string
     # @return [OpenTox::Compound] Compound
     def self.from_inchi service_uri, inchi, subjectid=nil
-      Compound.new RestClient.post(service_uri, inchi, {:content_type => 'chemical/x-inchi', :subjectid => subjectid})
+      Compound.new RestClientWrapper.post(service_uri, inchi, {:content_type => 'chemical/x-inchi', :subjectid => subjectid})
     end
 
     # Create a compound from sdf string
     # @param [String] smiles SDF string
     # @return [OpenTox::Compound] Compound
     def self.from_sdf service_uri, sdf, subjectid=nil
-      Compound.new RestClient.post(service_uri, sdf, {:content_type => 'chemical/x-mdl-sdfile', :subjectid => subjectid})
+      Compound.new RestClientWrapper.post(service_uri, sdf, {:content_type => 'chemical/x-mdl-sdfile', :subjectid => subjectid})
     end
 
     # Create a compound from name. Relies on an external service for name lookups.
@@ -34,7 +34,7 @@ module OpenTox
     # @param [String] name name can be also an InChI/InChiKey, CAS number, etc
     # @return [OpenTox::Compound] Compound
     def self.from_name service_uri, name, subjectid=nil
-      Compound.new RestClient.post(service_uri, name, {:content_type => 'text/plain', :subjectid => subjectid})
+      Compound.new RestClientWrapper.post(service_uri, name, {:content_type => 'text/plain', :subjectid => subjectid})
     end
 
 		# Get InChI
