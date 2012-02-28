@@ -6,6 +6,89 @@ module OpenTox
   
   class RestClientWrapper
     
+    # create REST class methods 
+    [:head,:get,:post,:put,:dealete].each do |method|
+
+      #define_singleton_method method do |uri,args={},headers={},waiting_task=nil, wait=true|
+      define_singleton_method method do |uri,payload={},headers={},waiting_task=nil, wait=true|
+      
+        args={}
+        args[:method] = method
+        args[:url] = uri
+        args[:timeout] = 600
+        args[:payload] = payload
+        args[:headers] = headers 
+       #raise OpenTox::BadRequestError.new "Empty URI." unless uri # error raised at method call
+        raise OpenTox::BadRequestError.new "Invalid URI: '#{uri}'" unless URI.valid? uri
+        raise OpenTox::BadRequestError.new "Unreachable URI: '#{uri}'" unless URI.accessible? uri
+=begin
+        raise "headers are no hash: "+headers.inspect unless headers==nil or headers.is_a?(Hash)
+        # TODO: loop over accept, contant_type, subjectid
+        raise OpenTox::BadRequestError.new "accept should go into the headers" if payload and payload.is_a?(Hash) and payload[:accept] 
+        raise OpenTox::BadRequestError.new "content_type should go into the headers" if payload and payload.is_a?(Hash) and payload[:content_type]
+        raise OpenTox::BadRequestError.new "subjectid should go into the headers" if payload and payload.is_a?(Hash) and payload[:subjectid]
+        raise "__waiting_task__ must be 'nil' or '(sub)task', is "+waiting_task.class.to_s if
+          waiting_task!=nil and !(waiting_task.is_a?(Task) || waiting_task.is_a?(SubTask))
+        headers.each{ |k,v| headers.delete(k) if v==nil } if headers #remove keys with empty values, as this can cause problems
+        ## PENDING partner services accept subjectid only in header
+        headers = {} unless headers
+        #headers[:subjectid] = payload.delete(:subjectid) if payload and payload.is_a?(Hash) and payload.has_key?(:subjectid) 
+        
+        # PENDING needed for NUTA, until we finally agree on how to send subjectid
+        #headers[:subjectid] = payload.delete(:subjectid) if uri=~/ntua/ and payload and payload.is_a?(Hash) and payload.has_key?(:subjectid) 
+=end
+        
+        begin
+          #$logger.debug "RestCall: "+method.to_s+" "+uri.to_s+" "+headers.inspect+" "+args.inspect
+          request = RestClient::Request.new(args)
+          result = request.execute do |response, request, result|
+            unless response.code < 400 or URI.task? uri
+              $logger.error "#{uri} returned #{result.inspect}"
+              raise OpenTox::RestCallError result.inspect
+            end
+            return response
+          end
+          # ignore error codes from Task services (may contain eg 500 which causes exceptions in RestClient and RDF::Reader
+          #LOGGER.debug "result body size: #{result.body.size}"
+
+          # PENDING NTUA does return errors with 200
+          raise RestClient::ExceptionWithResponse.new(result) if uri=~/ntua/ and result.body =~ /about.*http:\/\/anonymous.org\/error/
+          
+          # result is a string, with the additional fields content_type and code
+          res = WrapperResult.new(result.body)
+          res.content_type = result.headers[:content_type]
+          raise "content-type not set" unless res.content_type
+          res.code = result.code
+          
+          # TODO: Ambit returns task representation with 200 instead of result URI
+          return res if res.code==200 || !wait
+          
+          while (res.code==201 || res.code==202)
+            res = wait_for_task(res, uri, waiting_task)
+          end
+          raise "illegal status code: '"+res.code.to_s+"'" unless res.code==200
+          return res
+          
+        rescue RestClient::RequestTimeout => ex
+          received_error ex.message, 408, nil, {:rest_uri => uri, :headers => headers, :payload => payload}
+        rescue Errno::ETIMEDOUT => ex
+          received_error ex.message, 408, nil, {:rest_uri => uri, :headers => headers, :payload => payload}
+        rescue Errno::ECONNREFUSED => ex
+          received_error ex.message, 500, nil, {:rest_uri => uri, :headers => headers, :payload => payload}
+        rescue RestClient::ExceptionWithResponse => ex
+          # error comming from a different webservice, 
+          received_error ex.http_body, ex.http_code, ex.response.net_http_res.content_type, {:rest_uri => uri, :headers => headers, :payload => payload}
+        rescue OpenTox::RestCallError => ex
+          # already a rest-error, probably comes from wait_for_task, just pass through
+          raise ex       
+        rescue => ex
+          # some internal error occuring in rest-client-wrapper, just pass through
+          raise ex
+        end
+      end
+    end
+
+=begin
     # performs a GET REST call
     # raises OpenTox::Error if call fails (rescued in overwrite.rb -> halt 502)
     # per default: waits for Task to finish and returns result URI of Task
@@ -50,31 +133,45 @@ module OpenTox
       execute( "delete", uri, nil, headers)
     end
 
+    def self.head(uri)
+      execute("head",uri)
+    end
+
     private
     def self.execute( rest_call, uri, payload=nil, headers={}, waiting_task=nil, wait=true )
       
-      raise OpenTox::BadRequestError.new "uri is null" unless uri
-      raise OpenTox::BadRequestError.new "not a uri: "+uri.to_s unless URI.valid? uri.to_s
+      raise OpenTox::BadRequestError.new "Empty URI." unless uri
+      raise OpenTox::BadRequestError.new "Invalid URI: '#{uri}'" unless URI.valid? uri
+      raise OpenTox::BadRequestError.new "Unreachable URI: '#{uri}'" unless URI.accessible? uri
       raise "headers are no hash: "+headers.inspect unless headers==nil or headers.is_a?(Hash)
+      # TODO: loop over accept, contant_type, subjectid
       raise OpenTox::BadRequestError.new "accept should go into the headers" if payload and payload.is_a?(Hash) and payload[:accept] 
       raise OpenTox::BadRequestError.new "content_type should go into the headers" if payload and payload.is_a?(Hash) and payload[:content_type]
+      raise OpenTox::BadRequestError.new "subjectid should go into the headers" if payload and payload.is_a?(Hash) and payload[:subjectid]
       raise "__waiting_task__ must be 'nil' or '(sub)task', is "+waiting_task.class.to_s if
         waiting_task!=nil and !(waiting_task.is_a?(Task) || waiting_task.is_a?(SubTask))
       headers.each{ |k,v| headers.delete(k) if v==nil } if headers #remove keys with empty values, as this can cause problems
       ## PENDING partner services accept subjectid only in header
       headers = {} unless headers
-      headers[:subjectid] = payload.delete(:subjectid) if payload and payload.is_a?(Hash) and payload.has_key?(:subjectid) 
+      #headers[:subjectid] = payload.delete(:subjectid) if payload and payload.is_a?(Hash) and payload.has_key?(:subjectid) 
       
       # PENDING needed for NUTA, until we finally agree on how to send subjectid
-      headers[:subjectid] = payload.delete(:subjectid) if uri=~/ntua/ and payload and payload.is_a?(Hash) and payload.has_key?(:subjectid) 
+      #headers[:subjectid] = payload.delete(:subjectid) if uri=~/ntua/ and payload and payload.is_a?(Hash) and payload.has_key?(:subjectid) 
       
       begin
         #LOGGER.debug "RestCall: "+rest_call.to_s+" "+uri.to_s+" "+headers.inspect+" "+payload.inspect
         resource = RestClient::Resource.new(uri,{:timeout => 600})
         if rest_call=="post" || rest_call=="put"
-          result = resource.send(rest_call, payload, headers){|response, request, result| response }
+          result = resource.send(rest_call, payload, headers){|response, request, result| return response }
+        elsif rest_call == "head"
+          result = resource.send(rest_call){ |response, request, result| return response }
         else
-          result = resource.send(rest_call, headers){|response, request, result| response }
+          result = resource.send(rest_call, headers){|response, request, result| return response }
+        end
+        # ignore error codes from Task services (may contain eg 500 which causes exceptions in RestClient and RDF::Reader
+        unless result.code < 400 or URI.task? @uri
+          $logger.error "#{@uri} returned #{result}"
+          raise OpenTox::RestCallError result
         end
         #LOGGER.debug "result body size: #{result.body.size}"
 
@@ -109,10 +206,11 @@ module OpenTox
         # already a rest-error, probably comes from wait_for_task, just pass through
         raise ex       
       rescue => ex
-        # some internal error occuring in rest_client_wrapper, just pass through
+        # some internal error occuring in rest-client-wrapper, just pass through
         raise ex
       end
     end
+=end
     
     def self.wait_for_task( res, base_uri, waiting_task=nil )
       #TODO remove TUM hack
@@ -132,7 +230,7 @@ module OpenTox
       end
       
       #LOGGER.debug "result is a task '"+task.uri.to_s+"', wait for completion"
-      task.wait_for_completion waiting_task
+      task.wait waiting_task
       unless task.completed? # maybe task was cancelled / error
         if task.errorReport
           received_error task.errorReport, task.http_code, nil, {:rest_uri => task.uri, :rest_code => task.http_code}
@@ -144,7 +242,7 @@ module OpenTox
     
       res = WrapperResult.new task.result_uri
       res.code = task.http_code
-      res.content_type = "text/uri-list"
+      res.content_type ="text/uri-list" 
       return res
     end
     

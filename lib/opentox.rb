@@ -20,24 +20,16 @@ module OpenTox
 
   # Ruby interface
 
-  # override to read all error codes
   def metadata reload=true
     if reload or @metadata.empty?
       @metadata = {}
-      # ignore error codes from Task services (may contain eg 500 which causes exceptions in RestClient and RDF::Reader
-      # TODO: convert to RestClientWrapper
       kind_of?(OpenTox::Dataset) ? uri = File.join(@uri,"metadata") : uri = @uri
-      RestClient.get(uri) do |response, request, result|
-      #response = RestClientWrapper.get(@uri) #do |response, request, result|
-        $logger.warn "#{@uri} returned #{result}" unless response.code == 200 or response.code == 202 or URI.task? @uri
-        RDF::Reader.for(:rdfxml).new(response) do |reader|
-          reader.each_statement do |statement|
-            @metadata[statement.predicate] = statement.object if statement.subject == @uri
-          end
+      RDF::Reader.for(:rdfxml).new( RestClientWrapper.get(@uri) ) do |reader|
+        reader.each_statement do |statement|
+          @metadata[statement.predicate] = statement.object if statement.subject == @uri
         end
       end
     end
-    #puts @metadata.inspect
     @metadata
   end
 
@@ -52,7 +44,7 @@ module OpenTox
   def get params={}
     params[:subjectid] ||= @subjectid
     params[:accept] ||= 'application/rdf+xml'
-    @response = RestClientWrapper.get @uri, params
+    @response = RestClientWrapper.get @uri, {}, params
   end
 
   def post payload={}, params={}

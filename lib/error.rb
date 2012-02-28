@@ -1,6 +1,6 @@
 # adding additional fields to Exception class to format errors according to OT-API
 class Exception
-  attr_accessor :errorCause
+  attr_accessor :errorCause # is errorReport
   def http_code; 500; end
 end
 

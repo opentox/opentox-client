@@ -6,7 +6,9 @@ module OpenTox
   class Task
 
     attr_accessor :pid, :observer_pid
+
     def self.create service_uri, params={}
+
       task = Task.new RestClientWrapper.post(service_uri,params).chomp
       pid = fork do
         begin
@@ -17,19 +19,15 @@ module OpenTox
             raise "#{result_uri} is not a valid URI"
           end
         rescue 
-          # TODO add service URI to Kernel.raise
-          # serialize error and send to task service
-          #task.error $!
           task.error $! 
-          raise
         end
       end
       Process.detach(pid)
       task.pid = pid
 
-      # watch if task has been cancelled
+      # watch if task has been cancelled 
       observer_pid = fork do
-        task.wait_for_completion
+        task.wait
         begin
           Process.kill(9,task.pid) if task.cancelled?
         rescue
@@ -39,6 +37,7 @@ module OpenTox
       Process.detach(observer_pid)
       task.observer_pid = observer_pid
       task
+
     end
 
     def kill
@@ -49,6 +48,10 @@ module OpenTox
 
     def description
       metadata[RDF::DC.description]
+    end
+
+    def creator
+      metadata[RDF::DC.creator]
     end
     
     def cancel
@@ -64,15 +67,16 @@ module OpenTox
     end
 
     def error error
-      $logger.error self if $logger
-      report = ErrorReport.create(error,"http://localhost")
+      $logger.error self 
+      report = ErrorReport.create(error,self.creator)
       RestClientWrapper.put(File.join(@uri,'Error'),{:errorReport => report})
       kill
+      raise error
     end
 
     # waits for a task, unless time exceeds or state is no longer running
     # @param [optional,Numeric] dur seconds pausing before checking again for completion
-    def wait_for_completion(dur=0.3)
+    def wait(dur=0.3)
       due_to_time = Time.new + DEFAULT_TASK_MAX_DURATION
       while running?
         sleep dur
@@ -84,19 +88,19 @@ module OpenTox
 
   # get only header for ststus requests
   def running?
-    RestClient.head(@uri){ |response, request, result| result.code.to_i == 202 }
+    RestClientWrapper.head(@uri).code == 202 
   end
 
   def cancelled?
-    RestClient.head(@uri){ |response, request, result| result.code.to_i == 503 }
+    RestClientWrapper.head(@uri).code == 503
   end
 
   def completed?
-    RestClient.head(@uri){ |response, request, result| result.code.to_i == 200 }
+    RestClientWrapper.head(@uri).code == 200
   end
 
   def error?
-    RestClient.head(@uri){ |response, request, result| result.code.to_i == 500 }
+    RestClientWrapper.head(@uri).code == 500
   end
 
   def method_missing(method,*args)
@@ -106,8 +110,6 @@ module OpenTox
       when /=/
         res = RestClientWrapper.put(File.join(@uri,method.sub(/=/,'')),{})
         super unless res.code == 200
-      #when /\?/
-        #return hasStatus == method.sub(/\?/,'').capitalize
       else
         response = metadata[RDF::OT[method]].to_s
         response = metadata[RDF::OT1[method]].to_s #if response.empty?  # API 1.1 compatibility

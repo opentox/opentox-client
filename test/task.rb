@@ -25,7 +25,7 @@ class TaskTest < Test::Unit::TestCase
     end
     assert task.running?
     assert_equal "Running", task.hasStatus
-    task.wait_for_completion
+    task.wait
     assert task.completed?
     assert_equal "Completed", task.hasStatus
     assert_equal TASK_SERVICE_URI, task.resultURI
@@ -49,7 +49,7 @@ class TaskTest < Test::Unit::TestCase
     end
     assert task.running?
     assert_equal "Running", task.hasStatus
-    task.wait_for_completion
+    task.wait
     assert task.error?
     assert_equal "Error", task.hasStatus
   end
@@ -61,7 +61,7 @@ class TaskTest < Test::Unit::TestCase
     end
     assert task.running?
     assert_equal "Running", task.hasStatus
-    task.wait_for_completion
+    task.wait
     assert task.error?
     assert_equal "Error", task.hasStatus
   end
