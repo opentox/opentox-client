@@ -28,9 +28,12 @@ module OpenTox
       @error = error
       @actor = actor
       @report = ErrorReport.create error, actor
+      # TODO avoid error log duplication, improve output
       msg = "\nActor: \"#{actor}\"\n"
-      msg += @error.to_yaml
-      #$logger.error msg
+      msg += "\nCode: #{@report.http_code}"
+      msg += "\nerrorCause: #{@report.errorCause}\n"
+      msg += @report.message
+      $logger.error msg
       super msg
     end
   end
@@ -43,7 +46,7 @@ module OpenTox
     private
     def initialize( http_code, erroType, message, actor, errorCause, rest_params=nil, backtrace=nil )
       @http_code = http_code
-      #@errorType = erroType
+      @errorType = erroType
       @message = message
       @actor = actor
       @errorCause = errorCause

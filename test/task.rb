@@ -10,8 +10,6 @@ TASK_SERVICE_URI = "http://ot-dev.in-silico.ch/task"
 class TaskTest < Test::Unit::TestCase
 
 
-=begin
-=end
   def test_all
     all = OpenTox::Task.all(TASK_SERVICE_URI)
     assert_equal Array, all.class
@@ -67,7 +65,5 @@ class TaskTest < Test::Unit::TestCase
     assert task.error?
     assert_equal "Error", task.hasStatus
   end
-=begin
-=end
 
 end
