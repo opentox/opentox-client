@@ -12,7 +12,7 @@ class OTLogger < Logger
     n = 2
     line = lines[n]
     
-    while (line =~ /spork.rb/ or line =~ /create/ or line =~ /#{File.basename(__FILE__)}/)
+    while (line =~ /error.rb/ or line =~ /create/ or line =~ /#{File.basename(__FILE__)}/)
       n += 1
       line = lines[n]
     end

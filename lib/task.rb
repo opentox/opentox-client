@@ -9,6 +9,7 @@ module OpenTox
 
     def self.create service_uri, params={}
 
+      # TODO set request uri
       task = Task.new RestClientWrapper.post(service_uri,params).chomp
       pid = fork do
         begin
@@ -16,7 +17,7 @@ module OpenTox
           if URI.accessible?(result_uri)
             task.completed result_uri
           else
-            raise "#{result_uri} is not a valid URI"
+            task.error OpenTox::RestError.new :http_code => 404, :cause => "#{result_uri} is not a valid URI", :actor => params[:creator]
           end
         rescue 
           task.error $! 
@@ -62,14 +63,13 @@ module OpenTox
     def completed(uri)
       #TODO: subjectid?
       #TODO: error code
-      raise "\"#{uri}\" does not exist." unless URI.accessible? uri
+      error OpenTox::RestError.new :http_code => 404, :cause => "\"#{uri}\" does not exist.", :actor => creator unless URI.accessible? uri
       RestClientWrapper.put(File.join(@uri,'Completed'),{:resultURI => uri})
     end
 
     def error error
-      $logger.error self 
-      report = ErrorReport.create(error,self.creator)
-      RestClientWrapper.put(File.join(@uri,'Error'),{:errorReport => report})
+      error = OpenTox::TaskError.new error, self.creator
+      RestClientWrapper.put(File.join(@uri,'Error'),{:errorReport => error.report})
       kill
       raise error
     end

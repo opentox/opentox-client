@@ -10,6 +10,8 @@ TASK_SERVICE_URI = "http://ot-dev.in-silico.ch/task"
 class TaskTest < Test::Unit::TestCase
 
 
+=begin
+=end
   def test_all
     all = OpenTox::Task.all(TASK_SERVICE_URI)
     assert_equal Array, all.class
@@ -45,7 +47,7 @@ class TaskTest < Test::Unit::TestCase
   def test_create_and_fail
     task = OpenTox::Task.create TASK_SERVICE_URI, :description => "test failure", :creator => "http://test.org/fake_creator" do
       sleep 1
-      raise "an error occured"
+      raise "an unexpected error occured"
     end
     assert task.running?
     assert_equal "Running", task.hasStatus
@@ -65,5 +67,7 @@ class TaskTest < Test::Unit::TestCase
     assert task.error?
     assert_equal "Error", task.hasStatus
   end
+=begin
+=end
 
 end

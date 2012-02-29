@@ -1,47 +1,38 @@
 # adding additional fields to Exception class to format errors according to OT-API
-=begin
-class Exception
-end
-=end
 
 class RuntimeError
-  attr_accessor :errorCause # is errorReport
-  def initialize msg=nil
-    $logger.error msg
-    super msg
-  end
-  def http_code; 500; end
+  attr_accessor :http_code
+  @http_code = 500
 end
 
 module OpenTox
-  
-  class BadRequestError < RuntimeError
-    def http_code; 400; end
-  end
-  
-  class NotAuthorizedError < RuntimeError
-    def http_code; 401; end
-  end
-  
-  class NotFoundError < RuntimeError
-    def http_code; 404; end
-  end
-  
-  class LockedError < RuntimeError
-    def http_code; 423; end
-  end
 
-  class ServiceUnavailableError < RuntimeError
-    def http_code; 503; end
-  end
-  
-  class RestCallError < RuntimeError
-    def initialize request, response, expectation=nil
-      msg = "REST request: #{request.inspect}\nREST response: #{response.inspect}"
-      msg += "\n"+expectation if expectation
+  # Errors received from RestClientWrapper calls
+  class RestError < RuntimeError
+    attr_accessor :request, :response, :cause
+    def initialize args
+      @request = args[:request]
+      @response = args[:response]
+      args[:http_code] ? @http_code = args[:http_code] : @http_code = @response.code if @response
+      @cause = args[:cause]
+      msg = args.to_yaml
+      $logger.error msg
       super msg
     end
-    def http_code; 502; end
+  end
+
+  # Errors rescued from task blocks
+  class TaskError < RuntimeError
+    attr_reader :error, :actor, :report
+    def initialize error, actor=nil
+      @error = error
+      @actor = actor
+      @report = ErrorReport.create error, actor
+      msg = "\nActor: \"#{actor}\"\n"
+      msg += @error.to_yaml
+      #$logger.error msg
+      super msg
+    end
   end
 
   class ErrorReport
@@ -52,7 +43,7 @@ module OpenTox
     private
     def initialize( http_code, erroType, message, actor, errorCause, rest_params=nil, backtrace=nil )
       @http_code = http_code
-      @errorType = erroType
+      #@errorType = erroType
       @message = message
       @actor = actor
       @errorCause = errorCause
@@ -65,9 +56,11 @@ module OpenTox
     # @param [Exception] error
     # @param [String] actor, URI of the call that cause the error
     def self.create( error, actor )
-      rest_params = error.rest_params if error.is_a?(OpenTox::RestCallError) and error.rest_params
-      backtrace = error.backtrace.short_backtrace #if CONFIG[:backtrace]
-      ErrorReport.new( error.http_code, error.class.to_s, error.message, actor, error.errorCause, rest_params, backtrace )
+      rest_params = error.request if error.respond_to? :request
+      backtrace = error.backtrace.short_backtrace if error.respond_to? :backtrace and error.backtrace #if CONFIG[:backtrace]
+      error.respond_to?(:http_code) ? http_code = error.http_code : http_code = 500
+      error.respond_to?(:cause) ? cause = error.cause : cause = 'Unknown'
+      ErrorReport.new( http_code, error.class.to_s, error.message, actor, cause, rest_params, backtrace )
     end
     
     def self.from_rdf(rdf)
@@ -101,8 +94,7 @@ module OpenTox
       s.add_resource(CONFIG[:services]["opentox-task"]+"/tmpId/ErrorReport/tmpId", OT.errorReport, rdf_content)
       s.to_rdfxml
     end
-=begin
-=end
+
   end
 end
 

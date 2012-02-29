@@ -17,15 +17,7 @@ module OpenTox
 
       define_singleton_method method do |uri,payload={},headers={},waiting_task=nil, wait=true|
       
-        # catch input errors
-        raise OpenTox::BadRequestError.new "Invalid URI: '#{uri}'" unless URI.valid? uri
-        raise OpenTox::BadRequestError.new "Unreachable URI: '#{uri}'" unless URI.accessible? uri
-        raise OpenTox::BadRequestError.new "Headers are not a hash: #{headers.inspect}" unless headers==nil or headers.is_a?(Hash)
-        [:accept,:content_type,:subjectid].each do |header|
-          raise OpenTox::BadRequestError.new "#{header} should be submitted in the headers" if payload and payload.is_a?(Hash) and payload[header] 
-        end
-        raise OpenTox::BadRequestError "waiting_task is not 'nil', OpenTox::SubTask or OpenTox::Task: #{waiting_task.class}" unless waiting_task.nil? or waiting_task.is_a?(OpenTox::Task) or waiting_task.is_a?(OpenTox::SubTask)
-
+        # create request
         args={}
         args[:method] = method
         args[:url] = uri
@@ -33,13 +25,23 @@ module OpenTox
         args[:payload] = payload
         headers.each{ |k,v| headers.delete(k) if v==nil } if headers #remove keys with empty values, as this can cause problems
         args[:headers] = headers 
+        @request = RestClient::Request.new(args)
+
+        # catch input errors
+        rest_error "Invalid URI: '#{uri}'" unless URI.valid? uri
+        rest_error "Unreachable URI: '#{uri}'" unless URI.accessible? uri
+        rest_error "Headers are not a hash: #{headers.inspect}" unless headers==nil or headers.is_a?(Hash)
+        # make sure that no header parameters are set in payload
+        [:accept,:content_type,:subjectid].each do |header|
+          rest_error "#{header} should be submitted in the headers" if payload and payload.is_a?(Hash) and payload[header] 
+        end
+        rest_error "waiting_task is not 'nil', OpenTox::SubTask or OpenTox::Task: #{waiting_task.class}" unless waiting_task.nil? or waiting_task.is_a?(OpenTox::Task) or waiting_task.is_a?(OpenTox::SubTask)
 
         
         begin
-          @request = RestClient::Request.new(args)
           @response = @request.execute do |response, request, result|
             # ignore error codes from Task services (may contain eg 500 which causes exceptions in RestClient and RDF::Reader
-            rest_call_error unless response.code < 400 or URI.task? uri
+            rest_error unless response.code < 400 or URI.task? uri
             return response
           end
 
@@ -55,26 +57,34 @@ module OpenTox
           end
           return @response
           
-        rescue RestClient::RequestTimeout => ex
-          received_error ex.message, 408, nil, {:rest_uri => uri, :headers => headers, :payload => payload}
-        rescue Errno::ETIMEDOUT => ex
-          received_error ex.message, 408, nil, {:rest_uri => uri, :headers => headers, :payload => payload}
-        rescue Errno::ECONNREFUSED => ex
-          received_error ex.message, 500, nil, {:rest_uri => uri, :headers => headers, :payload => payload}
-        rescue RestClient::ExceptionWithResponse => ex
+        rescue
+          rest_error $!.message
+        end
+=begin
+        rescue RestClient::RequestTimeout 
+          raise OpenTox::Error @request, @response, $!.message
+          #received_error ex.message, 408, nil, {:rest_uri => uri, :headers => headers, :payload => payload}
+        rescue Errno::ETIMEDOUT 
+          raise OpenTox::Error @request, @response, $!.message
+          #received_error ex.message, 408, nil, {:rest_uri => uri, :headers => headers, :payload => payload}
+        rescue Errno::ECONNREFUSED
+          raise OpenTox::Error $!.message
+          #received_error ex.message, 500, nil, {:rest_uri => uri, :headers => headers, :payload => payload}
+        rescue RestClient::ExceptionWithResponse
           # error comming from a different webservice, 
           received_error ex.http_body, ex.http_code, ex.response.net_http_res.content_type, {:rest_uri => uri, :headers => headers, :payload => payload}
-        rescue OpenTox::RestCallError => ex
+        #rescue OpenTox::RestCallError => ex
           # already a rest-error, probably comes from wait_for_task, just pass through
-          raise ex       
-        rescue => ex
+          #raise ex       
+        #rescue => ex
           # some internal error occuring in rest-client-wrapper, just pass through
-          raise ex
+          #raise ex
         end
+=end
       end
     end
     
-    def self.wait_for_task( response, base_uri, waiting_task=nil )
+    def wait_for_task( response, base_uri, waiting_task=nil )
       #TODO remove TUM hack
       # @response.headers[:content_type] = "text/uri-list" if base_uri =~/tu-muenchen/ and @response.headers[:content_type] == "application/x-www-form-urlencoded;charset=UTF-8"
 
@@ -85,10 +95,10 @@ module OpenTox
         #task = OpenTox::Task.from_rdfxml(@response)
         #task = OpenTox::Task.from_rdfxml(@response)
       when /text\/uri-list/
-        rest_call_error "Uri list has more than one entry, should be a single task" if @response.split("\n").size > 1 #if uri list contains more then one uri, its not a task
+        rest_error "Uri list has more than one entry, should be a single task" if @response.split("\n").size > 1 #if uri list contains more then one uri, its not a task
         task = OpenTox::Task.new(@response.to_s.chomp) if URI.available? @response.to_s
       else
-        rest_call_error @response, "Unknown content-type for task : '"+@response.headers[:content_type].to_s+"'"+" base-uri: "+base_uri.to_s+" content: "+@response[0..200].to_s
+        rest_error @response, "Unknown content-type for task : '"+@response.headers[:content_type].to_s+"'"+" base-uri: "+base_uri.to_s+" content: "+@response[0..200].to_s
       end
       
       #LOGGER.debug "result is a task '"+task.uri.to_s+"', wait for completion"
@@ -104,14 +114,37 @@ module OpenTox
       @response
     end
 
-    def rest_call_error message
-      raise OpenTox::RestCallError @request, @response, message
+    def self.rest_error message
+      raise OpenTox::RestError.new :request => @request, :response => @response, :cause => message
+    end
+
+=begin
+    def self.bad_request_error message
+      raise OpenTox::Error.new message
+    end
+
+    def self.not_found_error message
+      raise OpenTox::NotFoundError.new message
     end
     
     def self.received_error( body, code, content_type=nil, params=nil )
 
+      # try to parse body TODO
+      body.is_a?(OpenTox::ErrorReport) ? report = body : report = OpenTox::ErrorReport.from_rdf(body)
+      rest_call_error "REST call returned error: '"+body.to_s+"'" unless report
+      # parsing sucessfull
+      # raise RestCallError with parsed report as error cause
+      err = OpenTox::RestCallError.new(@request, @response, "REST call subsequent error")
+      err.errorCause = report
+      raise err
+    end
+=end
+=begin
+    def self.received_error( body, code, content_type=nil, params=nil )
+
       # try to parse body
       report = nil
+      #report = OpenTox::ErrorReport.from_rdf(body)
       if body.is_a?(OpenTox::ErrorReport)
         report = body
       else
@@ -138,5 +171,6 @@ module OpenTox
         raise err
       end
     end
+=end
   end
 end
