@@ -3,8 +3,8 @@ $LOAD_PATH << File.join(File.dirname(__FILE__),'..','lib')
 require File.join File.dirname(__FILE__),'..','lib','opentox-client.rb'
 #require "./validate-owl.rb"
 
-#TASK_SERVICE_URI = "http://ot-dev.in-silico.ch/task" 
-TASK_SERVICE_URI = "http://ot-test.in-silico.ch/task" 
+TASK_SERVICE_URI = "http://ot-dev.in-silico.ch/task" 
+#TASK_SERVICE_URI = "http://ot-test.in-silico.ch/task" 
 #TASK_SERVICE_URI = "https://ambit.uni-plovdiv.bg:8443/ambit2/task" #not compatible
 
 class TaskTest < Test::Unit::TestCase

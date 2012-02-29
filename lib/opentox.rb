@@ -41,27 +41,27 @@ module OpenTox
   end
 
   # REST API
-  def get params={}
-    params[:subjectid] ||= @subjectid
-    params[:accept] ||= 'application/rdf+xml'
-    @response = RestClientWrapper.get @uri, {}, params
+  def get headers={}
+    headers[:subjectid] ||= @subjectid
+    headers[:accept] ||= 'application/rdf+xml'
+    @response = RestClientWrapper.get @uri, {}, headers
   end
 
-  def post payload={}, params={}
-    params[:subjectid] ||= @subjectid
-    params[:accept] ||= 'application/rdf+xml'
-    @response = RestClientWrapper.post(@uri.to_s, payload, params)
+  def post payload={}, headers={}
+    headers[:subjectid] ||= @subjectid
+    headers[:accept] ||= 'application/rdf+xml'
+    @response = RestClientWrapper.post(@uri.to_s, payload, headers)
   end
 
-  def put payload={}, params={} 
-    params[:subjectid] ||= @subjectid
-    params[:accept] ||= 'application/rdf+xml'
-    @response = RestClientWrapper.put(@uri.to_s, payload, params)
+  def put payload={}, headers={} 
+    headers[:subjectid] ||= @subjectid
+    headers[:accept] ||= 'application/rdf+xml'
+    @response = RestClientWrapper.put(@uri.to_s, payload, headers)
   end
 
-  def delete params={}
-    params[:subjectid] ||= @subjectid
-    params[:accept] ||= 'application/rdf+xml'
+  def delete headers={}
+    headers[:subjectid] ||= @subjectid
+    headers[:accept] ||= 'application/rdf+xml'
     @response = RestClientWrapper.delete(@uri.to_s,:subjectid => @subjectid)
   end
 
@@ -78,7 +78,7 @@ module OpenTox
     end
 
     def all service_uri, subjectid=nil
-      uris = RestClientWrapper.get(service_uri, {:accept => 'text/uri-list'}).split("\n").compact
+      uris = RestClientWrapper.get(service_uri, nil, {:accept => 'text/uri-list'}).split("\n").compact
       uris.collect{|uri| subjectid ? eval("#{self}.new(\"#{uri}\", #{subjectid})") : eval("#{self}.new(\"#{uri}\")")}
     end
 

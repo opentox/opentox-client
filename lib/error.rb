@@ -1,6 +1,15 @@
 # adding additional fields to Exception class to format errors according to OT-API
+=begin
 class Exception
+end
+=end
+
+class RuntimeError
   attr_accessor :errorCause # is errorReport
+  def initialize msg=nil
+    $logger.error msg
+    super msg
+  end
   def http_code; 500; end
 end
 
@@ -26,13 +35,15 @@ module OpenTox
     def http_code; 503; end
   end
   
-  # TODO: add to RestClientCalls
   class RestCallError < RuntimeError
-    attr_accessor :rest_params
+    def initialize request, response, expectation=nil
+      msg = "REST request: #{request.inspect}\nREST response: #{response.inspect}"
+      msg += "\n"+expectation if expectation
+      super msg
+    end
     def http_code; 502; end
   end
 
-  # TODO: add to Exception class??
   class ErrorReport
     
     # TODO replace params with URIs (errorCause -> OT.errorCause)
