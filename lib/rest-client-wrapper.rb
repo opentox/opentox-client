@@ -2,6 +2,8 @@ module OpenTox
   
   class RestClientWrapper
     
+    attr_accessor :request, :response
+
     # REST methods 
     # Raises OpenTox::Error if call fails (rescued in overwrite.rb -> halt 502)
     # Waits for Task to finish and returns result URI of Task per default
@@ -34,24 +36,24 @@ module OpenTox
 
         
         begin
-          request = RestClient::Request.new(args)
-          response = request.execute do |response, request, result|
+          @request = RestClient::Request.new(args)
+          @response = @request.execute do |response, request, result|
             # ignore error codes from Task services (may contain eg 500 which causes exceptions in RestClient and RDF::Reader
-            raise OpenTox::RestCallError request, response unless response.code < 400 or URI.task? uri
+            rest_call_error unless response.code < 400 or URI.task? uri
             return response
           end
 
           # TODO: tests for workarounds
           # PENDING NTUA does return errors with 200
-          #raise RestClient::ExceptionWithResponse.new(response) if uri=~/ntua/ and response.body =~ /about.*http:\/\/anonymous.org\/error/
+          #raise RestClient::ExceptionWithResponse.new(@response) if uri=~/ntua/ and @response.body =~ /about.*http:\/\/anonymous.org\/error/
           
-          return response if response.code==200 or wait.false?
+          return @response if @response.code==200 or wait.false?
 
           # wait for task
-          while response.code==201 or response.code==202
-            response = wait_for_task(response, uri, waiting_task)
+          while @response.code==201 or @response.code==202
+            @response = wait_for_task(@response, uri, waiting_task)
           end
-          return response
+          return @response
           
         rescue RestClient::RequestTimeout => ex
           received_error ex.message, 408, nil, {:rest_uri => uri, :headers => headers, :payload => payload}
@@ -74,21 +76,19 @@ module OpenTox
     
     def self.wait_for_task( response, base_uri, waiting_task=nil )
       #TODO remove TUM hack
-      # response.headers[:content_type] = "text/uri-list" if base_uri =~/tu-muenchen/ and response.headers[:content_type] == "application/x-www-form-urlencoded;charset=UTF-8"
+      # @response.headers[:content_type] = "text/uri-list" if base_uri =~/tu-muenchen/ and @response.headers[:content_type] == "application/x-www-form-urlencoded;charset=UTF-8"
 
-      puts "TASK"
-      puts response.inspect
       task = nil
-      case response.headers[:content_type]
+      case @response.headers[:content_type]
       when /application\/rdf\+xml/
         # TODO: task uri from rdf
-        #task = OpenTox::Task.from_rdfxml(response)
-        #task = OpenTox::Task.from_rdfxml(response)
+        #task = OpenTox::Task.from_rdfxml(@response)
+        #task = OpenTox::Task.from_rdfxml(@response)
       when /text\/uri-list/
-        raise OpenTox::RestCallError nil, response, "Uri list has more than one entry, should be a single task" if response.split("\n").size > 1 #if uri list contains more then one uri, its not a task
-        task = OpenTox::Task.new(response.to_s.chomp) if URI.available? response.to_s
+        rest_call_error "Uri list has more than one entry, should be a single task" if @response.split("\n").size > 1 #if uri list contains more then one uri, its not a task
+        task = OpenTox::Task.new(@response.to_s.chomp) if URI.available? @response.to_s
       else
-        raise OpenTox::RestCallError nil, response, "Unknown content-type for task : '"+response.headers[:content_type].to_s+"'"+" base-uri: "+base_uri.to_s+" content: "+response[0..200].to_s
+        rest_call_error @response, "Unknown content-type for task : '"+@response.headers[:content_type].to_s+"'"+" base-uri: "+base_uri.to_s+" content: "+@response[0..200].to_s
       end
       
       #LOGGER.debug "result is a task '"+task.uri.to_s+"', wait for completion"
@@ -97,11 +97,15 @@ module OpenTox
         if task.errorReport
           received_error task.errorReport, task.http_code, nil, {:rest_uri => task.uri, :rest_code => task.http_code}
         else
-          raise OpenTox::RestCallError nil, response, "Status of task '"+task.uri.to_s+"' is no longer running (hasStatus is '"+task.status+
+          rest_call_error "Status of task '"+task.uri.to_s+"' is no longer running (hasStatus is '"+task.status+
             "'), but it is neither completed nor has an errorReport"
         end 
       end
-      response
+      @response
+    end
+
+    def rest_call_error message
+      raise OpenTox::RestCallError @request, @response, message
     end
     
     def self.received_error( body, code, content_type=nil, params=nil )
