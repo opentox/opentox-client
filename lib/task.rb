@@ -17,7 +17,7 @@ module OpenTox
           if URI.accessible?(result_uri)
             task.completed result_uri
           else
-            raise "\"#{result_uri}\" is not a valid result URI"
+            raise NotFoundError.new "\"#{result_uri}\" is not a valid result URI"
             #task.error OpenTox::RestError.new :http_code => 404, :cause => "#{result_uri} is not a valid URI", :actor => params[:creator]
           end
         rescue 
@@ -53,7 +53,7 @@ module OpenTox
     end
 
     def creator
-      metadata[RDF::DC.creator]
+      metadata[RDF::DC.creator] 
     end
     
     def cancel
@@ -63,13 +63,16 @@ module OpenTox
 
     def completed(uri)
       #error OpenTox::RestError.new :http_code => 404, :cause => "\"#{uri}\" does not exist.", :actor => creator unless URI.accessible? uri
-      raise "Result URI \"#{uri}\" does not exist." unless URI.accessible? uri
+      raise NotFoundError.new "Result URI \"#{uri}\" does not exist." unless URI.accessible? uri
       RestClientWrapper.put(File.join(@uri,'Completed'),{:resultURI => uri})
     end
 
     def error error
-      error = OpenTox::TaskError.new error, creator
-      RestClientWrapper.put(File.join(@uri,'Error'),{:errorReport => error.report})
+      # TODO: switch task service to rdf
+      #RestClientWrapper.put(File.join(@uri,'Error'),{:errorReport => error.report.to_rdfxml})
+      # create report for non-runtime errors
+      error.respond_to?(:reporti) ? report = error.report : report = OpenTox::ErrorReport.create(error)
+      RestClientWrapper.put(File.join(@uri,'Error'),{:errorReport => report.to_yaml})
       kill
       raise error
     end
@@ -80,7 +83,7 @@ module OpenTox
       due_to_time = Time.new + DEFAULT_TASK_MAX_DURATION
       while running?
         sleep dur
-        raise "max wait time exceeded ("+DEFAULT_TASK_MAX_DURATION.to_s+"sec), task: '"+@uri.to_s+"'" if (Time.new > due_to_time)
+        raise TimeOutError.new "max wait time exceeded ("+DEFAULT_TASK_MAX_DURATION.to_s+"sec), task: '"+@uri.to_s+"'" if (Time.new > due_to_time)
       end
     end
 
@@ -100,7 +103,8 @@ module OpenTox
   end
 
   def error?
-    RestClientWrapper.head(@uri).code == 500
+    code = RestClientWrapper.head(@uri).code
+    code >= 400 and code != 503
   end
 
   def method_missing(method,*args)
@@ -114,14 +118,15 @@ module OpenTox
         response = metadata[RDF::OT[method]].to_s
         response = metadata[RDF::OT1[method]].to_s #if response.empty?  # API 1.1 compatibility
         if response.empty?
-          $logger.error "No #{method} metadata for #{@uri} "
-          raise "No #{method} metadata for #{@uri} "
+          raise NotFoundError.new "No #{method} metadata for #{@uri} "
         end
         return response
       end
+    rescue OpenTox::Error
+      raise $!
     rescue
       $logger.error "Unknown #{self.class} method #{method}"
-      #super
+      super
     end
   end
 

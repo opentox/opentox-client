@@ -1,101 +1,107 @@
 # adding additional fields to Exception class to format errors according to OT-API
 
 class RuntimeError
-  attr_accessor :http_code
-  @http_code = 500
+  attr_accessor :report, :http_code
+  def initialize message
+    super message
+    @http_code ||= 500
+    @report = OpenTox::ErrorReport.create self
+    $logger.error "\n"+@report.to_ntriples
+  end
 end
 
 module OpenTox
 
-  # Errors received from RestClientWrapper calls
-  class RestError < RuntimeError
-    attr_accessor :request, :response, :cause
-    def initialize args
-      @request = args[:request]
-      @response = args[:response]
-      args[:http_code] ? @http_code = args[:http_code] : @http_code = @response.code if @response
-      @cause = args[:cause]
-      msg = args.to_yaml
-      $logger.error msg
-      super msg
+  class Error < RuntimeError
+    def initialize code, message
+      @http_code = code
+      super message
     end
   end
 
-  # Errors rescued from task blocks
-  class TaskError < RuntimeError
-    attr_reader :error, :actor, :report
-    def initialize error, actor=nil
-      @error = error
-      @actor = actor
-      @report = ErrorReport.create error, actor
-      # TODO avoid error log duplication, improve output
-      msg = "\nActor: \"#{actor}\"\n"
-      msg += "\nCode: #{@report.http_code}"
-      msg += "\nerrorCause: #{@report.errorCause}\n"
-      msg += @report.message
-      $logger.error msg
-      super msg
+  # create error classes dynamically
+  {
+    "BadRequestError" => 400,
+    "NotAuthorizedError" => 401,
+    "NotFoundError" => 404,
+    "ServiceUnavailableError" => 503,
+    "TimeOutError" => 504,
+  }.each do |klass,code|
+    c = Class.new Error do
+      define_method :initialize do |message|
+        super code, message
+      end
+    end
+    OpenTox.const_set klass,c
+  end
+  
+  # Errors received from RestClientWrapper calls
+  class RestCallError < Error
+    attr_accessor :request, :response
+    def initialize request, response, message
+      @request = request
+      @response = response
+      super 502, message
     end
   end
 
   class ErrorReport
     
-    # TODO replace params with URIs (errorCause -> OT.errorCause)
-    attr_reader :message, :actor, :errorCause, :http_code, :errorDetails, :errorType
+    attr_accessor :rdf # RDF Graph
+    attr_accessor :http_code # TODO: remove when task service is fixed
 
-    private
-    def initialize( http_code, erroType, message, actor, errorCause, rest_params=nil, backtrace=nil )
-      @http_code = http_code
-      @errorType = erroType
-      @message = message
-      @actor = actor
-      @errorCause = errorCause
-      @rest_params = rest_params
-      @backtrace = backtrace
+    def initialize 
+      @rdf = RDF::Graph.new
     end
-    
-    public
+
     # creates a error report object, from an ruby-exception object
     # @param [Exception] error
-    # @param [String] actor, URI of the call that cause the error
-    def self.create( error, actor )
-      rest_params = error.request if error.respond_to? :request
-      backtrace = error.backtrace.short_backtrace if error.respond_to? :backtrace and error.backtrace #if CONFIG[:backtrace]
-      error.respond_to?(:http_code) ? http_code = error.http_code : http_code = 500
-      error.respond_to?(:cause) ? cause = error.cause : cause = 'Unknown'
-      ErrorReport.new( http_code, error.class.to_s, error.message, actor, cause, rest_params, backtrace )
+    def self.create error
+      report = ErrorReport.new
+      subject = RDF::Node.new
+      report.rdf << [subject, RDF.type, RDF::OT.ErrorReport]
+      message = error.message 
+      errorDetails = ""
+      if error.respond_to? :request
+        report.rdf << [subject, RDF::OT.actor, error.request.url ]
+        errorDetails += "REST paramenters:\n#{error.request.args.inspect}"
+      end
+      error.respond_to?(:http_code) ? statusCode = error.http_code : statusCode = 500
+      if error.respond_to? :response
+        statusCode = error.response.code 
+        message = error.body
+      end
+      statusCode = error.http_code if error.respond_to? :http_code
+      report.rdf << [subject, RDF::OT.statusCode, statusCode ]
+      report.rdf << [subject, RDF::OT.errorCode, error.class.to_s ]
+      # TODO: remove kludge for old task services
+      report.http_code = statusCode
+      report.rdf << [subject, RDF::OT.message , message ]
+
+      errorDetails += "\nBacktrace:\n" + error.backtrace.short_backtrace if error.respond_to?(:backtrace) and error.backtrace 
+      report.rdf << [subject, RDF::OT.errorDetails, errorDetails ]
+      # TODO Error cause
+      #report.rdf << [subject, OT.errorCause, error.report] if error.respond_to?(:report) and !error.report.empty?
+      report
     end
     
-    def self.from_rdf(rdf)
-      metadata = OpenTox::Parser::Owl.from_rdf( rdf, OT.ErrorReport ).metadata
-      ErrorReport.new(metadata[OT.statusCode], metadata[OT.errorCode], metadata[OT.message], metadata[OT.actor], metadata[OT.errorCause])
-    end
-    
-    # overwrite sorting to make easier readable
-    def to_yaml_properties
-       p = super
-       p = ( p - ["@backtrace"]) + ["@backtrace"] if @backtrace
-       p = ( p - ["@errorCause"]) + ["@errorCause"] if @errorCause
-       p
-    end
-    
-    def rdf_content()
-      c = {
-        RDF.type => [OT.ErrorReport],
-        OT.statusCode => @http_code,
-        OT.message => @message,
-        OT.actor => @actor,
-        OT.errorCode => @errorType,
-      }
-      c[OT.errorCause] = @errorCause.rdf_content if @errorCause
-      c
-    end
-    
-    # TODO: use rdf.rb
-    def to_rdfxml
-      s = Serializer::Owl.new
-      s.add_resource(CONFIG[:services]["opentox-task"]+"/tmpId/ErrorReport/tmpId", OT.errorReport, rdf_content)
-      s.to_rdfxml
+    # define to_ and self.from_ methods for various rdf formats
+    [:rdfxml,:ntriples].each do |format|
+
+      define_singleton_method ("from_#{format}").to_sym do |rdf|
+        report = ErrorReport.new
+        RDF::Reader.for(format).new(rdf) do |reader|
+          reader.each_statement{ |statement| report.rdf << statement }
+        end
+        report
+      end
+
+      send :define_method, ("to_#{format}").to_sym do
+        rdfxml = RDF::Writer.for(format).buffer do |writer|
+          @rdf.each{|statement| writer << statement}
+        end
+        rdfxml
+      end
     end
 
   end

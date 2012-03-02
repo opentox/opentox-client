@@ -27,29 +27,25 @@ module OpenTox
         args[:headers] = headers 
         @request = RestClient::Request.new(args)
 
-        # catch input errors
-        rest_error "Invalid URI: '#{uri}'" unless URI.valid? uri
-        rest_error "Unreachable URI: '#{uri}'" unless URI.accessible? uri
-        rest_error "Headers are not a hash: #{headers.inspect}" unless headers==nil or headers.is_a?(Hash)
-        # make sure that no header parameters are set in payload
+        # check input 
+        raise OpenTox::Error.new 400, "Invalid URI: '#{uri}'" unless URI.valid? uri
+        raise OpenTox::Error.new 400, "Unreachable URI: '#{uri}'" unless URI.accessible? uri
+        raise OpenTox::Error.new 400, "Headers are not a hash: #{headers.inspect}" unless headers==nil or headers.is_a?(Hash)
+        # make sure that no header parameters are set in the payload
         [:accept,:content_type,:subjectid].each do |header|
-          rest_error "#{header} should be submitted in the headers" if payload and payload.is_a?(Hash) and payload[header] 
+          raise OpenTox::Error.new 400, "#{header} should be submitted in the headers" if payload and payload.is_a?(Hash) and payload[header] 
         end
-        rest_error "waiting_task is not 'nil', OpenTox::SubTask or OpenTox::Task: #{waiting_task.class}" unless waiting_task.nil? or waiting_task.is_a?(OpenTox::Task) or waiting_task.is_a?(OpenTox::SubTask)
+        raise OpenTox::Error.new 400, "waiting_task is not 'nil', OpenTox::SubTask or OpenTox::Task: #{waiting_task.class}" unless waiting_task.nil? or waiting_task.is_a?(OpenTox::Task) or waiting_task.is_a?(OpenTox::SubTask)
 
         
         begin
           @response = @request.execute do |response, request, result|
             # ignore error codes from Task services (may contain eg 500 which causes exceptions in RestClient and RDF::Reader
-            rest_error unless response.code < 400 or URI.task? uri
+            rest_error "Response code is #{response.code}" unless response.code < 400 or URI.task? uri
             return response
           end
-
-          # TODO: tests for workarounds
-          # PENDING NTUA does return errors with 200
-          #raise RestClient::ExceptionWithResponse.new(@response) if uri=~/ntua/ and @response.body =~ /about.*http:\/\/anonymous.org\/error/
           
-          return @response if @response.code==200 or wait.false?
+          return @response if @response.code==200 or !wait
 
           # wait for task
           while @response.code==201 or @response.code==202
@@ -98,7 +94,7 @@ module OpenTox
         rest_error "Uri list has more than one entry, should be a single task" if @response.split("\n").size > 1 #if uri list contains more then one uri, its not a task
         task = OpenTox::Task.new(@response.to_s.chomp) if URI.available? @response.to_s
       else
-        rest_error @response, "Unknown content-type for task : '"+@response.headers[:content_type].to_s+"'"+" base-uri: "+base_uri.to_s+" content: "+@response[0..200].to_s
+        rest_error "Unknown content-type for task : '"+@response.headers[:content_type].to_s+"'"+" base-uri: "+base_uri.to_s+" content: "+@response[0..200].to_s
       end
       
       #LOGGER.debug "result is a task '"+task.uri.to_s+"', wait for completion"
@@ -107,7 +103,7 @@ module OpenTox
         if task.errorReport
           received_error task.errorReport, task.http_code, nil, {:rest_uri => task.uri, :rest_code => task.http_code}
         else
-          rest_call_error "Status of task '"+task.uri.to_s+"' is no longer running (hasStatus is '"+task.status+
+          rest_error "Status of task '"+task.uri.to_s+"' is no longer running (hasStatus is '"+task.status+
             "'), but it is neither completed nor has an errorReport"
         end 
       end
@@ -115,7 +111,7 @@ module OpenTox
     end
 
     def self.rest_error message
-      raise OpenTox::RestError.new :request => @request, :response => @response, :cause => message
+      raise OpenTox::RestCallError.new @request, @response, message
     end
 
 =begin

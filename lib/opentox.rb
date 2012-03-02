@@ -24,7 +24,7 @@ module OpenTox
     if reload or @metadata.empty?
       @metadata = {}
       kind_of?(OpenTox::Dataset) ? uri = File.join(@uri,"metadata") : uri = @uri
-      RDF::Reader.for(:rdfxml).new( RestClientWrapper.get(@uri) ) do |reader|
+      RDF::Reader.for(:rdfxml).new( RestClientWrapper.get(uri) ) do |reader|
         reader.each_statement do |statement|
           @metadata[statement.predicate] = statement.object if statement.subject == @uri
         end
@@ -34,10 +34,14 @@ module OpenTox
   end
 
   def save
+    post self.to_rdfxml, { :content_type => 'application/rdf+xml'}
+  end
+
+  def to_rdfxml
     rdf = RDF::Writer.for(:rdfxml).buffer do |writer|
       @metadata.each { |p,o| writer << RDF::Statement.new(RDF::URI.new(@uri), p, o) }
     end
-    post rdf, { :content_type => 'application/rdf+xml'}
+    rdf
   end
 
   # REST API
