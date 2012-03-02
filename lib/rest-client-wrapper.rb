@@ -28,14 +28,14 @@ module OpenTox
         @request = RestClient::Request.new(args)
 
         # check input 
-        raise OpenTox::BadRequestError.new "Invalid URI: '#{uri}'" unless URI.valid? uri
-        raise OpenTox::BadRequestError.new "Unreachable URI: '#{uri}'" unless URI.accessible? uri
-        raise OpenTox::BadRequestError.new "Headers are not a hash: #{headers.inspect}" unless headers==nil or headers.is_a?(Hash)
+        bad_request_error "Invalid URI: '#{uri}'" unless URI.valid? uri
+        bad_request_error "Unreachable URI: '#{uri}'" unless URI.accessible? uri
+        bad_request_error "Headers are not a hash: #{headers.inspect}" unless headers==nil or headers.is_a?(Hash)
         # make sure that no header parameters are set in the payload
         [:accept,:content_type,:subjectid].each do |header|
-          raise OpenTox::BadRequestError.new "#{header} should be submitted in the headers" if payload and payload.is_a?(Hash) and payload[header] 
+          bad_request_error "#{header} should be submitted in the headers" if payload and payload.is_a?(Hash) and payload[header] 
         end
-        raise OpenTox::BadRequestError.new "waiting_task is not 'nil', OpenTox::SubTask or OpenTox::Task: #{waiting_task.class}" unless waiting_task.nil? or waiting_task.is_a?(OpenTox::Task) or waiting_task.is_a?(OpenTox::SubTask)
+        bad_request_error "waiting_task is not 'nil', OpenTox::SubTask or OpenTox::Task: #{waiting_task.class}" unless waiting_task.nil? or waiting_task.is_a?(OpenTox::Task) or waiting_task.is_a?(OpenTox::SubTask)
 
         
         begin

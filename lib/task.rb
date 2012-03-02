@@ -17,8 +17,7 @@ module OpenTox
           if URI.accessible?(result_uri)
             task.completed result_uri
           else
-            raise NotFoundError.new "\"#{result_uri}\" is not a valid result URI"
-            #task.error OpenTox::RestError.new :http_code => 404, :cause => "#{result_uri} is not a valid URI", :actor => params[:creator]
+            not_found_error "\"#{result_uri}\" is not a valid result URI"
           end
         rescue 
           task.error $! 
@@ -62,8 +61,7 @@ module OpenTox
     end
 
     def completed(uri)
-      #error OpenTox::RestError.new :http_code => 404, :cause => "\"#{uri}\" does not exist.", :actor => creator unless URI.accessible? uri
-      raise NotFoundError.new "Result URI \"#{uri}\" does not exist." unless URI.accessible? uri
+      not_found_error "Result URI \"#{uri}\" does not exist." unless URI.accessible? uri
       RestClientWrapper.put(File.join(@uri,'Completed'),{:resultURI => uri})
     end
 
@@ -83,7 +81,7 @@ module OpenTox
       due_to_time = Time.new + DEFAULT_TASK_MAX_DURATION
       while running?
         sleep dur
-        raise TimeOutError.new "max wait time exceeded ("+DEFAULT_TASK_MAX_DURATION.to_s+"sec), task: '"+@uri.to_s+"'" if (Time.new > due_to_time)
+        time_out_error "max wait time exceeded ("+DEFAULT_TASK_MAX_DURATION.to_s+"sec), task: '"+@uri.to_s+"'" if (Time.new > due_to_time)
       end
     end
 
@@ -116,9 +114,9 @@ module OpenTox
         super unless res.code == 200
       else
         response = metadata[RDF::OT[method]].to_s
-        response = metadata[RDF::OT1[method]].to_s #if response.empty?  # API 1.1 compatibility
+        response = metadata[RDF::OT1[method]].to_s if response.empty?  # API 1.1 compatibility
         if response.empty?
-          raise NotFoundError.new "No #{method} metadata for #{@uri} "
+          not_found_error "No #{method} metadata for #{@uri} "
         end
         return response
       end

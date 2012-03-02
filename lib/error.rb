@@ -19,20 +19,28 @@ module OpenTox
     end
   end
 
-  # create error classes dynamically
+  # OpenTox errors
   {
     "BadRequestError" => 400,
     "NotAuthorizedError" => 401,
     "NotFoundError" => 404,
     "ServiceUnavailableError" => 503,
     "TimeOutError" => 504,
+    "LockedError" => 423,
+    "NotImplementedError" => 501,
   }.each do |klass,code|
+    # create error classes 
     c = Class.new Error do
       define_method :initialize do |message|
         super code, message
       end
     end
     OpenTox.const_set klass,c
+    
+    # define global methods for raising errors, eg. bad_request_error
+    Object.send(:define_method, klass.underscore.to_sym) do |message|
+      raise c.new message
+    end
   end
   
   # Errors received from RestClientWrapper calls
@@ -88,7 +96,7 @@ module OpenTox
     # define to_ and self.from_ methods for various rdf formats
     [:rdfxml,:ntriples].each do |format|
 
-      define_singleton_method ("from_#{format}").to_sym do |rdf|
+      define_singleton_method "from_#{format}".to_sym do |rdf|
         report = ErrorReport.new
         RDF::Reader.for(format).new(rdf) do |reader|
           reader.each_statement{ |statement| report.rdf << statement }
@@ -96,7 +104,7 @@ module OpenTox
         report
       end
 
-      send :define_method, ("to_#{format}").to_sym do
+      send :define_method, "to_#{format}".to_sym do
         rdfxml = RDF::Writer.for(format).buffer do |writer|
           @rdf.each{|statement| writer << statement}
         end
