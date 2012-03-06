@@ -24,10 +24,11 @@ module OpenTox
     "BadRequestError" => 400,
     "NotAuthorizedError" => 401,
     "NotFoundError" => 404,
+    "LockedError" => 423,
+    "InternalServerError" => 500,
+    "NotImplementedError" => 501,
     "ServiceUnavailableError" => 503,
     "TimeOutError" => 504,
-    "LockedError" => 423,
-    "NotImplementedError" => 501,
   }.each do |klass,code|
     # create error classes 
     c = Class.new Error do
@@ -112,6 +113,17 @@ module OpenTox
       end
     end
 
+  end
+end
+
+  # overwrite backtick operator to catch system errors
+class Object
+  def `(code)
+    msg = super("#{code} 2>&1").chomp
+    internal_server_error msg unless $?.to_i == 0
+    msg
+  rescue Errno::ENOENT => e
+    internal_server_error e
   end
 end
 

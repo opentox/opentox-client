@@ -10,6 +10,7 @@ module OpenTox
     def self.create service_uri, params={}
 
       # TODO set/enforce request uri
+      # TODO: run observer in same process?
       task = Task.new RestClientWrapper.post(service_uri,params).chomp
       pid = fork do
         begin
