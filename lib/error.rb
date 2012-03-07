@@ -1,12 +1,13 @@
-# adding additional fields to Exception class to format errors according to OT-API
+require 'open4'
 
+# adding additional fields to Exception class to format errors according to OT-API
 class RuntimeError
   attr_accessor :report, :http_code
   def initialize message
     super message
     @http_code ||= 500
     @report = OpenTox::ErrorReport.create self
-    $logger.error "\n"+@report.to_ntriples
+    $logger.error "\n"+@report.to_turtle
   end
 end
 
@@ -99,7 +100,6 @@ module OpenTox
       subject = RDF::Query.execute(@rdf) do
           pattern [:subject, RDF.type, RDF::OT.ErrorReport]
       end.limit(1).select(:subject)
-  })
       @rdf << [subject, RDF::OT.actor, uri]
     end
     
@@ -126,13 +126,27 @@ module OpenTox
 end
 
 # overwrite backtick operator to catch system errors
-class Object
-  def `(code)
-    msg = super("#{code} 2>&1").chomp
-    internal_server_error msg unless $?.to_i == 0
-    msg
-  rescue Errno::ENOENT => e
-    internal_server_error e
+module Kernel
+
+  # Override raises an error if _cmd_ returns a non-zero exit status.
+  # Returns stdout if _cmd_ succeeds.  Note that these are simply concatenated; STDERR is not inline.
+  def ` cmd
+    stdout, stderr = ''
+    status = Open4::popen4(cmd) do |pid, stdin_stream, stdout_stream, stderr_stream|
+      stdout = stdout_stream.read
+      stderr = stderr_stream.read
+    end
+    raise stderr.strip if !status.success?
+    return stdout
+  rescue Exception 
+    internal_server_error "'#{cmd}' failed with: '#{$!.message}'"
+  end
+
+  alias_method :system!, :system
+
+  def system cmd
+    `#{cmd}`
+    return true
   end
 end
 
