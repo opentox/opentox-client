@@ -2,10 +2,15 @@
 RDF::OT =  RDF::Vocabulary.new 'http://www.opentox.org/api/1.2#'
 RDF::OT1 =  RDF::Vocabulary.new 'http://www.opentox.org/api/1.1#'
 RDF::OTA =  RDF::Vocabulary.new 'http://www.opentox.org/algorithmTypes.owl#'
+
 SERVICES = ["Compound", "Feature", "Dataset", "Algorithm", "Model", "Validation", "Task", "Investigation"]
 
-# defaults to stderr, may be changed to file output
-$logger = OTLogger.new(STDERR) # no rotation
+# Regular expressions for parsing classification data
+TRUE_REGEXP = /^(true|active|1|1.0|tox|activating|carcinogen|mutagenic)$/i
+FALSE_REGEXP = /^(false|inactive|0|0.0|low tox|deactivating|non-carcinogen|non-mutagenic)$/i
+
+# defaults to stderr, may be changed to file output (e.g in opentox-service)
+$logger = OTLogger.new(STDERR) 
 $logger.level = Logger::DEBUG
 
 module OpenTox

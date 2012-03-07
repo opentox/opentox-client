@@ -93,9 +93,18 @@ module OpenTox
       #report.rdf << [subject, OT.errorCause, error.report] if error.respond_to?(:report) and !error.report.empty?
       report
     end
+
+    def actor=(uri)
+      # TODO: test actor assignement (in opentox-server)
+      subject = RDF::Query.execute(@rdf) do
+          pattern [:subject, RDF.type, RDF::OT.ErrorReport]
+      end.limit(1).select(:subject)
+  })
+      @rdf << [subject, RDF::OT.actor, uri]
+    end
     
     # define to_ and self.from_ methods for various rdf formats
-    [:rdfxml,:ntriples].each do |format|
+    [:rdfxml,:ntriples,:turtle].each do |format|
 
       define_singleton_method "from_#{format}".to_sym do |rdf|
         report = ErrorReport.new
@@ -116,7 +125,7 @@ module OpenTox
   end
 end
 
-  # overwrite backtick operator to catch system errors
+# overwrite backtick operator to catch system errors
 class Object
   def `(code)
     msg = super("#{code} 2>&1").chomp

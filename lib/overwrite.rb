@@ -35,5 +35,6 @@ module URI
   rescue URI::InvalidURIError
     false
   end
+
 end
 
