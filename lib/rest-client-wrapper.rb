@@ -13,7 +13,7 @@ module OpenTox
     # @param [optional,OpenTox::Task] waiting_task (can be a OpenTox::Subtask as well), progress is updated accordingly
     # @param [wait,Boolean] Set to false to NOT wait for task if result is a task
     # @return [RestClient::Response] REST call response 
-    [:head,:get,:post,:put,:dealete].each do |method|
+    [:head,:get,:post,:put,:delete].each do |method|
 
       define_singleton_method method do |uri,payload={},headers={},waiting_task=nil, wait=true|
       
@@ -25,64 +25,40 @@ module OpenTox
         args[:payload] = payload
         headers.each{ |k,v| headers.delete(k) if v==nil } if headers #remove keys with empty values, as this can cause problems
         args[:headers] = headers 
-        @request = RestClient::Request.new(args)
 
         # check input 
         bad_request_error "Invalid URI: '#{uri}'" unless URI.valid? uri
-        bad_request_error "Unreachable URI: '#{uri}'" unless URI.accessible? uri
+        not_found_error "URI '#{uri}' not found." unless URI.accessible? uri
         bad_request_error "Headers are not a hash: #{headers.inspect}" unless headers==nil or headers.is_a?(Hash)
         # make sure that no header parameters are set in the payload
         [:accept,:content_type,:subjectid].each do |header|
           bad_request_error "#{header} should be submitted in the headers" if payload and payload.is_a?(Hash) and payload[header] 
         end
-        bad_request_error "waiting_task is not 'nil', OpenTox::SubTask or OpenTox::Task: #{waiting_task.class}" unless waiting_task.nil? or waiting_task.is_a?(OpenTox::Task) or waiting_task.is_a?(OpenTox::SubTask)
+        #bad_request_error "waiting_task is not 'nil', OpenTox::SubTask or OpenTox::Task: #{waiting_task.class}" unless waiting_task.nil? or waiting_task.is_a?(OpenTox::Task) or waiting_task.is_a?(OpenTox::SubTask)
 
-        
-        begin
-          @response = @request.execute do |response, request, result|
-            # ignore error codes from Task services (may contain eg 500 which causes exceptions in RestClient and RDF::Reader
-            rest_error "Response code is #{response.code}" unless response.code < 400 or URI.task? uri
-            return response
-          end
-          
-          return @response if @response.code==200 or !wait
+        # perform request
+        @request = RestClient::Request.new(args)
+        #begin
+          # do not throw RestClient exceptions in order to create a @response object (needed for error reports) in every case
+          @response = @request.execute { |response, request, result| return response }
+          # ignore error codes from Task services (may return error codes >= 400 according to API, which causes exceptions in RestClient and RDF::Reader)
+          raise OpenTox::RestCallError.new @request, @response, "Response code is #{@response.code}." unless @response.code < 400 or URI.task? uri
+          #return @response if @response.code==200 or !wait
 
           # wait for task
-          while @response.code==201 or @response.code==202
-            @response = wait_for_task(@response, uri, waiting_task)
-          end
-          return @response
+          #while @response.code==201 or @response.code==202
+            #@response = wait_for_task(@response, uri, waiting_task)
+          #end
+          @response
           
-        rescue
-          rest_error $!.message
-        end
-=begin
-        rescue RestClient::RequestTimeout 
-          raise OpenTox::Error @request, @response, $!.message
-          #received_error ex.message, 408, nil, {:rest_uri => uri, :headers => headers, :payload => payload}
-        rescue Errno::ETIMEDOUT 
-          raise OpenTox::Error @request, @response, $!.message
-          #received_error ex.message, 408, nil, {:rest_uri => uri, :headers => headers, :payload => payload}
-        rescue Errno::ECONNREFUSED
-          raise OpenTox::Error $!.message
-          #received_error ex.message, 500, nil, {:rest_uri => uri, :headers => headers, :payload => payload}
-        rescue RestClient::ExceptionWithResponse
-          # error comming from a different webservice, 
-          received_error ex.http_body, ex.http_code, ex.response.net_http_res.content_type, {:rest_uri => uri, :headers => headers, :payload => payload}
-        #rescue OpenTox::RestCallError => ex
-          # already a rest-error, probably comes from wait_for_task, just pass through
-          #raise ex       
-        #rescue => ex
-          # some internal error occuring in rest-client-wrapper, just pass through
-          #raise ex
-        end
-=end
+        #rescue
+          #rest_error $!.message
+        #end
       end
     end
     
+=begin
     def wait_for_task( response, base_uri, waiting_task=nil )
-      #TODO remove TUM hack
-      # @response.headers[:content_type] = "text/uri-list" if base_uri =~/tu-muenchen/ and @response.headers[:content_type] == "application/x-www-form-urlencoded;charset=UTF-8"
 
       task = nil
       case @response.headers[:content_type]
@@ -97,7 +73,6 @@ module OpenTox
         rest_error "Unknown content-type for task : '"+@response.headers[:content_type].to_s+"'"+" base-uri: "+base_uri.to_s+" content: "+@response[0..200].to_s
       end
       
-      #LOGGER.debug "result is a task '"+task.uri.to_s+"', wait for completion"
       task.wait waiting_task
       unless task.completed? # maybe task was cancelled / error
         if task.errorReport
@@ -111,18 +86,10 @@ module OpenTox
     end
 
     def self.rest_error message
+      puts message
       raise OpenTox::RestCallError.new @request, @response, message
     end
 
-=begin
-    def self.bad_request_error message
-      raise OpenTox::Error.new message
-    end
-
-    def self.not_found_error message
-      raise OpenTox::NotFoundError.new message
-    end
-    
     def self.received_error( body, code, content_type=nil, params=nil )
 
       # try to parse body TODO

@@ -70,8 +70,7 @@ module OpenTox
 
   def delete headers={}
     headers[:subjectid] ||= @subjectid
-    headers[:accept] ||= 'application/rdf+xml'
-    @response = RestClientWrapper.delete(@uri.to_s,:subjectid => @subjectid)
+    @response = RestClientWrapper.delete(@uri.to_s,nil,nil,headers)
   end
 
   # class methods
@@ -82,23 +81,26 @@ module OpenTox
       subjectid ? eval("#{self}.new(\"#{uri}\", #{subjectid})") : eval("#{self}.new(\"#{uri}\")")
     end
 
-    def from_file service_uri, file, subjectid=nil
-      RestClientWrapper.post(service_uri, :file => File.new(file), :subjectid => subjectid).chomp.to_object
+    def from_file service_uri, filename, subjectid=nil
+      file = File.new filename
+      uri = RestClientWrapper.post(service_uri, {:file => file}, {:subjectid => subjectid, :content_type => file.mime_type, :accept => "text/uri-list"})
+      puts uri
     end
 
     def all service_uri, subjectid=nil
-      uris = RestClientWrapper.get(service_uri, nil, {:accept => 'text/uri-list'}).split("\n").compact
+      uris = RestClientWrapper.get(service_uri, {}, :accept => 'text/uri-list').split("\n").compact
       uris.collect{|uri| subjectid ? eval("#{self}.new(\"#{uri}\", #{subjectid})") : eval("#{self}.new(\"#{uri}\")")}
     end
 
   end
 
-  # create default classes
-  SERVICES.each do |s|
-    eval "class #{s}
+  # create default OpenTox classes
+  SERVICES.each do |klass|
+    c = Class.new do
       include OpenTox
       extend OpenTox::ClassMethods
-    end"
+    end
+    OpenTox.const_set klass,c
   end
 
 end

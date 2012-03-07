@@ -5,7 +5,9 @@ class RuntimeError
   attr_accessor :report, :http_code
   def initialize message
     super message
+    self.set_backtrace message.backtrace if message.is_a? Exception
     @http_code ||= 500
+    puts self.class
     @report = OpenTox::ErrorReport.create self
     $logger.error "\n"+@report.to_turtle
   end
@@ -77,9 +79,10 @@ module OpenTox
         errorDetails += "REST paramenters:\n#{error.request.args.inspect}"
       end
       error.respond_to?(:http_code) ? statusCode = error.http_code : statusCode = 500
+      puts error.inspect
       if error.respond_to? :response
-        statusCode = error.response.code 
-        message = error.body
+        statusCode = error.response.code if error.response
+        message = error.response.body
       end
       statusCode = error.http_code if error.respond_to? :http_code
       report.rdf << [subject, RDF::OT.statusCode, statusCode ]
@@ -87,7 +90,6 @@ module OpenTox
       # TODO: remove kludge for old task services
       report.http_code = statusCode
       report.rdf << [subject, RDF::OT.message , message ]
-
       errorDetails += "\nBacktrace:\n" + error.backtrace.short_backtrace if error.respond_to?(:backtrace) and error.backtrace 
       report.rdf << [subject, RDF::OT.errorDetails, errorDetails ]
       # TODO Error cause
@@ -139,7 +141,7 @@ module Kernel
     raise stderr.strip if !status.success?
     return stdout
   rescue Exception 
-    internal_server_error "'#{cmd}' failed with: '#{$!.message}'"
+    internal_server_error $!
   end
 
   alias_method :system!, :system

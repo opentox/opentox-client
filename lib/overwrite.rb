@@ -23,8 +23,13 @@ module URI
   end
 
   def self.accessible? uri, subjectid=nil
-    Net::HTTP.get_response(URI.parse(uri))
-    true
+    if URI.task? uri
+      # just ry to get a response, valid tasks may return codes > 400
+      Net::HTTP.get_response(URI.parse(uri))
+      true
+    else
+      Net::HTTP.get_response(URI.parse(uri)).code.to_i < 400
+    end
   rescue
     false
   end
@@ -36,5 +41,23 @@ module URI
     false
   end
 
+  def self.to_object uri, wait=true
+
+    # TODO add waiting task
+    if task? uri and wait
+      t = OpenTox::Task.new(uri)
+      t.wait
+      uri = t.resultURI
+    end
+
+    klass = 
+    subjectid ? eval("#{self}.new(\"#{uri}\", #{subjectid})") : eval("#{self}.new(\"#{uri}\")")
+  end
+
 end
 
+class File
+  def mime_type 
+    `file -ib #{self.path}`.chomp
+  end
+end
