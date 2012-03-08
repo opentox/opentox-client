@@ -47,6 +47,7 @@ module OpenTox
     # define global methods for raising errors, eg. bad_request_error
     Object.send(:define_method, klass.underscore.to_sym) do |message|
       defined?(@uri) ? uri = @uri : uri=nil
+      # TODO: insert uri from sinatra
       raise c, message, uri
     end
   end
