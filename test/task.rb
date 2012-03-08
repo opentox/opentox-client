@@ -10,12 +10,14 @@ TASK_SERVICE_URI = "http://ot-dev.in-silico.ch/task"
 class TaskTest < Test::Unit::TestCase
 
 
+=begin
+=end
   def test_all
     all = OpenTox::Task.all(TASK_SERVICE_URI)
     assert_equal Array, all.class
     t = all.last
     assert_equal OpenTox::Task, t.class
-    assert_equal RDF::OT1.Task, t.metadata[RDF.type]
+    assert_equal RDF::OT1.Task, t[RDF.type].first
   end
 
   def test_create_and_complete
@@ -77,5 +79,7 @@ class TaskTest < Test::Unit::TestCase
     assert task.error?
     assert_equal "Error", task.hasStatus
   end
+=begin
+=end
 
 end

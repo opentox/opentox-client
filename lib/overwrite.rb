@@ -10,6 +10,10 @@ end
 
 module URI
 
+  def self.compound? uri
+    uri =~ /compound/ and URI.valid? uri
+  end
+
   def self.task? uri
     uri =~ /task/ and URI.valid? uri
   end
@@ -23,8 +27,8 @@ module URI
   end
 
   def self.accessible? uri, subjectid=nil
-    if URI.task? uri
-      # just ry to get a response, valid tasks may return codes > 400
+    if URI.task? uri or URI.compound? uri
+      # just try to get a response, valid tasks may return codes > 400
       Net::HTTP.get_response(URI.parse(uri))
       true
     else
@@ -41,23 +45,46 @@ module URI
     false
   end
 
-  def self.to_object uri, wait=true
-
-    # TODO add waiting task
-    if task? uri and wait
-      t = OpenTox::Task.new(uri)
-      t.wait
-      uri = t.resultURI
-    end
-
-    klass = 
-    subjectid ? eval("#{self}.new(\"#{uri}\", #{subjectid})") : eval("#{self}.new(\"#{uri}\")")
-  end
-
 end
 
 class File
   def mime_type 
     `file -ib #{self.path}`.chomp
+  end
+end
+
+# overwrite backtick operator to catch system errors
+module Kernel
+
+  # Override raises an error if _cmd_ returns a non-zero exit status.
+  # Returns stdout if _cmd_ succeeds.  Note that these are simply concatenated; STDERR is not inline.
+  def ` cmd
+    stdout, stderr = ''
+    status = Open4::popen4(cmd) do |pid, stdin_stream, stdout_stream, stderr_stream|
+      stdout = stdout_stream.read
+      stderr = stderr_stream.read
+    end
+    raise stderr.strip if !status.success?
+    return stdout
+  rescue Exception 
+    internal_server_error $!
+  end
+
+  alias_method :system!, :system
+
+  def system cmd
+    `#{cmd}`
+    return true
+  end
+end
+
+class Array
+  def short_backtrace
+    short = []
+    each do |c|
+      break if c =~ /sinatra\/base/
+      short << c
+    end
+    short.join("\n")
   end
 end

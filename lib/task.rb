@@ -15,13 +15,11 @@ module OpenTox
       pid = fork do
         begin
           result_uri = yield 
-          if URI.accessible?(result_uri)
-            task.completed result_uri
-          else
-            not_found_error "\"#{result_uri}\" is not a valid result URI"
-          end
+          task.completed result_uri
         rescue 
-          task.error $! 
+          RestClientWrapper.put(File.join(task.uri,'Error'),{:errorReport => $!.report.to_yaml})
+          task.kill
+          #raise $!
         end
       end
       Process.detach(pid)
@@ -49,11 +47,13 @@ module OpenTox
     end
 
     def description
-      metadata[RDF::DC.description]
+      pull
+      self.[](RDF::DC.description).uniq.first
     end
 
     def creator
-      metadata[RDF::DC.creator] 
+      pull
+      self.[](RDF::DC.creator).uniq.first
     end
     
     def cancel
@@ -64,16 +64,6 @@ module OpenTox
     def completed(uri)
       not_found_error "Result URI \"#{uri}\" does not exist." unless URI.accessible? uri
       RestClientWrapper.put(File.join(@uri,'Completed'),{:resultURI => uri})
-    end
-
-    def error error
-      # TODO: switch task service to rdf
-      #RestClientWrapper.put(File.join(@uri,'Error'),{:errorReport => error.report.to_rdfxml})
-      # create report for non-runtime errors
-      error.respond_to?(:reporti) ? report = error.report : report = OpenTox::ErrorReport.create(error)
-      RestClientWrapper.put(File.join(@uri,'Error'),{:errorReport => report.to_yaml})
-      kill
-      raise error
     end
 
     # waits for a task, unless time exceeds or state is no longer running
@@ -114,12 +104,11 @@ module OpenTox
         res = RestClientWrapper.put(File.join(@uri,method.sub(/=/,'')),{})
         super unless res.code == 200
       else
-        response = metadata[RDF::OT[method]].to_s
-        response = metadata[RDF::OT1[method]].to_s if response.empty?  # API 1.1 compatibility
-        if response.empty?
-          not_found_error "No #{method} metadata for #{@uri} "
-        end
-        return response
+        pull
+        response = self.[](RDF::OT[method])
+        response = self.[](RDF::OT1[method]) if response.empty?  # API 1.1 compatibility
+        internal_server_error "No #{method} metadata for #{@uri} " if response.empty?
+        return response.uniq.first.to_s
       end
     rescue OpenTox::Error
       raise $!

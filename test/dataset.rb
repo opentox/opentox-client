@@ -4,43 +4,39 @@ require File.join File.dirname(__FILE__),'..','lib','opentox-client.rb'
 
 class DatasetTest < Test::Unit::TestCase
 
-=begin
-  def test_post_get_delete
-    service_uri = "http://ot-dev.in-silico.ch/dataset" 
-    dataset = OpenTox::Dataset.create service_uri
-    assert_match /#{service_uri}/, dataset.uri.to_s
-      puts dataset.uri
-    puts dataset.class
-    puts dataset.to_yaml
-    metadata =  dataset.metadata
-    puts dataset.class
-    assert_equal RDF::OT.Dataset, metadata[RDF.type]
-    assert_equal dataset.uri, metadata[RDF::XSD.anyURI]
-    dataset.delete
-  end
   def test_all
     datasets = OpenTox::Dataset.all "http://ot-dev.in-silico.ch/dataset"
     assert_equal OpenTox::Dataset, datasets.first.class
   end
 
-  def test_create
-    d = OpenTox::Dataset.create "http://ot-dev.in-silico.ch/dataset"
+  def test_create_empty
+    service_uri = "http://ot-dev.in-silico.ch/dataset" 
+    d = OpenTox::Dataset.create service_uri
     assert_equal OpenTox::Dataset, d.class
-    puts d.delete
-    assert_raise OpenTox::NotFoundError do
-      puts d.get(:accept => 'application/x-yaml')
-    end
+    assert_match /#{service_uri}/, d.uri.to_s
+    d.delete
   end
-=end
 
   def test_create_from_file
-    d = OpenTox::Dataset.from_file "http://ot-dev.in-silico.ch/dataset", "data/EPAFHM.mini.csv"
+    d = OpenTox::Dataset.from_file "http://ot-dev.in-silico.ch/dataset", File.join(File.dirname(__FILE__),"data","EPAFHM.mini.csv")
     assert_equal OpenTox::Dataset, d.class
-    puts d.inspect
-    
+    d.delete
+    assert_raise OpenTox::NotFoundError do
+      d.get
+    end
   end
 
+
 =begin
+  def test_metadata
+    d = OpenTox::Dataset.from_file "http://ot-dev.in-silico.ch/dataset", "data/EPAFHM.mini.csv"
+    assert_equal OpenTox::Dataset, d.class
+    # TODO fix metadata retrieval
+    metadata =  d.metadata
+    assert_equal RDF::OT.Dataset, metadata[RDF.type]
+    assert_equal dataset.uri, metadata[RDF::XSD.anyURI]
+    d.delete
+  end
   def test_save
     d = OpenTox::Dataset.create "http://ot-dev.in-silico.ch/dataset"
     d.metadata

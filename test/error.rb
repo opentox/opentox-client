@@ -6,7 +6,7 @@ class ErrorTest < Test::Unit::TestCase
 
   def test_bad_request
     object = OpenTox::Feature.new "http://this-is-a/fantasy/url"
-    assert_raise OpenTox::BadRequestError do
+    assert_raise OpenTox::NotFoundError do
       response = object.get
     end
   end
