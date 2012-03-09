@@ -9,6 +9,7 @@ Gem::Specification.new do |s|
   s.homepage    = "http://github.com/opentox/opentox-client"
   s.summary     = %q{Ruby wrapper for the OpenTox REST API}
   s.description = %q{Ruby wrapper for the OpenTox REST API (http://www.opentox.org)}
+  s.license     = 'GPL-3'
 
   s.rubyforge_project = "opentox-client"
 
