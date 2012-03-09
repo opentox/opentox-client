@@ -1,10 +1,9 @@
 # -*- encoding: utf-8 -*-
 $:.push File.expand_path("../lib", __FILE__)
-require "opentox-client/version"
 
 Gem::Specification.new do |s|
   s.name        = "opentox-client"
-  s.version     = Opentox::Client::VERSION
+  s.version     = "0.0.1pre"
   s.authors     = ["Christoph Helma, Martin Guetlein, Andreas Maunz, Micha Rautenberg, David Vorgrimmler"]
   s.email       = ["helma@in-silico.ch"]
   s.homepage    = "http://github.com/opentox/opentox-client"
