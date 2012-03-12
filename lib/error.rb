@@ -47,7 +47,6 @@ module OpenTox
     # define global methods for raising errors, eg. bad_request_error
     Object.send(:define_method, klass.underscore.to_sym) do |message|
       defined?(@uri) ? uri = @uri : uri=nil
-      # TODO: insert uri from sinatra
       raise c, message, uri
     end
   end
@@ -68,14 +67,16 @@ module OpenTox
       @http_code = http_code
       #@report = report#.to_yaml
       @report = {}
-      @report[RDF::OT.actor] = error.uri
-      @report[RDF::OT.message] = error.message
+      @report[RDF::OT.actor] = error.uri.to_s
+      @report[RDF::OT.message] = error.message.to_s
       @report[RDF::OT.statusCode] = @http_code 
       @report[RDF::OT.errorCode] = error.class.to_s
       @report[RDF::OT.errorDetails] = caller.collect{|line| line unless line =~ /#{File.dirname(__FILE__)}/}.compact.join("\n")
       @report[RDF::OT.errorDetails] += "REST paramenters:\n#{error.request.args.inspect}" if defined? error.request
-      @report[RDF::OT.message] += "\n" + error.response.body if defined? error.response
+      @report[RDF::OT.message] += "\n" + error.response.body.to_s if defined? error.response
       # TODO fix Error cause
+      # should point to another errorReport, but errorReports do not have URIs
+      # create a separate service?
       #report[RDF::OT.errorCause] = @report if defined?(@report) 
     end
 

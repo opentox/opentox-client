@@ -1,4 +1,3 @@
-require File.join(File.dirname(__FILE__),'error')
 DEFAULT_TASK_MAX_DURATION = 36000
 module OpenTox
 
@@ -9,7 +8,6 @@ module OpenTox
 
     def self.create service_uri, params={}
 
-      # TODO set/enforce request uri
       # TODO: run observer in same process?
       task = Task.new RestClientWrapper.post(service_uri,params).chomp
       pid = fork do
@@ -19,7 +17,6 @@ module OpenTox
         rescue 
           RestClientWrapper.put(File.join(task.uri,'Error'),{:errorReport => $!.report.to_yaml})
           task.kill
-          #raise $!
         end
       end
       Process.detach(pid)
@@ -43,7 +40,7 @@ module OpenTox
     def kill
       Process.kill(9,@pid)
       Process.kill(9,@observer_pid)
-      rescue # no need to raise an exeption if processes are not running
+    rescue # no need to raise an exeption if processes are not running
     end
 
     def description
@@ -90,6 +87,8 @@ module OpenTox
   def completed?
     RestClientWrapper.head(@uri).code == 200
   end
+
+  # TODO: add queued?
 
   def error?
     code = RestClientWrapper.head(@uri).code
