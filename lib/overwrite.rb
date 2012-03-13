@@ -78,13 +78,3 @@ module Kernel
   end
 end
 
-class Array
-  def short_backtrace
-    short = []
-    each do |c|
-      break if c =~ /sinatra\/base/
-      short << c
-    end
-    short.join("\n")
-  end
-end

@@ -15,7 +15,7 @@ module OpenTox
           result_uri = yield 
           task.completed result_uri
         rescue 
-          RestClientWrapper.put(File.join(task.uri,'Error'),{:errorReport => $!.report.to_yaml})
+          RestClientWrapper.put(File.join(task.uri,'Error'),{:errorReport => $!.report.to_yaml}) if $!.respond_to? :report
           task.kill
         end
       end

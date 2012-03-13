@@ -71,7 +71,14 @@ module OpenTox
       @report[RDF::OT.message] = error.message.to_s
       @report[RDF::OT.statusCode] = @http_code 
       @report[RDF::OT.errorCode] = error.class.to_s
-      @report[RDF::OT.errorDetails] = caller.collect{|line| line unless line =~ /#{File.dirname(__FILE__)}/}.compact.join("\n")
+
+      # cut backtrace
+      backtrace = caller.collect{|line| line unless line =~ /#{File.dirname(__FILE__)}/}.compact
+      cut_index = backtrace.find_index{|line| line.match /sinatra|minitest/}
+      cut_index ||= backtrace.size
+      cut_index -= 1
+      cut_index = backtrace.size-1 if cut_index < 0
+      @report[RDF::OT.errorDetails] = backtrace[0..cut_index].join("\n")
       @report[RDF::OT.errorDetails] += "REST paramenters:\n#{error.request.args.inspect}" if defined? error.request
       @report[RDF::OT.message] += "\n" + error.response.body.to_s if defined? error.response
       # TODO fix Error cause
@@ -85,6 +92,9 @@ module OpenTox
 
       send :define_method, "to_#{format}".to_sym do
         rdf = RDF::Writer.for(format).buffer do |writer|
+          # TODO: not used for turtle
+          # http://rdf.rubyforge.org/RDF/Writer.html#
+          writer.prefix :ot, RDF::URI('http://www.opentox.org/api/1.2#')
           subject = RDF::Node.new
           @report.each do |predicate,object|
             writer << [subject, predicate, object] if object
