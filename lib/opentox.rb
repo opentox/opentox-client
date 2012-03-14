@@ -31,8 +31,8 @@ module OpenTox
     pull if @rdf.empty?
     metadata = {}
     @rdf.query([RDF::URI.new(@uri),nil,nil]).collect do |statement|
-      metadata[statement.predicate] ||= []
-      metadata[statement.predicate] << statement.object
+      metadata[statement.predicate.to_s] ||= []
+      metadata[statement.predicate.to_s] << statement.object.to_s
     end
     metadata
   end
@@ -42,7 +42,8 @@ module OpenTox
   # @return [Array] Values for supplied key
   def [](key)
     pull if @rdf.empty?
-    @rdf.query([RDF::URI.new(@uri),key,nil]).collect{|statement| statement.object}
+    result = @rdf.query([RDF::URI.new(@uri),key,nil]).collect{|statement| statement.object.to_s}
+    result.size == 1 ? result.first : result
   end
 
   # Save object at service
