@@ -20,23 +20,15 @@ class DatasetTest < Test::Unit::TestCase
   def test_create_from_file
     d = OpenTox::Dataset.from_file "http://ot-dev.in-silico.ch/dataset", File.join(File.dirname(__FILE__),"data","EPAFHM.mini.csv")
     assert_equal OpenTox::Dataset, d.class
+    assert_equal d.uri, d[RDF::XSD.anyURI]
+    assert_equal "EPAFHM.mini",  d.metadata["http://purl.org/dc/elements/1.1/title"] # DC.title is http://purl.org/dc/terms/title
     d.delete
     assert_raise OpenTox::NotFoundError do
       d.get
     end
   end
 
-
 =begin
-  def test_metadata
-    d = OpenTox::Dataset.from_file "http://ot-dev.in-silico.ch/dataset", "data/EPAFHM.mini.csv"
-    assert_equal OpenTox::Dataset, d.class
-    # TODO fix metadata retrieval
-    metadata =  d.metadata
-    assert_equal RDF::OT.Dataset, metadata[RDF.type]
-    assert_equal dataset.uri, metadata[RDF::XSD.anyURI]
-    d.delete
-  end
   def test_save
     d = OpenTox::Dataset.create "http://ot-dev.in-silico.ch/dataset"
     d.metadata
