@@ -14,7 +14,7 @@ RDF::OT1 =  RDF::Vocabulary.new 'http://www.opentox.org/api/1.1#'
 RDF::OTA =  RDF::Vocabulary.new 'http://www.opentox.org/algorithmTypes.owl#'
 
 #CLASSES = ["Compound", "Feature", "Dataset", "Algorithm", "Model", "Validation", "Task", "ErrorReport", "Investigation"]
-CLASSES = ["Compound", "Feature", "Dataset", "Algorithm", "Model", "Validation", "Task", "Investigation"]
+CLASSES = ["Generic", "Compound", "Feature", "Dataset", "Algorithm", "Model", "Validation", "Task", "Investigation"]
 RDF_FORMATS = [:rdfxml,:ntriples,:turtle]
 $default_rdf = "application/rdf+xml"
 

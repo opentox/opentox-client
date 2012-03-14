@@ -125,8 +125,12 @@ module OpenTox
 
       # guess class from uri, this is potentially unsafe, but polling metadata from large uri lists is way too slow (and not all service provide RDF.type in their metadata)
       result = CLASSES.collect{|s| s if uri =~ /#{s.downcase}/}.compact
-      internal_server_error "Cannot determine class from URI: '#{uri}.\nCandidate classes are #{result.inspect}" unless result.size == 1
-      klass = result.first
+      if result.size == 1
+        klass = result.first
+      else
+        klass = OpenTox::Generic.new(uri)[RDF.type]
+        internal_server_error "Cannot determine class from URI '#{uri} (Candidate classes are #{result.inspect}) or matadata." unless klass
+      end
       # initialize with/without subjectid
       subjectid ? eval("#{self}.new(\"#{uri}\", #{subjectid})") : eval("#{self}.new(\"#{uri}\")")
     end
