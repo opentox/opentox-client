@@ -97,24 +97,10 @@ module OpenTox
 
   def method_missing(method,*args)
     method = method.to_s
-    begin
-      case method
-      when /=/
-        res = RestClientWrapper.put(File.join(@uri,method.sub(/=/,'')),{})
-        super unless res.code == 200
-      else
-        pull
-        response = self.[](RDF::OT[method])
-        response = self.[](RDF::OT1[method]) if response.empty?  # API 1.1 compatibility
-        internal_server_error "No #{method} metadata for #{@uri} " if response.empty?
-        return response.uniq.first.to_s
-      end
-    rescue OpenTox::Error
-      raise $!
-    rescue
-      $logger.error "Unknown #{self.class} method #{method}"
-      super
-    end
+    response = self.[](RDF::OT[method])
+    response = self.[](RDF::OT1[method]) if response.empty?  # API 1.1 compatibility
+    internal_server_error "Unknown #{self.class} method #{method} for #{@uri}" if response.is_a? Array and response.empty?
+    return response.to_s
   end
 
   #TODO: subtasks

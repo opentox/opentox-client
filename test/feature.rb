@@ -16,8 +16,8 @@ class FeatureTest < Test::Unit::TestCase
   def test_feature
     @features.each do |uri|
       f = OpenTox::Feature.new(uri)
-      assert_equal [RDF::OT1.TUM_CDK_nAtom], f[RDF::OWL.sameAs]
-      assert_equal RDF::OT1.TUM_CDK_nAtom, f.metadata[RDF::OWL.sameAs].first
+      assert_equal RDF::OT1.TUM_CDK_nAtom, f[RDF::OWL.sameAs]
+      assert_equal RDF::OT1.TUM_CDK_nAtom, f.metadata[RDF::OWL.sameAs]
       assert_equal [RDF::OT1.Feature,RDF::OT1.NumericFeature].sort, f[RDF.type].sort
     end
   end

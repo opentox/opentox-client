@@ -31,10 +31,10 @@ module OpenTox
     pull if @rdf.empty?
     metadata = {}
     @rdf.query([RDF::URI.new(@uri),nil,nil]).collect do |statement|
-      metadata[statement.predicate.to_s] ||= []
-      metadata[statement.predicate.to_s] << statement.object.to_s
+      metadata[statement.predicate] ||= []
+      metadata[statement.predicate] << statement.object
     end
-    metadata
+    metadata.each{|k,v| metadata[k] = v.first if v.size == 1}
   end
 
   # Get metadata values 
@@ -42,7 +42,7 @@ module OpenTox
   # @return [Array] Values for supplied key
   def [](key)
     pull if @rdf.empty?
-    result = @rdf.query([RDF::URI.new(@uri),key,nil]).collect{|statement| statement.object.to_s}
+    result = @rdf.query([RDF::URI.new(@uri),key,nil]).collect{|statement| statement.object}
     result.size == 1 ? result.first : result
   end
 
