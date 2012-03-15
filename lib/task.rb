@@ -97,12 +97,12 @@ module OpenTox
     code >= 400 and code != 503
   end
 
-  def method_missing(method,*args)
-    method = method.to_s
-    response = self.[](RDF::OT[method])
-    response = self.[](RDF::OT1[method]) if response.empty?  # API 1.1 compatibility
-    internal_server_error "Unknown #{self.class} method #{method} for #{@uri}" if response.is_a? Array and response.empty?
-    return response.to_s
+  [:hasStatus, :resultURI].each do |method|
+    define_method method do
+      response = self.[](RDF::OT[method])
+      response = self.[](RDF::OT1[method]) unless response  # API 1.1 compatibility
+      response
+    end
   end
 
   #TODO: subtasks

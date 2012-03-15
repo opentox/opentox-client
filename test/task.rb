@@ -26,10 +26,10 @@ class TaskTest < Test::Unit::TestCase
       TASK_SERVICE_URI
     end
     assert task.running?
-    #assert_equal "Running", task.hasStatus
+    assert_equal "Running", task.hasStatus
     task.wait
     assert task.completed?
-    #assert_equal "Completed", task.hasStatus
+    assert_equal "Completed", task.hasStatus
     assert_equal TASK_SERVICE_URI, task.resultURI
   end
 
@@ -46,11 +46,11 @@ class TaskTest < Test::Unit::TestCase
 
   def test_create_and_fail
     task = OpenTox::Task.create TASK_SERVICE_URI, :description => "test failure", :creator => "http://test.org/fake_creator" do
-      sleep 0.5
+      sleep 1
       raise "A runtime error occured"
     end
     assert task.running?
-    #assert_equal "Running", task.hasStatus
+    assert_equal "Running", task.hasStatus
     task.wait
     assert task.error?
     assert_equal "Error", task.hasStatus
@@ -58,11 +58,11 @@ class TaskTest < Test::Unit::TestCase
 
   def test_create_and_fail_with_opentox_error
     task = OpenTox::Task.create TASK_SERVICE_URI, :description => "test failure", :creator => "http://test.org/fake_creator" do
-      sleep 0.5
+      sleep 1
       raise OpenTox::Error.new 500, "An OpenTox::Error occured"
     end
     assert task.running?
-    #assert_equal "Running", task.hasStatus
+    assert_equal "Running", task.hasStatus
     task.wait
     assert task.error?
     assert_equal "Error", task.hasStatus
@@ -70,11 +70,11 @@ class TaskTest < Test::Unit::TestCase
 
   def test_wrong_result_uri
     task = OpenTox::Task.create TASK_SERVICE_URI, :description => "test wrong result uri", :creator => "http://test.org/fake_creator" do
-      sleep 0.5
+      sleep 1
       "Asasadasd"
     end
     assert task.running?
-    #assert_equal "Running", task.hasStatus
+    assert_equal "Running", task.hasStatus
     task.wait
     assert task.error?
     assert_equal "Error", task.hasStatus

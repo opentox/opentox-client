@@ -27,8 +27,9 @@ module OpenTox
 
   # Get object metadata 
   # @return [Hash] Metadata
+  # TODO: rename to_hash? or store in object variables
   def metadata 
-    pull if @rdf.empty?
+    pull # force update
     metadata = {}
     @rdf.query([RDF::URI.new(@uri),nil,nil]).collect do |statement|
       metadata[statement.predicate] ||= []
@@ -41,9 +42,11 @@ module OpenTox
   # @param [RDF] Key from RDF Vocabularies
   # @return [Array] Values for supplied key
   def [](key)
-    pull if @rdf.empty?
+    pull # force update
     result = @rdf.query([RDF::URI.new(@uri),key,nil]).collect{|statement| statement.object}
-    result.size == 1 ? result.first : result
+    return nil if result.empty?
+    return result.first.to_s if result.size == 1 
+    return result.collect{|r| r.to_s}
   end
 
   # Save object at service
