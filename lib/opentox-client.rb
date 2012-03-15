@@ -5,6 +5,7 @@ require 'rdf/raptor'
 require "rest-client"
 require 'uri'
 require 'yaml'
+require 'json'
 require 'logger'
 
 # define constants and global variables
@@ -29,4 +30,4 @@ require File.join(File.dirname(__FILE__),"otlogger.rb") # avoid require conflict
 require File.join(File.dirname(__FILE__),"opentox.rb")
 require File.join(File.dirname(__FILE__),"task.rb")
 require File.join(File.dirname(__FILE__),"compound.rb")
-#require File.join(File.dirname(__FILE__),"dataset.rb")
+require File.join(File.dirname(__FILE__),"dataset.rb")

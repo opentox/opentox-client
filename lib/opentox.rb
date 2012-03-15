@@ -4,7 +4,7 @@ $logger.level = Logger::DEBUG
 
 module OpenTox
 
-  attr_accessor :uri, :subjectid, :rdf, :response
+  attr_accessor :uri, :subjectid, :rdf, :response, :reload
 
   # Ruby interface
 
@@ -15,38 +15,34 @@ module OpenTox
   def initialize uri=nil, subjectid=nil
     @uri = uri.to_s.chomp
     @subjectid = subjectid
+    @reload = true
     @rdf = RDF::Graph.new
   end
 
   # Load metadata from service
   def pull
-    kind_of?(OpenTox::Dataset) ? uri = File.join(@uri,"metadata") : uri = @uri
     # TODO generic method for all formats
-    parse_rdfxml RestClientWrapper.get(uri,{},{:accept => $default_rdf, :subjectid => @subjectid})
+    parse_rdfxml RestClientWrapper.get(@uri,{},{:accept => $default_rdf, :subjectid => @subjectid})
   end
 
   # Get object metadata 
   # @return [Hash] Metadata
-  # TODO: rename to_hash? or store in object variables
   def metadata 
-    pull # force update
-    metadata = {}
-    @rdf.query([RDF::URI.new(@uri),nil,nil]).collect do |statement|
-      metadata[statement.predicate] ||= []
-      metadata[statement.predicate] << statement.object
-    end
-    metadata.each{|k,v| metadata[k] = v.first if v.size == 1}
+    pull if @reload # force update
+    @rdf.to_hash[RDF::URI.new(@uri)]
   end
 
   # Get metadata values 
   # @param [RDF] Key from RDF Vocabularies
   # @return [Array] Values for supplied key
   def [](key)
-    pull # force update
+    pull if @reload # force update
     result = @rdf.query([RDF::URI.new(@uri),key,nil]).collect{|statement| statement.object}
-    return nil if result.empty?
+    # TODO: convert to OpenTox objects??
+    return nil if result and result.empty?
     return result.first.to_s if result.size == 1 
     return result.collect{|r| r.to_s}
+    result
   end
 
   # Save object at service
@@ -72,6 +68,20 @@ module OpenTox
       end
       rdf
     end
+  end
+
+#  def to_hash
+#    hash = {}
+#    metadata.each{|k,v| v.is_a?(Array) ? hash[k.to_s] = v.collect{|i| i.to_s} : hash[k.to_s] = v.to_s}
+#    hash
+#  end
+
+  def to_yaml
+    @rdf.to_hash.to_yaml
+  end
+
+  def to_json
+    to_hash.to_json
   end
 
   # REST API
