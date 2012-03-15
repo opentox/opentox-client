@@ -65,10 +65,14 @@ module OpenTox
 
     # waits for a task, unless time exceeds or state is no longer running
     # @param [optional,Numeric] dur seconds pausing before checking again for completion
-    def wait(dur=0.3)
-      due_to_time = Time.new + DEFAULT_TASK_MAX_DURATION
-      while running?
+    # TODO: add waiting task
+    def wait
+      start_time = Time.new
+      due_to_time = start_time + DEFAULT_TASK_MAX_DURATION
+      dur = 0
+      while running? 
         sleep dur
+        dur = [[(Time.new - start_time)/20.0,0.3].max,300.0].min
         time_out_error "max wait time exceeded ("+DEFAULT_TASK_MAX_DURATION.to_s+"sec), task: '"+@uri.to_s+"'" if (Time.new > due_to_time)
       end
     end
@@ -87,8 +91,6 @@ module OpenTox
   def completed?
     RestClientWrapper.head(@uri).code == 200
   end
-
-  # TODO: add queued?
 
   def error?
     code = RestClientWrapper.head(@uri).code
