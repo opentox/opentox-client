@@ -45,8 +45,7 @@ module OpenTox
     OpenTox.const_set klass,c
     
     # define global methods for raising errors, eg. bad_request_error
-    Object.send(:define_method, klass.underscore.to_sym) do |message|
-      defined?(@uri) ? uri = @uri : uri=nil
+    Object.send(:define_method, klass.underscore.to_sym) do |message,uri=nil|
       raise c, message, uri
     end
   end
@@ -65,7 +64,6 @@ module OpenTox
   class ErrorReport
     def initialize http_code, error
       @http_code = http_code
-      #@report = report#.to_yaml
       @report = {}
       @report[RDF::OT.actor] = error.uri.to_s
       @report[RDF::OT.message] = error.message.to_s
@@ -95,6 +93,7 @@ module OpenTox
           # TODO: not used for turtle
           # http://rdf.rubyforge.org/RDF/Writer.html#
           writer.prefix :ot, RDF::URI('http://www.opentox.org/api/1.2#')
+          writer.prefix :ot1_1, RDF::URI('http://www.opentox.org/api/1.1#')
           subject = RDF::Node.new
           @report.each do |predicate,object|
             writer << [subject, predicate, object] if object
