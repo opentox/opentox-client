@@ -70,6 +70,8 @@ module Kernel
     end
     internal_server_error stdout + stderr if !status.success?
     return stdout
+  rescue
+    internal_server_error $!.message
   end
 
   alias_method :system!, :system
