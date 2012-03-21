@@ -1,21 +1,22 @@
 module OpenTox
 
+  AA ||= "https://opensso.in-silico.ch" #if not set in .opentox/conf/[environment].yaml 
   #Module for Authorization and Authentication
   #@example Authentication
   #  require "opentox-client"
-  #  OpenTox::Authorization::AA_SERVER = "https://opensso.in-silico.ch" #if not set in .opentox/conf/[environment].yaml 
+  #  OpenTox::Authorization::AA = "https://opensso.in-silico.ch" #if not set in .opentox/conf/[environment].yaml 
   #  token = OpenTox::Authorization.authenticate("benutzer", "passwort")
   #@see http://www.opentox.org/dev/apis/api-1.2/AA OpenTox A&A API 1.2 specification
 
   module Authorization
 
-    #Helper Class AA to create and send default policies out of xml templates
+    #Helper Class to create and send default policies out of xml templates
     #@example Creating a default policy to a URI
     #  aa=OpenTox::Authorization::AA.new(tok)
     #  xml=aa.get_xml('http://uri....')
     #  OpenTox::Authorization.create_policy(xml,tok)
 
-    class AA
+    class Helper
       attr_accessor :user, :subjectid, :policy
 
       #Generates AA object - requires subjectid
@@ -51,16 +52,16 @@ module OpenTox
     #Returns the open-sso server set in the config file .opentox/config/[environment].yaml
     # @return [String, nil] the openSSO server URI or nil
     def self.server
-      return AA_SERVER
+      return AA
     end
 
     #Authentication against OpenSSO. Returns token. Requires Username and Password.
     # @param [String, String]Username,Password
     # @return [String, nil] gives subjectid or nil
     def self.authenticate(user, pw)
-      return nil if !AA_SERVER
+      return nil if !AA
       begin
-        resource = RestClient::Resource.new("#{AA_SERVER}/auth/authenticate")
+        resource = RestClient::Resource.new("#{AA}/auth/authenticate")
         out = resource.post(:username=>user, :password => pw).sub("token.id=","").sub("\n","")
         return out
       rescue
@@ -73,7 +74,7 @@ module OpenTox
     # @return [Boolean] true if logout is OK
     def self.logout(subjectid)
       begin
-        resource = RestClient::Resource.new("#{AA_SERVER}/auth/logout")
+        resource = RestClient::Resource.new("#{AA}/auth/logout")
         resource.post(:subjectid => subjectid)
         return true
       rescue
@@ -85,9 +86,9 @@ module OpenTox
     # @param [String,String,String]uri,action,subjectid
     # @return [Boolean, nil]  returns true, false or nil (if authorization-request fails).
     def self.authorize(uri, action, subjectid)
-      return true if !AA_SERVER
+      return true if !AA
       begin
-        resource = RestClient::Resource.new("#{AA_SERVER}/auth/authorize")
+        resource = RestClient::Resource.new("#{AA}/auth/authorize")
         return true if resource.post(:uri => uri, :action => action, :subjectid => subjectid) == "boolean=true\n"
       rescue
         return nil
@@ -98,9 +99,9 @@ module OpenTox
     # @param [String]subjectid subjectid from openSSO session
     # @return [Boolean] subjectid is valid or not.
     def self.is_token_valid(subjectid)
-      return true if !AA_SERVER
+      return true if !AA
       begin
-        resource = RestClient::Resource.new("#{AA_SERVER}/auth/isTokenValid")
+        resource = RestClient::Resource.new("#{AA}/auth/isTokenValid")
         return true if resource.post(:tokenid => subjectid) == "boolean=true\n"
       rescue
         return false
@@ -112,7 +113,7 @@ module OpenTox
     # @return [Array, nil] returns an Array of policy names or nil if request fails
     def self.list_policies(subjectid)
       begin
-        resource = RestClient::Resource.new("#{AA_SERVER}/pol")
+        resource = RestClient::Resource.new("#{AA}/pol")
         out = resource.get(:subjectid => subjectid)
         return out.split("\n")
       rescue RestClient::InternalServerError => e
@@ -127,7 +128,7 @@ module OpenTox
     # @return [String] XML of the policy
     def self.list_policy(policy, subjectid)
       begin
-        resource = RestClient::Resource.new("#{AA_SERVER}/pol")
+        resource = RestClient::Resource.new("#{AA}/pol")
         return resource.get(:subjectid => subjectid,:id => policy)
       rescue
         return nil
@@ -160,7 +161,7 @@ module OpenTox
     # return [String, nil]owner,nil returns owner of the URI
     def self.get_uri_owner(uri, subjectid)
       begin
-        resource = RestClient::Resource.new("#{AA_SERVER}/pol")
+        resource = RestClient::Resource.new("#{AA}/pol")
         return resource.get(:uri => uri, :subjectid => subjectid).sub("\n","")
       rescue
         return nil
@@ -181,7 +182,7 @@ module OpenTox
     # return [Array, nil] returns an Array of policy names or nil if request fails
     def self.list_uri_policies(uri, subjectid)
       begin
-        resource = RestClient::Resource.new("#{AA_SERVER}/pol")
+        resource = RestClient::Resource.new("#{AA}/pol")
         out = resource.get(:uri => uri, :polnames => true, :subjectid => subjectid)
         policies = []; notfirstline = false
         out.split("\n").each do |line|
@@ -199,7 +200,7 @@ module OpenTox
     # return [Boolean] returns true if policy is created
     def self.create_policy(policy, subjectid)
       begin
-        resource = RestClient::Resource.new("#{AA_SERVER}/Pol/opensso-pol")
+        resource = RestClient::Resource.new("#{AA}/Pol/opensso-pol")
         $logger.debug "OpenTox::Authorization.create_policy policy: #{policy[168,43]} with token:" + subjectid.to_s + " length: " + subjectid.length.to_s 
         return true if resource.post(policy, :subjectid => subjectid, :content_type =>  "application/xml")
       rescue
@@ -212,7 +213,7 @@ module OpenTox
     # @return [Boolean,nil]
     def self.delete_policy(policy, subjectid)
       begin
-        resource = RestClient::Resource.new("#{AA_SERVER}/pol")
+        resource = RestClient::Resource.new("#{AA}/pol")
         $logger.debug "OpenTox::Authorization.delete_policy policy: #{policy} with token: #{subjectid}"
         return true if resource.delete(:subjectid => subjectid, :id => policy)
       rescue
@@ -225,7 +226,7 @@ module OpenTox
     # @return [Array]
     def self.list_groups(subjectid)
       begin
-        resource = RestClient::Resource.new("#{AA_SERVER}/opensso/identity/search")
+        resource = RestClient::Resource.new("#{AA}/opensso/identity/search")
         grps = resource.post(:admin => subjectid, :attributes_names => "objecttype", :attributes_values_objecttype => "group")
         grps = grps.split("\n").collect{|x|  x.sub("string=","")}
         grps.delete_if{|g|g=="MemberManagement"||g=="Webmasters"}
@@ -240,7 +241,7 @@ module OpenTox
     # @return [Array] gives array of LDAP groups of a user
     def self.list_user_groups(user, subjectid)
       begin
-        resource = RestClient::Resource.new("#{AA_SERVER}/opensso/identity/read")
+        resource = RestClient::Resource.new("#{AA}/opensso/identity/read")
         out = resource.post(:name => user, :admin => subjectid, :attributes_names => "group")
         grps = []
         out.split("\n").each do |line|
@@ -257,7 +258,7 @@ module OpenTox
     # @return [String]user
     def self.get_user(subjectid)
       begin
-        resource = RestClient::Resource.new("#{AA_SERVER}/opensso/identity/attributes")
+        resource = RestClient::Resource.new("#{AA}/opensso/identity/attributes")
         out = resource.post(:subjectid => subjectid, :attributes_names => "uid")
         user = ""; check = false
         out.split("\n").each do |line|
@@ -273,11 +274,11 @@ module OpenTox
       end
     end
 
-    #Send default policy with Authorization::AA class
+    #Send default policy with Authorization::Helper class
     # @param [String, String]URI,subjectid
     def self.send_policy(uri, subjectid)
-      return true if !AA_SERVER
-      aa  = Authorization::AA.new(subjectid)
+      return true if !AA
+      aa  = Authorization::Helper.new(subjectid)
       ret = aa.send(uri)
       $logger.debug "OpenTox::Authorization send policy for URI: #{uri} | subjectid: #{subjectid} - policy created: #{ret}"
       ret
