@@ -1,10 +1,10 @@
 module OpenTox
 
-  AA ||= "https://opensso.in-silico.ch" #if not set in .opentox/conf/[environment].yaml 
+  AA ||= "https://opensso.in-silico.ch" #if not set in .opentox/conf/[environment].yaml
   #Module for Authorization and Authentication
   #@example Authentication
   #  require "opentox-client"
-  #  OpenTox::Authorization::AA = "https://opensso.in-silico.ch" #if not set in .opentox/conf/[environment].yaml 
+  #  OpenTox::Authorization::AA = "https://opensso.in-silico.ch" #if not set in .opentox/conf/[environment].yaml
   #  token = OpenTox::Authorization.authenticate("benutzer", "passwort")
   #@see http://www.opentox.org/dev/apis/api-1.2/AA OpenTox A&A API 1.2 specification
 
@@ -61,8 +61,7 @@ module OpenTox
     def self.authenticate(user, pw)
       return nil if !AA
       begin
-        resource = RestClient::Resource.new("#{AA}/auth/authenticate")
-        out = resource.post(:username=>user, :password => pw).sub("token.id=","").sub("\n","")
+        out = RestClientWrapper.post("#{AA}/auth/authenticate",{:username=>user, :password => pw}).sub("token.id=","").sub("\n","")
         return out
       rescue
         return nil
@@ -74,12 +73,12 @@ module OpenTox
     # @return [Boolean] true if logout is OK
     def self.logout(subjectid)
       begin
-        resource = RestClient::Resource.new("#{AA}/auth/logout")
-        resource.post(:subjectid => subjectid)
-        return true
+        out = RestClientWrapper.post("#{AA}/auth/logout",:subjectid => subjectid)
+        return true unless is_token_valid(subjectid)
       rescue
         return false
       end
+      return false
     end
 
     #Authorization against OpenSSO for a URI with request-method (action) [GET/POST/PUT/DELETE]
@@ -88,8 +87,7 @@ module OpenTox
     def self.authorize(uri, action, subjectid)
       return true if !AA
       begin
-        resource = RestClient::Resource.new("#{AA}/auth/authorize")
-        return true if resource.post(:uri => uri, :action => action, :subjectid => subjectid) == "boolean=true\n"
+        return true if RestClientWrapper.post("#{AA}/auth/authorize",{:uri => uri, :action => action, :subjectid => subjectid})== "boolean=true\n"
       rescue
         return nil
       end
@@ -101,11 +99,9 @@ module OpenTox
     def self.is_token_valid(subjectid)
       return true if !AA
       begin
-        resource = RestClient::Resource.new("#{AA}/auth/isTokenValid")
-        return true if resource.post(:tokenid => subjectid) == "boolean=true\n"
-      rescue
-        return false
+        return true if RestClientWrapper.post("#{AA}/auth/isTokenValid",:tokenid => subjectid) == "boolean=true\n"
       end
+      return false
     end
 
     #Returns array with all policies of the token owner
@@ -113,11 +109,8 @@ module OpenTox
     # @return [Array, nil] returns an Array of policy names or nil if request fails
     def self.list_policies(subjectid)
       begin
-        resource = RestClient::Resource.new("#{AA}/pol")
-        out = resource.get(:subjectid => subjectid)
+        out = RestClientWrapper.get("#{AA}/pol",nil,:subjectid => subjectid)
         return out.split("\n")
-      rescue RestClient::InternalServerError => e
-        raise e.response
       rescue
         return nil
       end
@@ -128,8 +121,7 @@ module OpenTox
     # @return [String] XML of the policy
     def self.list_policy(policy, subjectid)
       begin
-        resource = RestClient::Resource.new("#{AA}/pol")
-        return resource.get(:subjectid => subjectid,:id => policy)
+        return RestClientWrapper.get("#{AA}/pol",nil,{:subjectid => subjectid,:id => policy})
       rescue
         return nil
       end
@@ -161,8 +153,7 @@ module OpenTox
     # return [String, nil]owner,nil returns owner of the URI
     def self.get_uri_owner(uri, subjectid)
       begin
-        resource = RestClient::Resource.new("#{AA}/pol")
-        return resource.get(:uri => uri, :subjectid => subjectid).sub("\n","")
+        return RestClientWrapper.get("#{AA}/pol",nil,{:subjectid => subjectid, :uri => uri}).sub("\n","")
       rescue
         return nil
       end
@@ -182,8 +173,7 @@ module OpenTox
     # return [Array, nil] returns an Array of policy names or nil if request fails
     def self.list_uri_policies(uri, subjectid)
       begin
-        resource = RestClient::Resource.new("#{AA}/pol")
-        out = resource.get(:uri => uri, :polnames => true, :subjectid => subjectid)
+        out = RestClientWrapper.get("#{AA}/pol",nil,{:uri => uri, :polnames => true, :subjectid => subjectid})
         policies = []; notfirstline = false
         out.split("\n").each do |line|
           policies << line if notfirstline
@@ -200,9 +190,8 @@ module OpenTox
     # return [Boolean] returns true if policy is created
     def self.create_policy(policy, subjectid)
       begin
-        resource = RestClient::Resource.new("#{AA}/Pol/opensso-pol")
-        $logger.debug "OpenTox::Authorization.create_policy policy: #{policy[168,43]} with token:" + subjectid.to_s + " length: " + subjectid.length.to_s 
-        return true if resource.post(policy, :subjectid => subjectid, :content_type =>  "application/xml")
+        $logger.debug "OpenTox::Authorization.create_policy policy: #{policy[168,43]} with token:" + subjectid.to_s + " length: " + subjectid.length.to_s
+        return true if RestClientWrapper.post("#{AA}/Pol/opensso-pol",policy, {:subjectid => subjectid, :content_type =>  "application/xml"})
       rescue
         return false
       end
@@ -213,26 +202,10 @@ module OpenTox
     # @return [Boolean,nil]
     def self.delete_policy(policy, subjectid)
       begin
-        resource = RestClient::Resource.new("#{AA}/pol")
         $logger.debug "OpenTox::Authorization.delete_policy policy: #{policy} with token: #{subjectid}"
-        return true if resource.delete(:subjectid => subjectid, :id => policy)
+        return true if RestClientWrapper.delete("#{AA}/pol",nil, {:subjectid => subjectid, :id => policy})
       rescue
         return nil
-      end
-    end
-
-    #Returns array of all possible LDAP-Groups
-    # @param [String]subjectid
-    # @return [Array]
-    def self.list_groups(subjectid)
-      begin
-        resource = RestClient::Resource.new("#{AA}/opensso/identity/search")
-        grps = resource.post(:admin => subjectid, :attributes_names => "objecttype", :attributes_values_objecttype => "group")
-        grps = grps.split("\n").collect{|x|  x.sub("string=","")}
-        grps.delete_if{|g|g=="MemberManagement"||g=="Webmasters"}
-        grps
-      rescue
-        []
       end
     end
 
@@ -241,8 +214,7 @@ module OpenTox
     # @return [Array] gives array of LDAP groups of a user
     def self.list_user_groups(user, subjectid)
       begin
-        resource = RestClient::Resource.new("#{AA}/opensso/identity/read")
-        out = resource.post(:name => user, :admin => subjectid, :attributes_names => "group")
+        out = RestClientWrapper.post("#{AA}/opensso/identity/read", {:name => user, :admin => subjectid, :attributes_names => "group"})
         grps = []
         out.split("\n").each do |line|
           grps << line.sub("identitydetails.group=","") if line.include?("identitydetails.group=")
@@ -258,8 +230,7 @@ module OpenTox
     # @return [String]user
     def self.get_user(subjectid)
       begin
-        resource = RestClient::Resource.new("#{AA}/opensso/identity/attributes")
-        out = resource.post(:subjectid => subjectid, :attributes_names => "uid")
+        out = RestClientWrapper.post("#{AA}/opensso/identity/attributes", {:subjectid => subjectid, :attributes_names => "uid"})
         user = ""; check = false
         out.split("\n").each do |line|
           if check
@@ -301,7 +272,7 @@ module OpenTox
     # Checks (if subjectid is valid) if a policy exist and create default policy if not
     # @param [String] uri
     # @param [String] subjectid
-    # @return [Boolean] true if policy checked/created successfully (or no uri/subjectid given), false else 
+    # @return [Boolean] true if policy checked/created successfully (or no uri/subjectid given), false else
     def self.check_policy(uri, subjectid)
       return true unless uri and subjectid
       token_valid = OpenTox::Authorization.is_token_valid(subjectid)
@@ -321,7 +292,7 @@ module OpenTox
         if authorize(uri, "POST", subjectid)
           true
        else
-          $logger.error "OpenTox::Authorization.check_policy, already exists, but no POST-authorization with subjectid: #{subjectid}" 
+          $logger.error "OpenTox::Authorization.check_policy, already exists, but no POST-authorization with subjectid: #{subjectid}"
           false
         end
       end
