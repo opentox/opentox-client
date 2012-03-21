@@ -21,9 +21,13 @@ module URI
   def self.dataset? uri, subjectid=nil
     uri =~ /dataset/ and URI.accessible? uri, subjectid=nil
   end
- 
+
   def self.model? uri, subjectid=nil
     uri =~ /model/ and URI.accessible? uri, subjectid=nil
+  end
+
+  def self.ssl? uri, subjectid=nil
+    URI.parse(uri).instance_of? URI::HTTPS
   end
 
   def self.accessible? uri, subjectid=nil
