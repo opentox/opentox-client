@@ -24,4 +24,8 @@ Gem::Specification.new do |s|
   s.add_runtime_dependency "rdf"
   s.add_runtime_dependency "rdf-raptor"
   s.add_runtime_dependency "open4"
+  
+  # external requirements
+  ["libraptor-dev"].each{|r| s.requirements << r}
+  s.post_install_message = "Please check the version of your libraptor library, if installation of rdf.rb fails"
 end

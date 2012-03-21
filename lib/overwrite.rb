@@ -64,10 +64,8 @@ module Kernel
       stdout = stdout_stream.read
       stderr = stderr_stream.read
     end
-    raise stderr.strip if !status.success?
+    internal_server_error stdout + stderr if !status.success?
     return stdout
-  rescue Exception 
-    internal_server_error $!
   end
 
   alias_method :system!, :system

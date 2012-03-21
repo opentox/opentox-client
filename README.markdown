@@ -3,6 +3,11 @@ opentox-ruby-minimal
 
 Thin Ruby wrapper for the [OpenTox](http://www.opentox.org) REST API 
 
+Dependencies
+------------
+
+  libraptor1-dev
+
 Installation
 ------------
 
