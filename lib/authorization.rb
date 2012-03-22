@@ -5,7 +5,7 @@ module OpenTox
   #@example Authentication
   #  require "opentox-client"
   #  OpenTox::Authorization::AA = "https://opensso.in-silico.ch" #if not set in .opentox/conf/[environment].yaml
-  #  token = OpenTox::Authorization.authenticate("benutzer", "passwort")
+  #  token = OpenTox::Authorization.authenticate("username", "password")
   #@see http://www.opentox.org/dev/apis/api-1.2/AA OpenTox A&A API 1.2 specification
 
   module Authorization
@@ -42,11 +42,12 @@ module OpenTox
         xml = get_xml(uri)
         ret = false
         ret = Authorization.create_policy(xml, @subjectid)
+        $logger.warn "Create policy on openSSO failed for URI: #{uri} subjectid: #{@subjectid}. Will try again." if !ret
+        ret = Authorization.create_policy(xml, @subjectid) if !ret
         $logger.debug "Policy send with subjectid: #{@subjectid}"
-        $logger.warn "Not created Policy is: #{xml}" if !ret
+        $logger.error "Not created Policy is: #{xml}" if !ret
         ret
       end
-
     end
 
     #Returns the open-sso server set in the config file .opentox/config/[environment].yaml
