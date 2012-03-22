@@ -8,14 +8,12 @@ module OpenTox
 
     def self.create service_uri, params={}
 
-      # TODO: run observer in same process?
       task = Task.new RestClientWrapper.post(service_uri,params).chomp
       pid = fork do
         begin
           result_uri = yield 
           task.completed result_uri
         rescue 
-          puts $!.report.to_yaml
           RestClientWrapper.put(File.join(task.uri,'Error'),{:errorReport => $!.report.to_yaml}) if $!.respond_to? :report
           task.kill
         end
@@ -80,7 +78,7 @@ module OpenTox
 
   end
 
-  # get only header for ststus requests
+  # get only header for status requests
   def running?
     RestClientWrapper.head(@uri).code == 202 
   end
@@ -98,6 +96,11 @@ module OpenTox
     code >= 400 and code != 503
   end
 
+  def errorReport
+    # TODO: fix rdf output at task service
+    not_implemented_error "RDF output of errorReports has to be fixed at task service"
+  end
+
   [:hasStatus, :resultURI].each do |method|
     define_method method do
       response = self.[](RDF::OT[method])
@@ -106,6 +109,6 @@ module OpenTox
     end
   end
 
-  #TODO: subtasks
+  #TODO: subtasks (only for progress)
 
 end

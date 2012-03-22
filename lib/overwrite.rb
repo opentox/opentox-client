@@ -68,17 +68,11 @@ module Kernel
       stdout = stdout_stream.read
       stderr = stderr_stream.read
     end
-    internal_server_error stdout + stderr if !status.success?
+    internal_server_error "`" + cmd + "` failed.\n" + stdout + stderr if !status.success?
     return stdout
   rescue
     internal_server_error $!.message
   end
 
-  alias_method :system!, :system
-
-  def system cmd
-    `#{cmd}`
-    return true
-  end
 end
 
