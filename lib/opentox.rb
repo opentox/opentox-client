@@ -146,7 +146,7 @@ module OpenTox
         internal_server_error "Cannot determine class from URI '#{uri} (Candidate classes are #{result.inspect}) or matadata." unless klass
       end
       # initialize with/without subjectid
-      subjectid ? eval("#{self}.new(\"#{uri}\", #{subjectid})") : eval("#{self}.new(\"#{uri}\")")
+      subjectid ? eval("#{self}.new(\"#{uri}\", \"#{subjectid}\")") : eval("#{self}.new(\"#{uri}\")")
     end
   end
 
