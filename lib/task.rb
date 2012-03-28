@@ -58,7 +58,7 @@ module OpenTox
     end
 
     def completed(uri)
-      not_found_error "Result URI \"#{uri}\" does not exist." unless URI.accessible? uri
+      #not_found_error "Result URI \"#{uri}\" does not exist." unless URI.accessible? uri
       RestClientWrapper.put(File.join(@uri,'Completed'),{:resultURI => uri})
     end
 
