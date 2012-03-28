@@ -1,6 +1,6 @@
 module OpenTox
-
-  AA ||= "https://opensso.in-silico.ch" #if not set in .opentox/conf/[environment].yaml
+  AA = $aa[:uri] if defined? $aa
+  AA ||= "https://opensso.in-silico.ch" #if not set in .opentox/conf/[application]/[test].rb
   #Module for Authorization and Authentication
   #@example Authentication
   #  require "opentox-client"
@@ -310,13 +310,13 @@ module OpenTox
     # @param [String] subjectid
     # @return [Boolean] true if access granted, else otherwise
     def self.authorized?(uri, request_method, subjectid)
-      if CONFIG[:authorization][:free_request].include?(request_method)
+      if $aa[:free_request].include?(request_method)
         #$logger.debug "authorized? >>true<< (request is free), method: #{request_method}, URI: #{uri}, subjectid: #{subjectid}"
         true
       elsif OpenTox::Authorization.free_uri?(uri, request_method)
         #$logger.debug "authorized? >>true<< (uris is free_uri), method: #{request_method}, URI: #{uri}, subjectid: #{subjectid}"
         true
-      elsif CONFIG[:authorization][:authenticate_request].include?(request_method)
+      elsif $aa[:authenticate_request].include?(request_method)
         ret = OpenTox::Authorization.is_token_valid(subjectid)
         $logger.debug "authorized? >>#{ret}<< (token is in/valid), method: #{request_method}, URI: #{uri}, subjectid: #{subjectid}" unless ret
         ret
@@ -324,7 +324,7 @@ module OpenTox
         ret = OpenTox::Authorization.is_token_valid(subjectid)
         $logger.debug "authorized? >>#{ret}<< (uris is authorize exception, token is in/valid), method: #{request_method}, URI: #{uri}, subjectid: #{subjectid}" unless ret
         ret
-      elsif CONFIG[:authorization][:authorize_request].include?(request_method)
+      elsif $aa[:authorize_request].include?(request_method)
         ret = OpenTox::Authorization.authorize(uri, request_method, subjectid)
         $logger.debug "authorized? >>#{ret}<< (uri (not) authorized), method: #{request_method}, URI: #{uri}, subjectid: #{subjectid}" unless ret
         ret
@@ -336,9 +336,9 @@ module OpenTox
 
     private
     def self.free_uri?(uri, request_method)
-      if CONFIG[:authorization][:free_uris]
-        CONFIG[:authorization][:free_uris].each do |request_methods,uris|
-          if request_methods and uris and request_methods.include?(request_method.to_sym)
+      if $aa[:free_uris]
+        $aa[:free_uris].each do |request_methods,uris|
+          if request_methods and uris and request_methods.include?(request_method.to_s)
             uris.each do |u|
               return true if u.match uri
             end
@@ -349,8 +349,8 @@ module OpenTox
     end
 
     def self.authorize_exception?(uri, request_method)
-      if CONFIG[:authorization][:authorize_exceptions]
-        CONFIG[:authorization][:authorize_exceptions].each do |request_methods,uris|
+      if $aa[:authorize_exceptions]
+        $aa[:authorize_exceptions].each do |request_methods,uris|
           if request_methods and uris and request_methods.include?(request_method.to_sym)
             uris.each do |u|
               return true if u.match uri
