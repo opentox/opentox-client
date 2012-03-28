@@ -16,12 +16,13 @@ module OpenTox
       define_singleton_method method do |uri,payload={},headers={}|
 
         # check input 
+        @subjectid = headers[:subjectid] ? headers[:subjectid] : nil 
         bad_request_error "Invalid URI: '#{uri}'" unless URI.valid? uri
-        not_found_error "URI '#{uri}' not found." unless URI.accessible? uri unless URI.ssl?(uri)
+        not_found_error "URI '#{uri}' not found." unless URI.accessible?(uri, @subjectid) unless URI.ssl?(uri)
         bad_request_error "Headers are not a hash: #{headers.inspect}" unless headers==nil or headers.is_a?(Hash)
         # make sure that no header parameters are set in the payload
         [:accept,:content_type,:subjectid].each do |header|
-          bad_request_error "#{header} should be submitted in the headers" if payload and payload.is_a?(Hash) and payload[header] unless URI(uri).host == URI(AA).host 
+          bad_request_error "#{header} should be submitted in the headers" if payload and payload.is_a?(Hash) and payload[header] unless URI(uri).host == URI($aa[:uri]).host 
         end
       
         # create request

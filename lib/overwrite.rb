@@ -30,13 +30,13 @@ module URI
     URI.parse(uri).instance_of? URI::HTTPS
   end
 
-  def self.accessible? uri, subjectid=nil
+  def self.accessible?(uri, subjectid=nil)
     if URI.task? uri or URI.compound? uri
       # just try to get a response, valid tasks may return codes > 400
       Net::HTTP.get_response(URI.parse(uri))
       true
     else
-      Net::HTTP.get_response(URI.parse(uri)).code.to_i < 400
+      Net::HTTP.get_response(URI.parse(uri + (subjectid ? "?subjectid=#{CGI.escape subjectid}" : ""))).code.to_i < 400
     end
   rescue
     false
