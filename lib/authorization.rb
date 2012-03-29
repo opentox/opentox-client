@@ -101,6 +101,8 @@ module OpenTox
       return true if !AA
       begin
         return true if RestClientWrapper.post("#{AA}/auth/isTokenValid",:tokenid => subjectid) == "boolean=true\n"
+      rescue
+        return false
       end
       return false
     end
