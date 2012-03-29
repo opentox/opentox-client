@@ -52,11 +52,12 @@ module OpenTox
   
   # Errors received from RestClientWrapper calls
   class RestCallError < Error
-    attr_accessor :request, :response
-    def initialize request, response, message
+    attr_accessor :request#, :response
+    def initialize message, request, uri
+    #def initialize request, response, message
       @request = request
-      @response = response
-      super 502, message, request.url
+      #@response = response
+      super 502, message, uri
     end
   end
 
@@ -78,7 +79,7 @@ module OpenTox
       cut_index = backtrace.size-1 if cut_index < 0
       @report[RDF::OT.errorDetails] = backtrace[0..cut_index].join("\n")
       @report[RDF::OT.errorDetails] += "REST paramenters:\n#{error.request.args.inspect}" if defined? error.request
-      @report[RDF::OT.message] += "\n" + error.response.body.to_s if defined? error.response
+      #@report[RDF::OT.message] += "\n" + error.response.body.to_s if defined? error.response
       # TODO fix Error cause
       # should point to another errorReport, but errorReports do not have URIs
       # create a separate service?

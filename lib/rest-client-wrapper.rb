@@ -34,13 +34,16 @@ module OpenTox
         headers.each{ |k,v| headers.delete(k) if v==nil } if headers #remove keys with empty values, as this can cause problems
         args[:headers] = headers 
 
-        # perform request
         @request = RestClient::Request.new(args)
-        # do not throw RestClient exceptions in order to create a @response object (needed for error reports) in every case
-        @response = @request.execute { |response, request, result| return response }
         # ignore error codes from Task services (may return error codes >= 400 according to API, which causes exceptions in RestClient and RDF::Reader)
-        raise OpenTox::RestCallError.new @request, @response, "Response code is #{@response.code}." unless @response.code < 400 or URI.task? uri
-        @response
+        @response = @request.execute do |response, request, result|
+          if [301, 302, 307].include? response.code and request.method == :get
+            response.follow_redirection(request, result)
+          else
+            raise OpenTox::RestCallError.new response.to_s, request, uri unless response.code < 400 or URI.task? uri
+            response
+          end
+        end
       end
     end
 

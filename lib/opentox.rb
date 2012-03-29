@@ -70,12 +70,6 @@ module OpenTox
     end
   end
 
-#  def to_hash
-#    hash = {}
-#    metadata.each{|k,v| v.is_a?(Array) ? hash[k.to_s] = v.collect{|i| i.to_s} : hash[k.to_s] = v.to_s}
-#    hash
-#  end
-
   def to_yaml
     @rdf.to_hash.to_yaml
   end
