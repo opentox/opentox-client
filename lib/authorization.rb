@@ -312,6 +312,7 @@ module OpenTox
     # @param [String] subjectid
     # @return [Boolean] true if access granted, else otherwise
     def self.authorized?(uri, request_method, subjectid)
+      request_method = request_method.to_sym if request_method
       if $aa[:free_request].include?(request_method)
         #$logger.debug "authorized? >>true<< (request is free), method: #{request_method}, URI: #{uri}, subjectid: #{subjectid}"
         true
