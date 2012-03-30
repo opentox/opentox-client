@@ -68,6 +68,7 @@ class TaskTest < Test::Unit::TestCase
     assert_equal "Error", task.hasStatus
   end
 
+=begin
   def test_wrong_result_uri
     task = OpenTox::Task.create TASK_SERVICE_URI, :description => "test wrong result uri", :creator => "http://test.org/fake_creator" do
       sleep 1
@@ -79,7 +80,6 @@ class TaskTest < Test::Unit::TestCase
     assert task.error?
     assert_equal "Error", task.hasStatus
   end
-=begin
 =end
 
 end
