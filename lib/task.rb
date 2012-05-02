@@ -8,13 +8,27 @@ module OpenTox
 
     def self.create service_uri, params={}
 
-      task = Task.new RestClientWrapper.post(service_uri,params).chomp
+      uri = RDF::URI.new File.join(service_uri,SecureRandom.uuid)
+      #uri = RestClientWrapper.post service_uri
+      #puts uri
+      task = Task.new uri
+      #task.pull
+      #puts task.to_turtle
+      task.rdf << RDF::Statement.new(uri, RDF.type, RDF::OT.Task)
+      task.rdf << RDF::Statement.new(uri, RDF::DC.date, RDF::Literal.new(DateTime.now))
+      task.rdf << RDF::Statement.new(uri, RDF::OT.hasStatus, RDF::Literal.new("Running"))
+      params.each {|k,v| task.rdf << RDF::Statement.new(uri, k, v)}
+      task.save
       pid = fork do
         begin
           result_uri = yield 
           task.completed result_uri
         rescue 
-          RestClientWrapper.put(File.join(task.uri,'Error'),{:errorReport => $!.report.to_yaml}) if $!.respond_to? :report
+          if $!.respond_to? :to_ntriples
+            RestClientWrapper.put(File.join(task.uri,'Error'),:errorReport => $!.to_ntriples,:content_type => 'text/plain') 
+          else
+            RestClientWrapper.put(File.join(task.uri,'Error')) #if $!.respond_to? :report
+          end
           task.kill
         end
       end
@@ -58,7 +72,8 @@ module OpenTox
     end
 
     def completed(uri)
-      #not_found_error "Result URI \"#{uri}\" does not exist." unless URI.accessible? uri
+      #TODO fix for https rewrites
+      not_found_error "Result URI \"#{uri}\" does not exist." unless URI.accessible? uri
       RestClientWrapper.put(File.join(@uri,'Completed'),{:resultURI => uri})
     end
 
@@ -68,7 +83,7 @@ module OpenTox
     def wait
       start_time = Time.new
       due_to_time = start_time + DEFAULT_TASK_MAX_DURATION
-      dur = 0
+      dur = 0.3
       while running? 
         sleep dur
         dur = [[(Time.new - start_time)/20.0,0.3].max,300.0].min

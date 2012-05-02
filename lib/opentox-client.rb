@@ -7,6 +7,7 @@ require 'uri'
 require 'yaml'
 require 'json'
 require 'logger'
+require "securerandom"
 
 # define constants and global variables
 #TODO: switch services to 1.2
@@ -17,6 +18,7 @@ RDF::OTA =  RDF::Vocabulary.new 'http://www.opentox.org/algorithmTypes.owl#'
 #CLASSES = ["Compound", "Feature", "Dataset", "Algorithm", "Model", "Validation", "Task", "ErrorReport", "Investigation"]
 CLASSES = ["Generic", "Compound", "Feature", "Dataset", "Algorithm", "Model", "Validation", "Task", "Investigation"]
 RDF_FORMATS = [:rdfxml,:ntriples,:turtle]
+#$default_rdf = "text/plain"
 $default_rdf = "application/rdf+xml"
 
 # Regular expressions for parsing classification data

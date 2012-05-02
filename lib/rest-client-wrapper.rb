@@ -19,7 +19,7 @@ module OpenTox
         @subjectid = headers[:subjectid] ? headers[:subjectid] : nil
         bad_request_error "Invalid URI: '#{uri}'" unless URI.valid? uri
         #TODO fix for internal installations
-        #not_found_error "URI '#{uri}' not found." unless URI.accessible?(uri, @subjectid) unless URI.ssl?(uri)
+        not_found_error "URI '#{uri}' not found." unless URI.accessible?(uri, @subjectid) unless URI.ssl?(uri)
         bad_request_error "Headers are not a hash: #{headers.inspect}" unless headers==nil or headers.is_a?(Hash)
         # make sure that no header parameters are set in the payload
         [:accept,:content_type,:subjectid].each do |header|
@@ -44,7 +44,9 @@ module OpenTox
           if [301, 302, 307].include? response.code and request.method == :get
             response.follow_redirection(request, result)
           else
-            raise OpenTox::RestCallError.new response.to_s, request, uri unless response.code < 400 or URI.task? uri
+            #TODO Reactivate for external services
+            #raise OpenTox::RestCallError.new response.to_s, request, uri unless response.code < 400 or URI.task? uri
+            rest_call_error response.to_s, request, uri unless response.code < 400 or URI.task? uri
             response
           end
         end

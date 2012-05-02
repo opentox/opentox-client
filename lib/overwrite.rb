@@ -15,7 +15,8 @@ module URI
   end
 
   def self.task? uri
-    uri =~ /task/ and URI.valid? uri
+    #TODO remove localhost
+    (uri =~ /task/ or uri =~ /localhost/) and URI.valid? uri
   end
   
   def self.dataset? uri, subjectid=nil
