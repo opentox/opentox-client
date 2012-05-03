@@ -44,9 +44,7 @@ module OpenTox
           if [301, 302, 307].include? response.code and request.method == :get
             response.follow_redirection(request, result)
           else
-            #TODO Reactivate for external services
-            #raise OpenTox::RestCallError.new response.to_s, request, uri unless response.code < 400 or URI.task? uri
-            rest_call_error response.to_s, request, uri unless response.code < 400 or URI.task? uri
+            raise OpenTox::RestCallError.new response.to_s, request, uri unless response.code < 400 or URI.task? uri
             response
           end
         end
