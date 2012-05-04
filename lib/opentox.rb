@@ -21,9 +21,9 @@ module OpenTox
 
   # Load metadata from service
   def pull
-    # TODO generic method for all formats
-    #parse_rdfxml RestClientWrapper.get(@uri,{},{:accept => $default_rdf, :subjectid => @subjectid})
     parse_ntriples RestClientWrapper.get(@uri,{},{:accept => "text/plain", :subjectid => @subjectid})
+  rescue # fall back to rdfxml
+    parse_rdfxml RestClientWrapper.get(@uri,{},{:accept => "application/rdf+xml", :subjectid => @subjectid})
   end
 
   # Get object metadata 
@@ -48,8 +48,9 @@ module OpenTox
 
   # Save object at service
   def save
-    #TODO: dynamic assignment
-    put self.to_rdfxml, { :content_type => $default_rdf}
+    put self.to_ntriples, { :content_type => "text/plain"}
+  rescue # fall back to rdfxml
+    put self.to_rdfxml, { :content_type => "application/rdf+xml"}
   end
 
   RDF_FORMATS.each do |format|

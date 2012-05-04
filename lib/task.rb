@@ -9,11 +9,7 @@ module OpenTox
     def self.create service_uri, params={}
 
       uri = RDF::URI.new File.join(service_uri,SecureRandom.uuid)
-      #uri = RestClientWrapper.post service_uri
-      #puts uri
       task = Task.new uri
-      #task.pull
-      #puts task.to_turtle
       task.rdf << RDF::Statement.new(uri, RDF.type, RDF::OT.Task)
       task.rdf << RDF::Statement.new(uri, RDF::DC.date, RDF::Literal.new(DateTime.now))
       task.rdf << RDF::Statement.new(uri, RDF::OT.hasStatus, RDF::Literal.new("Running"))
@@ -27,7 +23,7 @@ module OpenTox
           if $!.respond_to? :to_ntriples
             RestClientWrapper.put(File.join(task.uri,'Error'),:errorReport => $!.to_ntriples,:content_type => 'text/plain') 
           else
-            RestClientWrapper.put(File.join(task.uri,'Error')) #if $!.respond_to? :report
+            RestClientWrapper.put(File.join(task.uri,'Error')) 
           end
           task.kill
         end
@@ -72,7 +68,6 @@ module OpenTox
     end
 
     def completed(uri)
-      #TODO fix for https rewrites
       not_found_error "Result URI \"#{uri}\" does not exist." unless URI.accessible? uri
       RestClientWrapper.put(File.join(@uri,'Completed'),{:resultURI => uri})
     end
@@ -109,11 +104,6 @@ module OpenTox
   def error?
     code = RestClientWrapper.head(@uri).code
     code >= 400 and code != 503
-  end
-
-  def errorReport
-    # TODO: fix rdf output at task service
-    not_implemented_error "RDF output of errorReports has to be fixed at task service"
   end
 
   [:hasStatus, :resultURI].each do |method|
