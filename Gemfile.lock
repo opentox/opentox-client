@@ -1,0 +1,30 @@
+PATH
+  remote: .
+  specs:
+    opentox-client (0.0.2pre)
+      bundler
+      open4
+      rdf
+      rdf-raptor
+      rest-client
+
+GEM
+  remote: http://rubygems.org/
+  specs:
+    addressable (2.2.7)
+    ffi (1.0.11)
+    mime-types (1.17.2)
+    open4 (1.3.0)
+    rdf (0.3.5)
+      addressable (>= 2.2.6)
+    rdf-raptor (0.4.1)
+      ffi (>= 1.0)
+      rdf (~> 0.3.0)
+    rest-client (1.6.7)
+      mime-types (>= 1.16)
+
+PLATFORMS
+  ruby
+
+DEPENDENCIES
+  opentox-client!
