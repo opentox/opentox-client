@@ -111,6 +111,7 @@ module OpenTox
     end
 
     def create service_uri, subjectid=nil
+      #uri = uri(SecureRandom.uuid)
       uri = RestClientWrapper.post(service_uri, {}, {:accept => 'text/uri-list', :subjectid => subjectid})
       URI.task?(service_uri) ? from_uri(uri, subjectid, false) : from_uri(uri, subjectid)
     end

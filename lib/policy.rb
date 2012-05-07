@@ -58,7 +58,7 @@ module OpenTox
         when "guest", "anonymous" then "default_guest_policy"
         else "default_policy"
       end
-      xml = File.read(File.join(File.dirname(__FILE__), "templates/#{template}.xml"))
+      xml = get_xml_template(template)
       self.load_xml(xml)
       datestring = Time.now.strftime("%Y-%m-%d-%H-%M-%S-x") + rand(1000).to_s
 
@@ -76,6 +76,10 @@ module OpenTox
       @policies["policy_group"].subject.value = "cn=#{group},ou=groups,dc=opentox,dc=org"
       @policies["policy_group"].subject_group = "subjects_#{group}_#{datestring}"
       return true
+    end
+
+    def get_xml_template(template)
+      File.read(File.join(File.dirname(__FILE__), "templates/#{template}.xml"))
     end
 
     #loads a xml template
@@ -247,19 +251,22 @@ module OpenTox
     end
 
     # helper method sets value and type to opentox LDAP Distinguished Name (DN) of a user
+    # @param [String]Username set a username into LDAP DN
     def set_ot_user(username)
       self.value = "uid=#{username},ou=people,dc=opentox,dc=org"
       self.type = "LDAPUsers"
       true
     end
 
+    # @param [String]Username set a groupname into LDAP DN
     def set_ot_group(groupname)
       self.value = "cn=#{groupname},ou=groups,dc=opentox,dc=org"
       self.type = "LDAPGroups"
       true
     end
 
-    #rule inside a policy
+    # policyrule
+    # sets the permission for REST actions (GET, POST, PUT, DELETE) of a specific URI to allow/deny/nil
     class Rule
 
       attr_accessor :name, :uri, :get, :post, :put, :delete, :read, :readwrite
@@ -293,14 +300,18 @@ module OpenTox
         @put = check_value(value, @put)
       end
 
+      # read getter method
       def read
         return true if @get == "allow" && (@put == "deny" || !@put) && (@post == "deny" || !@post)
       end
 
+      # readwrite getter method
       def readwrite
         return true if @get == "allow" && @put == "allow" && @post == "allow"
       end
 
+      # Set(true case) or remove read(GET=allow) permissions.
+      # @param [Boolean]value (true,false)
       def read=(value)
         if value
           @get = "allow"; @put = nil; @post = nil
@@ -309,6 +320,8 @@ module OpenTox
         end
       end
 
+      # Set(true case) or remove readwrite(GET=allow,POST=allow,PUT=allow) permissions.
+      # @param [Boolean]value (true,false)
       def readwrite=(value)
         if value
           @get = "allow"; @put = "allow"; @post = "allow"
@@ -324,6 +337,8 @@ module OpenTox
       end
     end
 
+    # Subject of a policy
+    # name(subjectname), type('LDAPUsers' or 'LDAPGroups'), value(LDAP DN e.G.:'uid=guest,ou=people,dc=opentox,dc=org')
     class Subject
 
       attr_accessor :name, :type, :value
