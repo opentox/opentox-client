@@ -21,8 +21,9 @@ module OpenTox
 
   # Load metadata from service
   def pull
-    # TODO generic method for all formats
-    parse_rdfxml RestClientWrapper.get(@uri,{},{:accept => $default_rdf, :subjectid => @subjectid})
+    parse_ntriples RestClientWrapper.get(@uri,{},{:accept => "text/plain", :subjectid => @subjectid})
+  rescue # fall back to rdfxml
+    parse_rdfxml RestClientWrapper.get(@uri,{},{:accept => "application/rdf+xml", :subjectid => @subjectid})
   end
 
   # Get object metadata 
@@ -47,8 +48,9 @@ module OpenTox
 
   # Save object at service
   def save
-    #TODO: dynamic assignment
-    post self.to_rdfxml, { :content_type => $default_rdf}
+    put self.to_ntriples, { :content_type => "text/plain"}
+  rescue # fall back to rdfxml
+    put self.to_rdfxml, { :content_type => "application/rdf+xml"}
   end
 
   RDF_FORMATS.each do |format|
@@ -111,7 +113,7 @@ module OpenTox
     end
 
     def create service_uri, subjectid=nil
-      #uri = uri(SecureRandom.uuid)
+      #uri = File.join(service_uri,SecureRandom.uuid)
       uri = RestClientWrapper.post(service_uri, {}, {:accept => 'text/uri-list', :subjectid => subjectid})
       URI.task?(service_uri) ? from_uri(uri, subjectid, false) : from_uri(uri, subjectid)
     end
@@ -126,7 +128,7 @@ module OpenTox
         
       uri.chomp!
       # TODO add waiting task
-      if URI.task? uri and wait
+      if URI.task?(uri) and wait
         t = OpenTox::Task.new(uri)
         t.wait
         uri = t.resultURI

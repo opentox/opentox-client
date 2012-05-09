@@ -7,12 +7,38 @@ class RuntimeError
     super message
     @uri = uri
     @http_code ||= 500
-    $logger.error "\n"+self.report.to_turtle
+    $logger.error "\n"+self.to_turtle
   end
 
-  def report
-    # TODO: remove kludge for old task services
-    OpenTox::ErrorReport.new(@http_code, self)
+  # define to_ and self.from_ methods for various rdf formats
+  RDF_FORMATS.each do |format|
+
+    send :define_method, "to_#{format}".to_sym do
+      rdf = RDF::Writer.for(format).buffer do |writer|
+        # TODO: not used for turtle
+        # http://rdf.rubyforge.org/RDF/Writer.html#
+        writer.prefix :ot, RDF::URI('http://www.opentox.org/api/1.2#')
+        writer.prefix :ot1_1, RDF::URI('http://www.opentox.org/api/1.1#')
+        subject = RDF::Node.new
+        writer << [subject, RDF.type, RDF::OT.ErrorReport]
+        writer << [subject, RDF::OT.actor, @uri.to_s]
+        writer << [subject, RDF::OT.message, @message.to_s]
+        writer << [subject, RDF::OT.statusCode, @http_code]
+        writer << [subject, RDF::OT.errorCode, self.class.to_s]
+
+        # cut backtrace
+        backtrace = caller.collect{|line| line unless line =~ /#{File.dirname(__FILE__)}/}.compact
+        cut_index = backtrace.find_index{|line| line.match /sinatra|minitest/}
+        cut_index ||= backtrace.size
+        cut_index -= 1
+        cut_index = backtrace.size-1 if cut_index < 0
+        details = backtrace[0..cut_index].join("\n")
+        details += "REST paramenters:\n#{@request.args.inspect}" if @request
+        writer << [subject, RDF::OT.errorCause, details]
+      end
+      rdf
+    end
+
   end
 end
 
@@ -61,57 +87,4 @@ module OpenTox
     end
   end
 
-  # TODO: create reports directly from errors, requires modified task service
-  class ErrorReport
-    def initialize http_code, error
-      @http_code = http_code
-      @report = {}
-      @report[RDF::OT.actor] = error.uri.to_s
-      @report[RDF::OT.message] = error.message.to_s
-      @report[RDF::OT.statusCode] = @http_code 
-      @report[RDF::OT.errorCode] = error.class.to_s
-
-      # cut backtrace
-      backtrace = caller.collect{|line| line unless line =~ /#{File.dirname(__FILE__)}/}.compact
-      cut_index = backtrace.find_index{|line| line.match /sinatra|minitest/}
-      cut_index ||= backtrace.size
-      cut_index -= 1
-      cut_index = backtrace.size-1 if cut_index < 0
-      @report[RDF::OT.errorDetails] = backtrace[0..cut_index].join("\n")
-      @report[RDF::OT.errorDetails] += "REST paramenters:\n#{error.request.args.inspect}" if defined? error.request
-      #@report[RDF::OT.message] += "\n" + error.response.body.to_s if defined? error.response
-      # TODO fix Error cause
-      # should point to another errorReport, but errorReports do not have URIs
-      # create a separate service?
-      #report[RDF::OT.errorCause] = @report if defined?(@report) 
-    end
-
-    # define to_ and self.from_ methods for various rdf formats
-    RDF_FORMATS.each do |format|
-
-      send :define_method, "to_#{format}".to_sym do
-        rdf = RDF::Writer.for(format).buffer do |writer|
-          # TODO: not used for turtle
-          # http://rdf.rubyforge.org/RDF/Writer.html#
-          writer.prefix :ot, RDF::URI('http://www.opentox.org/api/1.2#')
-          writer.prefix :ot1_1, RDF::URI('http://www.opentox.org/api/1.1#')
-          subject = RDF::Node.new
-          @report.each do |predicate,object|
-            writer << [subject, predicate, object] if object
-          end
-        end
-        rdf
-      end
-
-=begin
-      define_singleton_method "from_#{format}".to_sym do |rdf|
-        report = ErrorReport.new
-        RDF::Reader.for(format).new(rdf) do |reader|
-          reader.each_statement{ |statement| report.rdf << statement }
-        end
-        report
-      end
-=end
-    end
-  end
 end
