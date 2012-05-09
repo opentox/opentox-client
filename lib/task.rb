@@ -6,10 +6,10 @@ module OpenTox
 
     attr_accessor :pid, :observer_pid
 
-    def self.create service_uri, params={}
+    def self.create service_uri, subjectid=nil, params={}
 
       uri = RDF::URI.new File.join(service_uri,SecureRandom.uuid)
-      task = Task.new uri
+      task = Task.new uri, subjectid
       task.rdf << RDF::Statement.new(uri, RDF.type, RDF::OT.Task)
       task.rdf << RDF::Statement.new(uri, RDF::DC.date, RDF::Literal.new(DateTime.now))
       task.rdf << RDF::Statement.new(uri, RDF::OT.hasStatus, RDF::Literal.new("Running"))
@@ -68,7 +68,8 @@ module OpenTox
     end
 
     def completed(uri)
-      not_found_error "Result URI \"#{uri}\" does not exist." unless URI.accessible? uri
+      #puts uri
+      #not_found_error "Result URI \"#{uri}\" does not exist." unless URI.accessible? uri, @subjectid
       RestClientWrapper.put(File.join(@uri,'Completed'),{:resultURI => uri})
     end
 
