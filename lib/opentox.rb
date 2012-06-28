@@ -120,6 +120,7 @@ module OpenTox
 
     def from_file service_uri, filename, subjectid=nil
       file = File.new filename
+      # TODO: sdf files are incorrectly detected
       from_uri RestClientWrapper.post(service_uri, {:file => file}, {:subjectid => subjectid, :content_type => file.mime_type, :accept => "text/uri-list"}), subjectid
     end
 

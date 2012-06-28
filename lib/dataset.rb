@@ -4,13 +4,18 @@ module OpenTox
   class Dataset 
 
     def data_entries
-      # TODO fix for api 1.2
       data_entries = []
       pull 
       @reload = false
-      metadata[RDF::OT1.dataEntry].collect{|data_entry|
-        data_entries << @rdf.to_hash[data_entry]
-      }
+      begin
+        metadata[RDF::OT.dataEntry].collect{|data_entry| data_entries << @rdf.to_hash[data_entry] }
+      rescue
+      end
+      begin
+      # TODO: remove API 1.1
+        metadata[RDF::OT1.dataEntry].collect{|data_entry| data_entries << @rdf.to_hash[data_entry] }
+      rescue
+      end
       @reload = true
       data_entries
     end
