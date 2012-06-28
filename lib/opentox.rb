@@ -46,11 +46,22 @@ module OpenTox
     result
   end
 
+  def []=(key,value)
+    uri = RDF::URI.new(@uri)
+    #@rdf.delete [uri,key,nil] 
+    #result = @rdf.query([RDF::URI.new(@uri),key,nil]).collect{|statement| statement.object}
+    @rdf << [uri, key, value]
+  end
+
+  #def []<<(key,value)
+    #@rdf << [RDF::URI.new(@uri), key, value]
+  #end
+
   # Save object at service
   def save
     put self.to_ntriples, { :content_type => "text/plain"}
-  rescue # fall back to rdfxml
-    put self.to_rdfxml, { :content_type => "application/rdf+xml"}
+  #rescue # fall back to rdfxml
+    #put self.to_rdfxml, { :content_type => "application/rdf+xml"}
   end
 
   RDF_FORMATS.each do |format|
@@ -113,8 +124,15 @@ module OpenTox
     end
 
     def create service_uri, subjectid=nil
+      bnode = RDF::Node.new
+      klass = "RDF::OT."+self.class.to_s.split('::').last
+      #puts self.class
+      #puts klass
+      #object = eval "#{~
+      @rdf << [bnode, RDF.type, klass]
       #uri = File.join(service_uri,SecureRandom.uuid)
-      uri = RestClientWrapper.post(service_uri, {}, {:accept => 'text/uri-list', :subjectid => subjectid})
+      uri = RestClientWrapper.post(service_uri, self.to_ntriples, {:content_type => 'text/plain', :accept => 'text/uri-list', :subjectid => subjectid})
+      #uri = RestClientWrapper.put(uri, {}, {:accept => 'text/uri-list', :subjectid => subjectid})
       URI.task?(service_uri) ? from_uri(uri, subjectid, false) : from_uri(uri, subjectid)
     end
 
