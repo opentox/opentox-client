@@ -1,3 +1,23 @@
+class Object
+  # An object is blank if it's false, empty, or a whitespace string.
+  # For example, "", "   ", +nil+, [], and {} are all blank.
+  def blank?
+    respond_to?(:empty?) ? empty? : !self
+  end
+
+  def numeric?
+    true if Float(self) rescue false
+  end
+end
+
+=begin
+module Enumerable
+  def duplicates
+    inject({}) {|h,v| h[v] += 1; h}.reject{|k,v| v==1}.keys
+  end
+end
+=end
+
 class String
   def underscore
     self.gsub(/::/, '/').
