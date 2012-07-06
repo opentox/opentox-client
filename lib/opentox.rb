@@ -4,7 +4,7 @@ $logger.level = Logger::DEBUG
 
 module OpenTox
 
-  attr_accessor :uri, :subjectid, :rdf, :response, :reload
+  attr_accessor :uri, :subjectid, :rdf
 
   # Ruby interface
 
@@ -13,55 +13,72 @@ module OpenTox
   # @param [optional,String] subjectid
   # @return [OpenTox] OpenTox object
   def initialize uri=nil, subjectid=nil
-    @uri = uri.to_s.chomp
-    @subjectid = subjectid
-    @reload = true
     @rdf = RDF::Graph.new
+    uri ?  @uri = uri.to_s.chomp : @uri = RDF::Node.uuid.to_s
+    append RDF.type, eval("RDF::OT."+self.class.to_s.split('::').last)
+    append RDF::DC.date, DateTime.now
+    @subjectid = subjectid
   end
 
-  # Load metadata from service
-  def pull
+  # Object metadata 
+  # @return [Hash] Object metadata
+  def metadata 
+    # return plain strings instead of RDF objects
+    #puts @rdf.to_hash
+    @rdf.to_hash[RDF::URI.new(@uri)].inject({}) { |h, (predicate, values)| h[predicate.to_s] = values.collect{|v| v.to_s}; h }
+  end
+
+  # Metadata values 
+  # @param [String] Predicate URI
+  # @return [Array, String] Predicate value(s)
+  def [](predicate)
+    metadata[predicate.to_s].size == 1 ? metadata[predicate.to_s].first : metadata[predicate.to_s]
+  end
+
+  # Set object metadata
+  # @param [String] Predicate URI
+  # @param [Array, String] Predicate value(s)
+  def []=(predicate,values)
+    @rdf.delete [RDF::URI.new(@uri.to_s),RDF::URI.new(predicate.to_s),nil] 
+    append predicate.to_s, values
+  end
+
+  # Append object metadata
+  # @param [String] Predicate URI
+  # @param [Array, String] Predicate value(s)
+  def append(predicate,values)
+    uri = RDF::URI.new @uri
+    predicate = RDF::URI.new predicate
+    [values].flatten.each { |value| @rdf << [uri, predicate, value] }
+  end
+
+  # Get object from webservice
+  def get 
     parse_ntriples RestClientWrapper.get(@uri,{},{:accept => "text/plain", :subjectid => @subjectid})
   rescue # fall back to rdfxml
     parse_rdfxml RestClientWrapper.get(@uri,{},{:accept => "application/rdf+xml", :subjectid => @subjectid})
   end
 
-  # Get object metadata 
-  # @return [Hash] Metadata
-  def metadata 
-    pull if @reload # force update
-    @rdf.to_hash[RDF::URI.new(@uri)]
+  # Post object to webservice
+  def post service_uri
+    RestClientWrapper.post service_uri, to_ntriples, { :content_type => "text/plain", :subjectid => @subjectid}
+  rescue # fall back to rdfxml
+    RestClientWrapper.post service_uri, to_rdfxml, { :content_type => "application/rdf+xml", :subjectid => @subjectid}
   end
 
-  # Get metadata values 
-  # @param [RDF] Key from RDF Vocabularies
-  # @return [Array] Values for supplied key
-  def [](key)
-    pull if @reload # force update
-    result = @rdf.query([RDF::URI.new(@uri),key,nil]).collect{|statement| statement.object}
-    # TODO: convert to OpenTox objects??
-    return nil if result and result.empty?
-    return result.first.to_s if result.size == 1 
-    return result.collect{|r| r.to_s}
-    result
+  # Save object at webservice
+  def put 
+    append RDF::DC.modified, DateTime.now
+    begin
+      RestClientWrapper.put @uri.to_s, self.to_ntriples, { :content_type => "text/plain", :subjectid => @subjectid}
+    rescue # fall back to rdfxml
+      RestClientWrapper.put @uri.to_s, self.to_rdfxml, { :content_type => "application/rdf+xml", :subjectid => @subjectid}
+    end
   end
 
-  def []=(key,value)
-    uri = RDF::URI.new(@uri)
-    #@rdf.delete [uri,key,nil] 
-    #result = @rdf.query([RDF::URI.new(@uri),key,nil]).collect{|statement| statement.object}
-    @rdf << [uri, key, value]
-  end
-
-  #def []<<(key,value)
-    #@rdf << [RDF::URI.new(@uri), key, value]
-  #end
-
-  # Save object at service
-  def save
-    put self.to_ntriples, { :content_type => "text/plain"}
-  #rescue # fall back to rdfxml
-    #put self.to_rdfxml, { :content_type => "application/rdf+xml"}
+  # Delete object at webservice
+  def delete 
+    @response = RestClientWrapper.delete(@uri.to_s,nil,{:subjectid => @subjectid})
   end
 
   RDF_FORMATS.each do |format|
@@ -83,38 +100,6 @@ module OpenTox
     end
   end
 
-  def to_yaml
-    @rdf.to_hash.to_yaml
-  end
-
-  def to_json
-    to_hash.to_json
-  end
-
-  # REST API
-  def get headers={}
-    headers[:subjectid] ||= @subjectid
-    headers[:accept] ||= 'application/rdf+xml'
-    @response = RestClientWrapper.get @uri, {}, headers
-  end
-
-  def post payload={}, headers={}
-    headers[:subjectid] ||= @subjectid
-    headers[:accept] ||= 'application/rdf+xml'
-    @response = RestClientWrapper.post(@uri.to_s, payload, headers)
-  end
-
-  def put payload={}, headers={} 
-    headers[:subjectid] ||= @subjectid
-    headers[:accept] ||= 'application/rdf+xml'
-    @response = RestClientWrapper.put(@uri.to_s, payload, headers)
-  end
-
-  def delete headers={}
-    headers[:subjectid] ||= @subjectid
-    @response = RestClientWrapper.delete(@uri.to_s,nil,headers)
-  end
-
   # class methods
   module ClassMethods
 
@@ -123,22 +108,10 @@ module OpenTox
       uris.collect{|uri| URI.task?(service_uri) ? from_uri(uri, subjectid, false) : from_uri(uri, subjectid)}
     end
 
-    def create service_uri, subjectid=nil
-      bnode = RDF::Node.new
-      klass = "RDF::OT."+self.class.to_s.split('::').last
-      #puts self.class
-      #puts klass
-      #object = eval "#{~
-      @rdf << [bnode, RDF.type, klass]
-      #uri = File.join(service_uri,SecureRandom.uuid)
-      uri = RestClientWrapper.post(service_uri, self.to_ntriples, {:content_type => 'text/plain', :accept => 'text/uri-list', :subjectid => subjectid})
-      #uri = RestClientWrapper.put(uri, {}, {:accept => 'text/uri-list', :subjectid => subjectid})
-      URI.task?(service_uri) ? from_uri(uri, subjectid, false) : from_uri(uri, subjectid)
-    end
-
     def from_file service_uri, filename, subjectid=nil
       file = File.new filename
-      # TODO: sdf files are incorrectly detected
+      # sdf files are incorrectly detected
+      file.mime_type = "chemical/x-mdl-sdfile" if File.extname(filename) == ".sdf"
       from_uri RestClientWrapper.post(service_uri, {:file => file}, {:subjectid => subjectid, :content_type => file.mime_type, :accept => "text/uri-list"}), subjectid
     end
 

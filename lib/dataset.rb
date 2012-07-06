@@ -5,18 +5,18 @@ module OpenTox
 
     def data_entries
       data_entries = []
-      pull 
-      @reload = false
+      #pull 
+      #@reload = false
       begin
-        metadata[RDF::OT.dataEntry].collect{|data_entry| data_entries << @rdf.to_hash[data_entry] }
+        self.[](RDF::OT.dataEntry).collect{|data_entry| data_entries << @rdf.to_hash[data_entry] }
       rescue
       end
       begin
       # TODO: remove API 1.1
-        metadata[RDF::OT1.dataEntry].collect{|data_entry| data_entries << @rdf.to_hash[data_entry] }
+        self.[](RDF::OT1.dataEntry).collect{|data_entry| data_entries << @rdf.to_hash[data_entry] }
       rescue
       end
-      @reload = true
+      #@reload = true
       data_entries
     end
 

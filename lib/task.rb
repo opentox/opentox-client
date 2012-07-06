@@ -8,13 +8,11 @@ module OpenTox
 
     def self.create service_uri, subjectid=nil, params={}
 
-      uri = RDF::URI.new File.join(service_uri,SecureRandom.uuid)
+      uri = File.join(service_uri,SecureRandom.uuid)
       task = Task.new uri, subjectid
-      task.rdf << RDF::Statement.new(uri, RDF.type, RDF::OT.Task)
-      task.rdf << RDF::Statement.new(uri, RDF::DC.date, RDF::Literal.new(DateTime.now))
-      task.rdf << RDF::Statement.new(uri, RDF::OT.hasStatus, RDF::Literal.new("Running"))
-      params.each {|k,v| task.rdf << RDF::Statement.new(uri, k, v)}
-      task.save
+      task[RDF::OT.hasStatus] = "Running"
+      params.each { |k,v| task[k] = v }
+      task.put
       pid = fork do
         begin
           result_uri = yield 
@@ -53,24 +51,23 @@ module OpenTox
     end
 
     def description
-      pull
-      self.[](RDF::DC.description).uniq.first
+      self.[](RDF::DC.description)
     end
 
     def creator
-      pull
-      self.[](RDF::DC.creator).uniq.first
+      self.[](RDF::DC.creator)
     end
     
     def cancel
       kill
-      RestClientWrapper.put(File.join(@uri,'Cancelled'),{})
+      self.[]=(RDF::OT.hasStatus, "Cancelled")
+      put
     end
 
     def completed(uri)
-      #puts uri
-      #not_found_error "Result URI \"#{uri}\" does not exist." unless URI.accessible? uri, @subjectid
-      RestClientWrapper.put(File.join(@uri,'Completed'),{:resultURI => uri})
+      self.[]=(RDF::OT.resultURI, uri)
+      self.[]=(RDF::OT.hasStatus, "Completed")
+      put
     end
 
     # waits for a task, unless time exceeds or state is no longer running
@@ -85,6 +82,7 @@ module OpenTox
         dur = [[(Time.new - start_time)/20.0,0.3].max,300.0].min
         time_out_error "max wait time exceeded ("+DEFAULT_TASK_MAX_DURATION.to_s+"sec), task: '"+@uri.to_s+"'" if (Time.new > due_to_time)
       end
+      get
     end
 
   end
@@ -109,6 +107,7 @@ module OpenTox
 
   [:hasStatus, :resultURI].each do |method|
     define_method method do
+      get
       response = self.[](RDF::OT[method])
       response = self.[](RDF::OT1[method]) unless response  # API 1.1 compatibility
       response
