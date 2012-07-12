@@ -10,7 +10,7 @@ class RuntimeError
     $logger.error "\n"+self.to_turtle
   end
 
-  # define to_ and self.from_ methods for various rdf formats
+  # define to_ methods for all RuntimeErrors and various rdf formats
   RDF_FORMATS.each do |format|
 
     send :define_method, "to_#{format}".to_sym do
@@ -22,7 +22,7 @@ class RuntimeError
         subject = RDF::Node.new
         writer << [subject, RDF.type, RDF::OT.ErrorReport]
         writer << [subject, RDF::OT.actor, @uri.to_s]
-        writer << [subject, RDF::OT.message, @message.to_s]
+        writer << [subject, RDF::OT.message, message.to_s]
         writer << [subject, RDF::OT.statusCode, @http_code]
         writer << [subject, RDF::OT.errorCode, self.class.to_s]
 
@@ -80,7 +80,6 @@ module OpenTox
   class RestCallError < Error
     attr_accessor :request#, :response
     def initialize message, request, uri
-    #def initialize request, response, message
       @request = request
       #@response = response
       super 502, message, uri

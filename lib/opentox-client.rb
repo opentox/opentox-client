@@ -2,6 +2,7 @@ require 'rubygems'
 require "bundler/setup"
 require 'rdf'
 require 'rdf/raptor'
+require 'rdf/n3'
 require "rest-client"
 require 'uri'
 require 'yaml'
@@ -14,6 +15,7 @@ require "securerandom"
 RDF::OT =  RDF::Vocabulary.new 'http://www.opentox.org/api/1.2#'
 RDF::OT1 =  RDF::Vocabulary.new 'http://www.opentox.org/api/1.1#'
 RDF::OTA =  RDF::Vocabulary.new 'http://www.opentox.org/algorithmTypes.owl#'
+RDF::OLO =  RDF::Vocabulary.new 'http://purl.org/ontology/olo/core#'
 
 CLASSES = ["Generic", "Compound", "Feature", "Dataset", "Algorithm", "Model", "Validation", "Task", "Investigation"]
 RDF_FORMATS = [:rdfxml,:ntriples,:turtle]

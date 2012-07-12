@@ -40,25 +40,25 @@ module OpenTox
 		# Get InChI
     # @return [String] InChI string
 		def to_inchi
-      get(:accept => 'chemical/x-inchi').to_s.chomp if @uri
+      RestClientWrapper.get(@uri,{},{:accept => 'chemical/x-inchi'}).chomp
 		end
 
 		# Get (canonical) smiles
     # @return [String] Smiles string
 		def to_smiles
-      get(:accept => 'chemical/x-daylight-smiles').chomp
+      RestClientWrapper.get(@uri,{},{:accept => 'chemical/x-daylight-smiles'}).chomp
 		end
 
     # Get sdf
     # @return [String] SDF string
 		def to_sdf
-      get(:accept => 'chemical/x-mdl-sdfile').chomp
+      RestClientWrapper.get(@uri,{},{:accept => 'chemical/x-mdl-sdfile'}).chomp
 		end
 
     # Get gif image
     # @return [image/gif] Image data
 		def to_gif
-			get("#{CACTUS_URI}#{to_inchi}/image")
+      RestClientWrapper.get("#{CACTUS_URI}#{to_inchi}/image")
 		end
 
     # Get png image
@@ -66,7 +66,7 @@ module OpenTox
     #   image = compound.to_png
     # @return [image/png] Image data
 		def to_png
-      get(File.join @uri, "image")
+      RestClientWrapper.get(File.join @uri, "image")
 		end
 
     # Get URI of compound image
@@ -81,7 +81,7 @@ module OpenTox
     # @return [String] Compound names
 		def to_names
       begin
-        get("#{CACTUS_URI}#{to_inchi}/names").split("\n")
+        RestClientWrapper.get("#{CACTUS_URI}#{to_inchi}/names").split("\n")
       rescue
         "not available"
       end
