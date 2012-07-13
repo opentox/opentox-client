@@ -105,7 +105,7 @@ module OpenTox
     code >= 400 and code != 503
   end
 
-  [:hasStatus, :resultURI].each do |method|
+  [:hasStatus, :resultURI, :finished_at].each do |method|
     define_method method do
       get
       response = self.[](RDF::OT[method])
