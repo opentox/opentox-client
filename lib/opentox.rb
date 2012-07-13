@@ -60,8 +60,13 @@ module OpenTox
   end
 
   # Get object from webservice
-  def get 
-    parse_ntriples RestClientWrapper.get(@uri,{},{:accept => "text/plain", :subjectid => @subjectid})
+  def get wait=true
+    response = RestClientWrapper.get(@uri,{},{:accept => "text/plain", :subjectid => @subjectid})
+    if URI.task?(response) and wait
+      t = OpenTox::Task.new(uri).wait
+      response = RestClientWrapper.get(t.resultURI,{},{:accept => "text/plain", :subjectid => @subjectid})
+    end
+    parse_ntriples response
   #rescue # fall back to rdfxml
     #parse_rdfxml RestClientWrapper.get(@uri,{},{:accept => "application/rdf+xml", :subjectid => @subjectid})
   end
