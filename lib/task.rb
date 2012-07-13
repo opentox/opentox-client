@@ -12,7 +12,7 @@ module OpenTox
       task = Task.new uri, subjectid
       task[RDF::OT.hasStatus] = "Running"
       params.each { |k,v| task[k] = v }
-      task.put
+      task.put false
       pid = fork do
         begin
           result_uri = yield 
@@ -61,13 +61,13 @@ module OpenTox
     def cancel
       kill
       self.[]=(RDF::OT.hasStatus, "Cancelled")
-      put
+      put false
     end
 
     def completed(uri)
       self.[]=(RDF::OT.resultURI, uri)
       self.[]=(RDF::OT.hasStatus, "Completed")
-      put
+      put false
     end
 
     # waits for a task, unless time exceeds or state is no longer running

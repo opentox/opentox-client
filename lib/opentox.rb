@@ -67,20 +67,22 @@ module OpenTox
   end
 
   # Post object to webservice
-  def post service_uri
-    RestClientWrapper.post service_uri, to_ntriples, { :content_type => "text/plain", :subjectid => @subjectid}
+  def post service_uri, wait=true
+    uri = RestClientWrapper.post service_uri, to_ntriples, { :content_type => "text/plain", :subjectid => @subjectid}
+    OpenTox::Task.new(uri).wait if URI.task?(uri) and wait
   #rescue # fall back to rdfxml
     #RestClientWrapper.post service_uri, to_rdfxml, { :content_type => "application/rdf+xml", :subjectid => @subjectid}
   end
 
   # Save object at webservice
-  def put 
+  def put wait=true
     append RDF::DC.modified, DateTime.now
     #begin
       RestClientWrapper.put @uri.to_s, self.to_ntriples, { :content_type => "text/plain", :subjectid => @subjectid}
     #rescue # fall back to rdfxml
       #RestClientWrapper.put @uri.to_s, self.to_rdfxml, { :content_type => "application/rdf+xml", :subjectid => @subjectid}
     #end
+    OpenTox::Task.new(uri).wait if URI.task?(uri) and wait
   end
 
   # Delete object at webservice

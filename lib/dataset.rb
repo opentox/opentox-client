@@ -13,9 +13,9 @@ module OpenTox
       append RDF.type, RDF::OT.OrderedDataset
     end
 
-    def upload filename
-      file = File.new filename
-      RestClientWrapper.put(@uri, {:file => file}, {:subjectid => @subjectid})
+    def upload filename, wait=true
+      uri = RestClientWrapper.put(@uri, {:file => File.new(filename)}, {:subjectid => @subjectid})
+      OpenTox::Task.new(uri).wait if URI.task?(uri) and wait
     end
 
     def get
