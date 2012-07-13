@@ -18,6 +18,15 @@ module OpenTox
       OpenTox::Task.new(uri).wait if URI.task?(uri) and wait
     end
 
+    def to_csv
+      CSV.generate do |csv|
+        csv << ["SMILES"] + @features.collect{|f| f.title}
+        @compounds.each_with_index do |c,i|
+          csv << [c.to_smiles] + @data_entries[i]
+        end
+      end
+    end
+
     def get
       super
       @features = []
@@ -47,9 +56,9 @@ module OpenTox
             pattern [:values, RDF::OT.value, :value]
           end
           values = query.execute(@rdf).sort_by{|s| s.feature_idx}.collect do |s|
-            numeric_features[s.feature_idx] ?  s.value.to_s.to_f : s.value.to_s
+            (numeric_features[s.feature_idx]  and s.value.to_s != "") ?  s.value.to_s.to_f : s.value.to_s
           end
-          @data_entries << values
+          @data_entries << values.collect{|v| v == "" ? nil : v}
         end
       else
         query = RDF::Query.new do
@@ -71,7 +80,7 @@ module OpenTox
               pattern [:values, RDF::OT.value, :value]
             end
             value = query.execute(@rdf).first.value.to_s
-            value = value.to_f if numeric_features[i]
+            value = value.to_f if numeric_features[i] and !value.nil?
             values << value
           end
           @data_entries << values
