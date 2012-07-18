@@ -144,7 +144,6 @@ module OpenTox
   CLASSES.each do |klass|
     c = Class.new do
       include OpenTox
-      #extend OpenTox::ClassMethods
 
       def self.all service_uri, subjectid=nil
         uris = RestClientWrapper.get(service_uri, {}, :accept => 'text/uri-list').split("\n").compact
