@@ -60,14 +60,14 @@ module OpenTox
   end
 
   # Get object from webservice
-  def get 
-    # TODO: RDFXML
-    response = RestClientWrapper.get(@uri,{},{:accept => "text/plain", :subjectid => @subjectid})
+  def get mime_type="text/plain"
+    response = RestClientWrapper.get(@uri,{},{:accept => mime_type, :subjectid => @subjectid})
     if URI.task?(response)
       wait_for_task response
-      response = RestClientWrapper.get(t.resultURI,{},{:accept => "text/plain", :subjectid => @subjectid})
+      response = RestClientWrapper.get(t.resultURI,{},{:accept => mime_type, :subjectid => @subjectid})
     end
-    parse_ntriples response
+    parse_ntriples response if mime_type == "text/plain"
+    parse_rdfxml response if mime_type == "application/rdf+xml"
   end
 
   # Post object to webservice
