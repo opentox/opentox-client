@@ -76,16 +76,4 @@ module OpenTox
     end
   end
   
-=begin
-  # Errors received from RestClientWrapper calls
-  class RestCallError < Error
-    attr_accessor :request#, :response
-    def initialize message, request, uri
-      @request = request
-      #@response = response
-      super 502, message, uri
-    end
-  end
-=end
-
 end

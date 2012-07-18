@@ -86,10 +86,10 @@ module Kernel
       stdout = stdout_stream.read
       stderr = stderr_stream.read
     end
-    internal_server_error "`" + cmd + "` failed.\n" + stdout + stderr if !status.success?
+    internal_server_error "`" + cmd + "` failed.\n" + stdout + stderr unless status.success?
     return stdout
   rescue
-    internal_server_error $!.message
+    internal_server_error $!.message 
   end
 
 end

@@ -60,39 +60,48 @@ module OpenTox
   end
 
   # Get object from webservice
-  def get wait=true
+  def get 
+    # TODO: RDFXML
     response = RestClientWrapper.get(@uri,{},{:accept => "text/plain", :subjectid => @subjectid})
-    if URI.task?(response) and wait
-      t = OpenTox::Task.new(uri).wait
+    if URI.task?(response)
+      wait_for_task response
       response = RestClientWrapper.get(t.resultURI,{},{:accept => "text/plain", :subjectid => @subjectid})
     end
     parse_ntriples response
-  #rescue # fall back to rdfxml
-    #parse_rdfxml RestClientWrapper.get(@uri,{},{:accept => "application/rdf+xml", :subjectid => @subjectid})
   end
 
   # Post object to webservice
   def post service_uri, wait=true
+    # TODO: RDFXML
     uri = RestClientWrapper.post service_uri, to_ntriples, { :content_type => "text/plain", :subjectid => @subjectid}
-    OpenTox::Task.new(uri).wait if URI.task?(uri) and wait
-  #rescue # fall back to rdfxml
-    #RestClientWrapper.post service_uri, to_rdfxml, { :content_type => "application/rdf+xml", :subjectid => @subjectid}
+    wait_for_task uri if wait
   end
 
   # Save object at webservice
   def put wait=true
+    # TODO: RDFXML
     append RDF::DC.modified, DateTime.now
-    #begin
-      RestClientWrapper.put @uri.to_s, self.to_ntriples, { :content_type => "text/plain", :subjectid => @subjectid}
-    #rescue # fall back to rdfxml
-      #RestClientWrapper.put @uri.to_s, self.to_rdfxml, { :content_type => "application/rdf+xml", :subjectid => @subjectid}
-    #end
-    OpenTox::Task.new(uri).wait if URI.task?(uri) and wait
+    uri = RestClientWrapper.put @uri.to_s, self.to_ntriples, { :content_type => "text/plain", :subjectid => @subjectid}
+    wait_for_task uri if wait
   end
 
   # Delete object at webservice
   def delete 
     RestClientWrapper.delete(@uri.to_s,nil,{:subjectid => @subjectid})
+  end
+
+  def wait_for_task uri
+    if URI.task?(uri) 
+      t = OpenTox::Task.new uri
+      t.wait
+      if t.completed?
+        uri = t.resultURI
+      else
+        #TODO raise correct error
+        internal_server_error "Task #{uri} failed with #{$!.inspect}"
+      end
+    end
+    uri
   end
 
   RDF_FORMATS.each do |format|
