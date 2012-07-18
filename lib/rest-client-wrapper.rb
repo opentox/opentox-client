@@ -42,8 +42,30 @@ module OpenTox
         @response = @request.execute do |response, request, result|
           if [301, 302, 307].include? response.code and request.method == :get
             response.follow_redirection(request, result)
+          elsif response.code >= 400 and !URI.task?(uri)
+            message = response.to_s
+            message += "\nREST paramenters:\n#{request.args.inspect}" 
+            case response.code
+            when 400
+              bad_request_error message, uri
+            when 401
+              not_authorized_error message, uri
+            when 404
+              not_found_error message, uri
+            when 433
+              locked_error message, uri
+            when 500
+              internal_server_error message, uri
+            when 501
+              not_implemented_error message, uri
+            when 503
+              service_unavailable_error message, uri
+            when 504
+              time_out_error message, uri
+            else
+              rest_call_error message, uri
+            end
           else
-            raise OpenTox::RestCallError.new response.to_s, request, uri unless response.code < 400 or URI.task? uri
             response
           end
         end

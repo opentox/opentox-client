@@ -33,7 +33,6 @@ class RuntimeError
         cut_index -= 1
         cut_index = backtrace.size-1 if cut_index < 0
         details = backtrace[0..cut_index].join("\n")
-        details += "REST paramenters:\n#{@request.args.inspect}" if @request
         writer << [subject, RDF::OT.errorCause, details]
       end
       rdf
@@ -59,6 +58,7 @@ module OpenTox
     "LockedError" => 423,
     "InternalServerError" => 500,
     "NotImplementedError" => 501,
+    "RestCallError" => 501,
     "ServiceUnavailableError" => 503,
     "TimeOutError" => 504,
   }.each do |klass,code|
@@ -76,6 +76,7 @@ module OpenTox
     end
   end
   
+=begin
   # Errors received from RestClientWrapper calls
   class RestCallError < Error
     attr_accessor :request#, :response
@@ -85,5 +86,6 @@ module OpenTox
       super 502, message, uri
     end
   end
+=end
 
 end
