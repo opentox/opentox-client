@@ -24,13 +24,17 @@ RDF_FORMATS = [:rdfxml,:ntriples,:turtle]
 TRUE_REGEXP = /^(true|active|1|1.0|tox|activating|carcinogen|mutagenic)$/i
 FALSE_REGEXP = /^(false|inactive|0|0.0|low tox|deactivating|non-carcinogen|non-mutagenic)$/i
 
-require File.join(File.dirname(__FILE__),"overwrite.rb")
-require File.join(File.dirname(__FILE__),"error.rb")
-require File.join(File.dirname(__FILE__),"rest-client-wrapper.rb") 
-require File.join(File.dirname(__FILE__),"authorization.rb") 
-require File.join(File.dirname(__FILE__),"policy.rb") 
-require File.join(File.dirname(__FILE__),"otlogger.rb") # avoid require conflicts with logger
-require File.join(File.dirname(__FILE__),"opentox.rb")
-require File.join(File.dirname(__FILE__),"task.rb")
-require File.join(File.dirname(__FILE__),"compound.rb")
-require File.join(File.dirname(__FILE__),"dataset.rb")
+[
+  "overwrite.rb",
+  "error.rb",
+  "rest-client-wrapper.rb", 
+  "authorization.rb", 
+  "policy.rb", 
+  "otlogger.rb", 
+  "opentox.rb",
+  "task.rb",
+  "compound.rb",
+  "dataset.rb",
+  "model.rb",
+].each{ |f| require File.join(File.dirname(__FILE__),f) }
+

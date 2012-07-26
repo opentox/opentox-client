@@ -50,6 +50,30 @@ module OpenTox
     append predicate.to_s, values
   end
 
+  def parameters
+    params = {}
+    query = RDF::Query.new({
+      :parameter => {
+        RDF.type  => RDF::OT.Parameter,
+        :property => :value,
+      }
+    })
+    query.execute(@rdf).each do |solution|
+      params[solution.parameter] = {} unless params[solution.parameter] 
+      params[solution.parameter][solution.property.to_s] = solution.value.to_s
+    end
+    params.values
+  end
+
+  def parameters=(parameters)
+    parameters.each do |param|
+      p_node = RDF::Node.new
+      @rdf << [RDF::URI.new(@uri), RDF::OT.parameters, p_node]
+      @rdf << [p_node, RDF.type, RDF::OT.Parameter]
+      param.each{ |p,o| @rdf << [p_node, p, o] }
+    end
+  end
+
   # Append object metadata
   # @param [String] Predicate URI
   # @param [Array, String] Predicate value(s)
@@ -131,7 +155,11 @@ module OpenTox
     end
   end
 
-  {:title => RDF::DC.title, :dexcription => RDF::DC.description}.each do |method,predicate|
+  {
+    :title => RDF::DC.title,
+    :dexcription => RDF::DC.description,
+    :type => RDF.type
+  }.each do |method,predicate|
     send :define_method, method do 
       self.[](predicate) 
     end
