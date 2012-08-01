@@ -83,7 +83,7 @@ module OpenTox
       begin
         RestClientWrapper.get("#{CACTUS_URI}#{to_inchi}/names").split("\n")
       rescue
-        "not available"
+        "CACTVS service not responding."
       end
 		end
 

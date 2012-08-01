@@ -47,7 +47,7 @@ module OpenTox
     def kill
       Process.kill(9,@pid)
       Process.kill(9,@observer_pid)
-    rescue # no need to raise an exeption if processes are not running
+    rescue # no need to raise an exception if processes are not running
     end
 
     def description
@@ -82,7 +82,6 @@ module OpenTox
         dur = [[(Time.new - start_time)/20.0,0.3].max,300.0].min
         time_out_error "max wait time exceeded ("+DEFAULT_TASK_MAX_DURATION.to_s+"sec), task: '"+@uri.to_s+"'" if (Time.new > due_to_time)
       end
-      get
     end
 
   end
@@ -112,6 +111,20 @@ module OpenTox
       response = self.[](RDF::OT1[method]) unless response  # API 1.1 compatibility
       response
     end
+  end
+
+  def error_report
+    report = {}
+    query = RDF::Query.new({
+      :report => {
+        RDF.type  => RDF::OT.ErrorReport,
+        :property => :value,
+      }
+    })
+    query.execute(@rdf).each do |solution|
+      report[solution.property] = solution.value.to_s
+    end
+    report
   end
 
   #TODO: subtasks (only for progress)

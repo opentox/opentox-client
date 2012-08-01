@@ -118,12 +118,11 @@ module OpenTox
     if URI.task?(uri) 
       t = OpenTox::Task.new uri
       t.wait
-      if t.completed?
-        uri = t.resultURI
-      else
+      unless t.completed?
         #TODO raise correct error
-        internal_server_error "Task #{uri} failed with #{$!.inspect}"
+        #internal_server_error "Task #{uri} failed with #{$!.inspect}"
       end
+      uri = t.resultURI
     end
     uri
   end
@@ -140,17 +139,16 @@ module OpenTox
 
     # rdf serialization methods for all formats e.g. to_rdfxml
     send :define_method, "to_#{format}".to_sym do
-      rdf = RDF::Writer.for(format).buffer do |writer|
+      RDF::Writer.for(format).buffer do |writer|
         @rdf.each{|statement| writer << statement}
       end
-      rdf
     end
   end
 
   def to_turtle # redefine to use prefixes (not supported by RDF::Writer)
     prefixes = {:rdf => "http://www.w3.org/1999/02/22-rdf-syntax-ns#"}
     ['OT', 'DC', 'XSD', 'OLO'].each{|p| prefixes[p.downcase.to_sym] = eval("RDF::#{p}.to_s") }
-    turtle = RDF::N3::Writer.for(:turtle).buffer(:prefixes => prefixes)  do |writer|
+    RDF::N3::Writer.for(:turtle).buffer(:prefixes => prefixes)  do |writer|
       @rdf.each{|statement| writer << statement}
     end
   end
