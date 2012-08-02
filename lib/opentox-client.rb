@@ -26,8 +26,8 @@ FALSE_REGEXP = /^(false|inactive|0|0.0|low tox|deactivating|non-carcinogen|non-m
 
 [
   "overwrite.rb",
-  "error.rb",
   "rest-client-wrapper.rb", 
+  "error.rb",
   "authorization.rb", 
   "policy.rb", 
   "otlogger.rb", 

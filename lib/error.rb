@@ -5,12 +5,12 @@ class RuntimeError
   attr_accessor :http_code, :uri
   def initialize message, uri=nil
     super message
-    @uri = uri
+    @uri = uri.to_s.sub(%r{//.*:.*@},'//') # remove credentials from uri
     @http_code ||= 500
     @rdf = RDF::Graph.new
     subject = RDF::Node.new
     @rdf << [subject, RDF.type, RDF::OT.ErrorReport]
-    @rdf << [subject, RDF::OT.actor, @uri.to_s]
+    @rdf << [subject, RDF::OT.actor, @uri]
     @rdf << [subject, RDF::OT.message, message.to_s]
     @rdf << [subject, RDF::OT.statusCode, @http_code]
     @rdf << [subject, RDF::OT.errorCode, self.class.to_s]
@@ -57,27 +57,17 @@ module OpenTox
   end
 
   # OpenTox errors
-  {
-    "BadRequestError" => 400,
-    "NotAuthorizedError" => 401,
-    "NotFoundError" => 404,
-    "LockedError" => 423,
-    "InternalServerError" => 500,
-    "NotImplementedError" => 501,
-    "RestCallError" => 501,
-    "ServiceUnavailableError" => 503,
-    "TimeOutError" => 504,
-  }.each do |klass,code|
+  RestClientWrapper.known_errors.each do |error|
     # create error classes 
     c = Class.new Error do
       define_method :initialize do |message, uri=nil|
-        super code, message, uri
+        super error[:code], message, uri
       end
     end
-    OpenTox.const_set klass,c
+    OpenTox.const_set error[:class],c
     
     # define global methods for raising errors, eg. bad_request_error
-    Object.send(:define_method, klass.underscore.to_sym) do |message,uri=nil|
+    Object.send(:define_method, error[:method]) do |message,uri=nil|
       raise c.new(message, uri)
     end
   end

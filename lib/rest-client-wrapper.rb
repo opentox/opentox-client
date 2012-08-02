@@ -18,13 +18,13 @@ module OpenTox
         # check input 
         @subjectid = headers[:subjectid] ? headers[:subjectid] : nil
         bad_request_error "Invalid URI: '#{uri}'", uri unless URI.valid? uri
-        #not_found_error "URI '#{uri}' not found.", uri unless URI.accessible?(uri, @subjectid) unless URI.ssl?(uri)
+        #resource_not_found_error "URI '#{uri}' not found.", uri unless URI.accessible?(uri, @subjectid) unless URI.ssl?(uri)
         bad_request_error "Headers are not a hash: #{headers.inspect}", uri unless headers==nil or headers.is_a?(Hash)
         # make sure that no header parameters are set in the payload
         [:accept,:content_type,:subjectid].each do |header|
           if defined? $aa || URI(uri).host == URI($aa[:uri]).host
           else
-            bad_request_error "#{header} should be submitted in the headers" if payload and payload.is_a?(Hash) and payload[header]
+            bad_request_error "#{header} should be submitted in the headers", uri if payload and payload.is_a?(Hash) and payload[header]
           end
         end
       
@@ -44,32 +44,29 @@ module OpenTox
             response.follow_redirection(request, result)
           elsif response.code >= 400 and !URI.task?(uri)
             message = response.to_s
-            message += "\nREST paramenters:\n#{request.args.inspect}" 
-            case response.code
-            when 400
-              bad_request_error message, uri
-            when 401
-              not_authorized_error message, uri
-            when 404
-              not_found_error message, uri
-            when 433
-              locked_error message, uri
-            when 500
-              internal_server_error message, uri
-            when 501
-              not_implemented_error message, uri
-            when 503
-              service_unavailable_error message, uri
-            when 504
-              time_out_error message, uri
-            else
-              rest_call_error message, uri
-            end
+            parameters = request.args
+            parameters[:headers][:subjectid] = "REMOVED" if parameters[:headers] and parameters[:headers][:subjectid] 
+            message += "\nREST paramenters:\n#{parameters.inspect}" 
+            error = known_errors.collect{|e| e if e[:code] == response.code}.compact.first
+            Object.method(error[:method]).call message, uri # call error method
           else
             response
           end
         end
       end
+    end
+
+    def self.known_errors
+      errors = []
+      RestClient::STATUSES.each do |code,k|
+        if code >= 400
+          method = k.underscore.gsub(/ |'/,'_')
+          method += "_error" unless method.match(/_error$/)
+          klass = method.split("_").collect{|s| s.capitalize}.join("")
+          errors << {:code => code, :method => method.to_sym, :class => klass}
+        end
+      end
+      errors
     end
 
   end
