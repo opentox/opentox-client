@@ -5,7 +5,7 @@ module OpenTox
   #@example Authentication
   #  require "opentox-client"
   #  OpenTox::Authorization::AA = "https://opensso.in-silico.ch" #if not set in .opentox/conf/[environment].yaml
-  #  token = OpenTox::Authorization.authenticate("username", "password")
+  #  subjectid = OpenTox::Authorization.authenticate("username", "password")
   #@see http://www.opentox.org/dev/apis/api-1.2/AA OpenTox A&A API 1.2 specification
 
   module Authorization
@@ -65,6 +65,7 @@ module OpenTox
         out = RestClientWrapper.post("#{AA}/auth/authenticate",{:username=>user, :password => pw}).sub("token.id=","").sub("\n","")
         return out
       rescue
+        resource_not_found_error "#{out.inspect}"
         return nil
       end
     end
@@ -87,11 +88,12 @@ module OpenTox
     # @return [Boolean, nil]  returns true, false or nil (if authorization-request fails).
     def self.authorize(uri, action, subjectid)
       return true if !AA
-      begin
-        return true if RestClientWrapper.post("#{AA}/auth/authorize",{:uri => uri, :action => action, :subjectid => subjectid})== "boolean=true\n"
-      rescue
-        return nil
-      end
+      #begin
+      return true if RestClientWrapper.post("#{AA}/auth/authorize",{:uri => uri, :action => action, :subjectid => subjectid})== "boolean=true\n"
+      return false
+      #rescue
+      #  return nil
+      #end
     end
 
     #Checks if a token is a valid token
@@ -101,7 +103,7 @@ module OpenTox
       return true if !AA
       begin
         return true if RestClientWrapper.post("#{AA}/auth/isTokenValid",:tokenid => subjectid) == "boolean=true\n"
-      rescue
+      rescue #do rescue because openSSO throws 401
         return false
       end
       return false
