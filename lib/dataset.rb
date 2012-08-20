@@ -22,7 +22,7 @@ module OpenTox
       CSV.generate do |csv|
         csv << ["SMILES"] + @features.collect{|f| f.title}
         @compounds.each_with_index do |c,i|
-          csv << [c.to_smiles] + @data_entries[i]
+          csv << [c.smiles] + @data_entries[i]
         end
       end
     end
