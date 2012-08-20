@@ -11,6 +11,7 @@ module OpenTox
     # @param [String] smiles Smiles string
     # @return [OpenTox::Compound] Compound
     def self.from_smiles service_uri, smiles, subjectid=nil
+      @smiles = smiles
       Compound.new RestClientWrapper.post(service_uri, smiles, {:content_type => 'chemical/x-daylight-smiles', :subjectid => subjectid})
     end
 
@@ -18,6 +19,7 @@ module OpenTox
     # @param [String] smiles InChI string
     # @return [OpenTox::Compound] Compound
     def self.from_inchi service_uri, inchi, subjectid=nil
+      @inchi = inchi
       Compound.new RestClientWrapper.post(service_uri, inchi, {:content_type => 'chemical/x-inchi', :subjectid => subjectid})
     end
 
@@ -33,59 +35,77 @@ module OpenTox
     #   compound = OpenTox::Compound.from_name("Benzene")
     # @param [String] name name can be also an InChI/InChiKey, CAS number, etc
     # @return [OpenTox::Compound] Compound
+    #
     def self.from_name service_uri, name, subjectid=nil
-      Compound.new RestClientWrapper.post(service_uri, name, {:content_type => 'text/plain', :subjectid => subjectid})
+      @inchi = RestClientWrapper.get File.join(CACTUS_URI,URI.escape(name),"stdinchi")
+      Compound.new RestClientWrapper.post(service_uri, @inchi, {:content_type => 'chemical/x-inchi', :subjectid => subjectid})
     end
 
 		# Get InChI
     # @return [String] InChI string
-		def to_inchi
-      RestClientWrapper.get(@uri,{},{:accept => 'chemical/x-inchi'}).chomp
+		def inchi
+      @inchi ||= RestClientWrapper.get(@uri,{},{:accept => 'chemical/x-inchi'}).chomp
+		end
+
+		# Get InChIKey
+    # @return [String] InChI string
+		def inchikey
+      @inchikey ||= RestClientWrapper.get(@uri,{},{:accept => 'chemical/x-inchikey'}).chomp
 		end
 
 		# Get (canonical) smiles
     # @return [String] Smiles string
-		def to_smiles
-      RestClientWrapper.get(@uri,{},{:accept => 'chemical/x-daylight-smiles'}).chomp
+		def smiles
+      @smiles ||= RestClientWrapper.get(@uri,{},{:accept => 'chemical/x-daylight-smiles'}).chomp
 		end
 
     # Get sdf
     # @return [String] SDF string
-		def to_sdf
+		def sdf
       RestClientWrapper.get(@uri,{},{:accept => 'chemical/x-mdl-sdfile'}).chomp
 		end
 
     # Get gif image
     # @return [image/gif] Image data
-		def to_gif
-      RestClientWrapper.get("#{CACTUS_URI}#{to_inchi}/image")
+		def gif
+      RestClientWrapper.get File.join(CACTUS_URI,inchi,"image")
 		end
 
     # Get png image
     # @example
-    #   image = compound.to_png
+    #   image = compound.png
     # @return [image/png] Image data
-		def to_png
+		def png
       RestClientWrapper.get(File.join @uri, "image")
 		end
 
     # Get URI of compound image
     # @return [String] Compound image URI
-		def to_image_uri
+		def image_uri
       File.join @uri, "image"
 		end
 
     # Get all known compound names. Relies on an external service for name lookups.
     # @example
-    #   names = compound.to_names
+    #   names = compound.names
     # @return [String] Compound names
-		def to_names
-      begin
-        RestClientWrapper.get("#{CACTUS_URI}#{to_inchi}/names").split("\n")
-      rescue
-        "CACTVS service not responding."
-      end
+		def names
+      RestClientWrapper.get("#{CACTUS_URI}#{inchi}/names").split("\n")
 		end
+
+    def cid
+      pug_uri = "http://pubchem.ncbi.nlm.nih.gov/rest/pug/"
+      @cid ||= RestClientWrapper.post(File.join(pug_uri, "compound", "inchi", "cids", "TXT"),{:inchi => inchi}).strip
+    end
+
+    def chebi
+    end
+
+    def chemblid
+      # https://www.ebi.ac.uk/chembldb/ws#individualCompoundByInChiKey
+      uri = "http://www.ebi.ac.uk/chemblws/compounds/smiles/#{smiles}.json"
+      @chemblid = JSON.parse(RestClientWrapper.get(uri))["compounds"].first["chemblId"]
+    end
 
 =begin
 		# Match a smarts string
