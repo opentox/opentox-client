@@ -8,7 +8,7 @@ module OpenTox
     # @param [optional,OpenTox::Task] waiting_task (can be a OpenTox::Subtask as well), progress is updated accordingly
     # @return [String] URI of new resource (dataset, model, ...)
     def run params=nil
-      post params, {:accept => 'text/uri-list'}
+      post params
     end
 
   end

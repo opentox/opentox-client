@@ -95,9 +95,9 @@ module OpenTox
   end
 
   # Post object to webservice
-  def post service_uri, wait=true
+  def post params=nil, wait=true
     # TODO: RDFXML
-    uri = RestClientWrapper.post service_uri, to_ntriples, { :content_type => "text/plain", :subjectid => @subjectid}
+    uri = RestClientWrapper.post @uri.to_s, params, { :content_type => "text/plain", :subjectid => @subjectid}
     wait_for_task uri if wait
   end
 

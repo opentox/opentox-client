@@ -36,5 +36,6 @@ FALSE_REGEXP = /^(false|inactive|0|0.0|low tox|deactivating|non-carcinogen|non-m
   "compound.rb",
   "dataset.rb",
   "model.rb",
+  "algorithm.rb"
 ].each{ |f| require File.join(File.dirname(__FILE__),f) }
 
