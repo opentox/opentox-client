@@ -186,5 +186,44 @@ module OpenTox
 			end
 		end
 =end
+
+    # Match an array of smarts strings, returns array with matching smarts
+    # @example
+    #   compound = Compound.from_name("Benzene")
+    #   compound.match(['cc','cN']) # returns ['cc']
+    # @param [Array] smarts_array Array with Smarts strings
+    # @return [Array] Array with matching Smarts strings
+    def match(smarts_array)
+      obconversion = OpenBabel::OBConversion.new
+      obmol = OpenBabel::OBMol.new
+      obconversion.set_in_format('inchi')
+      obconversion.read_string(obmol,inchi)
+      smarts_pattern = OpenBabel::OBSmartsPattern.new
+      smarts_array.collect { |smarts|
+        smarts_pattern.init(smarts)
+        smarts if smarts_pattern.match(obmol)
+      }.compact
+    end
+
+    # Match an array of smarts strings, returns hash with matching smarts as key and number of non-unique hits as value 
+    # @param [Array] smarts_array Array with Smarts strings
+    # @return [Hash] Hash with matching smarts as key and number of non-unique hits as value
+    def match_hits(smarts_array)
+      obconversion = OpenBabel::OBConversion.new
+      obmol = OpenBabel::OBMol.new
+      obconversion.set_in_format('inchi')
+      obconversion.read_string(obmol,inchi)
+      smarts_pattern = OpenBabel::OBSmartsPattern.new
+      smarts_hits = {}
+      smarts_array.collect do |smarts|
+        smarts_pattern.init(smarts)
+        if smarts_pattern.match(obmol)
+          hits = smarts_pattern.get_map_list
+          smarts_hits[smarts] = hits.to_a.size
+        end
+      end
+      return smarts_hits
+    end
+
 	end
 end
