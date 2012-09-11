@@ -187,28 +187,18 @@ module OpenTox
 		end
 =end
 
-    # Match an array of smarts strings, returns array with matching smarts
-    # @example
-    #   compound = Compound.from_name("Benzene")
-    #   compound.match(['cc','cN']) # returns ['cc']
-    # @param [Array] smarts_array Array with Smarts strings
-    # @return [Array] Array with matching Smarts strings
-    def match(smarts_array)
-      obconversion = OpenBabel::OBConversion.new
-      obmol = OpenBabel::OBMol.new
-      obconversion.set_in_format('inchi')
-      obconversion.read_string(obmol,inchi)
-      smarts_pattern = OpenBabel::OBSmartsPattern.new
-      smarts_array.collect { |smarts|
-        smarts_pattern.init(smarts)
-        smarts if smarts_pattern.match(obmol)
-      }.compact
-    end
 
-    # Match an array of smarts strings, returns hash with matching smarts as key and number of non-unique hits as value 
+
+    # Match an array of smarts strings, returns hash
+    # Keys: matching smarts, values: number of non-unique hits, or 1
     # @param [Array] smarts_array Array with Smarts strings
-    # @return [Hash] Hash with matching smarts as key and number of non-unique hits as value
-    def match_hits(smarts_array)
+    # @param [Boolean] Whether non-unique hits or 1 should be produced
+    # @return [Array] Array with matching Smarts strings
+    # @example {
+    #   compound = Compound.from_name("Benzene")
+    #   compound.match(['cc','cN']) # returns { 'cc' => 12, 'cN' => 0 }
+    # }
+    def match_hits(smarts_array, use_hits=true)
       obconversion = OpenBabel::OBConversion.new
       obmol = OpenBabel::OBMol.new
       obconversion.set_in_format('inchi')
@@ -218,11 +208,20 @@ module OpenTox
       smarts_array.collect do |smarts|
         smarts_pattern.init(smarts)
         if smarts_pattern.match(obmol)
-          hits = smarts_pattern.get_map_list
-          smarts_hits[smarts] = hits.to_a.size
+          if use_hits 
+            hits = smarts_pattern.get_map_list
+            smarts_hits[smarts] = hits.to_a.size
+          else
+            smarts_hits[smarts] = 1
+          end
         end
       end
       return smarts_hits
+    end
+
+    # Provided for backward compatibility
+    def match(smarts_array)
+      match_hits(smarts_array,false)
     end
 
 	end
