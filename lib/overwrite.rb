@@ -93,3 +93,30 @@ module Kernel
   end
 
 end
+
+
+class Array
+
+  # Sum of an array for Arrays
+  # @param [Array] Array of arrays
+  # @return [Integer] Sum of size of array elements
+  def sum_size
+    self.inject(0) { |s,a|
+      if a.respond_to?('size')
+        s+=a.size
+      else
+        internal_server_error "No size available: #{a.inspect}"
+      end
+    }
+  end
+
+  # For symbolic features
+  # @param [Array] Array to test.
+  # @return [Boolean] Whether the array has just one unique value.
+  def zero_variance?
+    return self.uniq.size == 1
+  end
+
+
+end
+
