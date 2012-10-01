@@ -27,8 +27,8 @@ module OpenTox
       end
     end
 
-    def get
-      super
+    def get(force_no_backend_query=false)
+      super() unless (force_no_backend_query and @rdf.size>0)
       @features = []
       @compounds = []
       @data_entries = []
