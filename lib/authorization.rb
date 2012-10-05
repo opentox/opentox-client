@@ -164,6 +164,13 @@ module OpenTox
       end
     end
 
+    #Returns true or false if owner (who created the first policy) of an URI
+    # @param [String, String]uri,subjectid
+    # return [Boolean]true,false status of ownership of the URI
+    def self.uri_owner?(uri, subjectid)
+      get_uri_owner(uri, subjectid) == get_user(subjectid)
+    end
+
     #Checks if a policy exists to a URI. Requires URI and token.
     # @param [String, String]uri,subjectid
     # return [Boolean]
