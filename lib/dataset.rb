@@ -35,7 +35,9 @@ module OpenTox
       query = RDF::Query.new do
         pattern [:uri, RDF.type, RDF::OT.OrderedDataset]
       end
-      if query.execute(@rdf).first # ordered dataset
+      s=query.execute(@rdf) 
+      if s.first # ordered dataset
+        @uri = s[0].uri.to_s if force_no_backend_query # AM: must rewrite URI
         query = RDF::Query.new do
           pattern [:uri, RDF.type, RDF::OT.Compound]
           pattern [:uri, RDF::OLO.index, :idx]
@@ -101,7 +103,7 @@ module OpenTox
     def << data_entry
       compound = data_entry.shift
       bad_request_error "Dataset features are empty." unless features
-      bad_request_error "data_entry size does not match features size." unless data_entry.size == features.size
+      bad_request_error "data_entry size '#{data_entry.size}' does not match features size '#{features.size}'." unless data_entry.size == features.size
       bad_request_error "First data_entry is not a OpenTox::Compound" unless compound.class == OpenTox::Compound
       @compounds << compound
       @data_entries << data_entry
