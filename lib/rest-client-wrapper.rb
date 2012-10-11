@@ -6,7 +6,7 @@ module OpenTox
 
     # REST methods 
     # Raises OpenTox::Error if call fails (rescued in overwrite.rb -> halt 502)
-    # Waits for Task to finish and returns result URI of Task per default
+    # Does not wait for task to finish and returns task uri
     # @param [String] destination URI
     # @param [optional,Hash|String] Payload data posted to the service
     # @param [optional,Hash] Headers with params like :accept, :content_type, :subjectid
@@ -46,7 +46,7 @@ module OpenTox
             message = response.to_s
             parameters = request.args
             parameters[:headers][:subjectid] = "REMOVED" if parameters[:headers] and parameters[:headers][:subjectid] 
-            message += "\nREST paramenters:\n#{parameters.inspect}" 
+            message += "\nREST parameters:\n#{parameters.inspect}" 
             error = known_errors.collect{|e| e if e[:code] == response.code}.compact.first
             Object.method(error[:method]).call message, uri # call error method
           else
