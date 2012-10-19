@@ -48,7 +48,10 @@ module OpenTox
           pattern [:uri, RDF::OLO.index, :idx]
         end
         @features = query.execute(@rdf).sort_by{|s| s.idx}.collect{|s| OpenTox::Feature.new(s.uri.to_s)}
-        numeric_features = @features.collect{|f| f.get; f[RDF.type].include? RDF::OT.NumericFeature}
+        numeric_features = @features.collect{|f| 
+          f.get
+          f[RDF.type].include?(RDF::OT.NumericFeature) or f[RDF.type].include?(RDF::OT.Substructure)
+        }
         @compounds.each_with_index do |compound,i|
           query = RDF::Query.new do
             pattern [:data_entry, RDF::OLO.index, i]
@@ -58,7 +61,7 @@ module OpenTox
             pattern [:values, RDF::OT.value, :value]
           end
           values = query.execute(@rdf).sort_by{|s| s.feature_idx}.collect do |s|
-            (numeric_features[s.feature_idx]  and s.value.to_s != "") ?  s.value.to_s.to_f : s.value.to_s
+            (numeric_features[s.feature_idx] and s.value.to_s != "") ?  s.value.to_s.to_f : s.value.to_s
           end
           @data_entries << values.collect{|v| v == "" ? nil : v}
         end
