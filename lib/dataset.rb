@@ -52,19 +52,31 @@ module OpenTox
           f.get
           f[RDF.type].include?(RDF::OT.NumericFeature) or f[RDF.type].include?(RDF::OT.Substructure)
         }
-        @compounds.each_with_index do |compound,i|
-          query = RDF::Query.new do
-            pattern [:data_entry, RDF::OLO.index, i]
-            pattern [:data_entry, RDF::OT.values, :values]
-            pattern [:values, RDF::OT.feature, :feature]
-            pattern [:feature, RDF::OLO.index, :feature_idx]
-            pattern [:values, RDF::OT.value, :value]
-          end
-          values = query.execute(@rdf).sort_by{|s| s.feature_idx}.collect do |s|
-            (numeric_features[s.feature_idx] and s.value.to_s != "") ?  s.value.to_s.to_f : s.value.to_s
-          end
-          @data_entries << values.collect{|v| v == "" ? nil : v}
+        query = RDF::Query.new do
+          pattern [:data_entry, RDF::OLO.index, :cidx] # compound index: now a free variable
+          pattern [:data_entry, RDF::OT.values, :vals]
+          pattern [:vals, RDF::OT.feature, :f]
+          pattern [:f, RDF::OLO.index, :fidx]
+          pattern [:vals, RDF::OT.value, :val]
         end
+        clim=(@compounds.size-1)
+        cidx=0
+        fidx=0
+        num=numeric_features[fidx]
+        @data_entries = (Array.new(@compounds.size*@features.size)).each_slice(@features.size).to_a # init to nil
+        query.execute(@rdf).order_by(:fidx, :cidx).each { |entry| # order by feature index as to compute numeric status less frequently
+          val = entry.val.to_s
+          unless val.blank?
+            @data_entries[cidx][fidx] = (num ? val.to_f : val)
+          end
+          if (cidx < clim)
+            cidx+=1
+          else
+            cidx=0
+            fidx+=1
+            num=numeric_features[fidx]
+          end
+        }
       else
         query = RDF::Query.new do
           pattern [:uri, RDF.type, RDF::OT.Feature]
