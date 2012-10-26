@@ -36,36 +36,22 @@ module OpenTox
         pattern [:uri, RDF.type, RDF::OT.OrderedDataset]
       end
       s=query.execute(@rdf) 
-      if s.first # ordered dataset
+
+      # AM: read ordered dataset from RDF
+      if s.first 
         @uri = s[0].uri.to_s if force_no_backend_query # AM: must rewrite URI
-        query = RDF::Query.new do
-          pattern [:uri, RDF.type, RDF::OT.Compound]
-          pattern [:uri, RDF::OLO.index, :idx]
-        end
-        @compounds = query.execute(@rdf).sort_by{|s| s.idx}.collect{|s| OpenTox::Compound.new s.uri.to_s}
-        query = RDF::Query.new do
-          pattern [:uri, RDF.type, RDF::OT.Feature]
-          pattern [:uri, RDF::OLO.index, :idx]
-        end
-        @features = query.execute(@rdf).sort_by{|s| s.idx}.collect{|s| OpenTox::Feature.new(s.uri.to_s)}
+        @compounds = OpenTox::Dataset.find_compounds_rdf(@rdf)
+        @features = OpenTox::Dataset.find_features_rdf(@rdf)
         numeric_features = @features.collect{|f| 
           f.get
           f[RDF.type].include?(RDF::OT.NumericFeature) or f[RDF.type].include?(RDF::OT.Substructure)
         }
-        query = RDF::Query.new do
-          pattern [:data_entry, RDF::OLO.index, :cidx] # compound index: now a free variable
-          pattern [:data_entry, RDF::OT.values, :vals]
-          pattern [:vals, RDF::OT.feature, :f]
-          pattern [:f, RDF::OLO.index, :fidx]
-          pattern [:vals, RDF::OT.value, :val]
-        end
+        table = OpenTox::Dataset.find_data_entries_rdf(@rdf)
         clim=(@compounds.size-1)
-        cidx=0
-        fidx=0
+        cidx = fidx = 0
         num=numeric_features[fidx]
         @data_entries = (Array.new(@compounds.size*@features.size)).each_slice(@features.size).to_a # init to nil
-        query.execute(@rdf).order_by(:fidx, :cidx).each { |entry| # order by feature index as to compute numeric status less frequently
-          val = entry.val.to_s
+        table.each { |val|
           unless val.blank?
             @data_entries[cidx][fidx] = (num ? val.to_f : val)
           end
@@ -77,6 +63,8 @@ module OpenTox
             num=numeric_features[fidx]
           end
         }
+
+      # AM: read unordered dataset from RDF
       else
         query = RDF::Query.new do
           pattern [:uri, RDF.type, RDF::OT.Feature]
