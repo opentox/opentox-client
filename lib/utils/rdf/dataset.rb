@@ -9,8 +9,8 @@ module OpenTox
   class Dataset
 
     # Load features via RDF (slow)
-    # @param [String] Dataset URI
-    # @return [Array] Features in order
+    # @param [String] uri Dataset URI
+    # @return [Array] features Features in order
     def self.find_features_rdf(rdf)
       query = RDF::Query.new do
         pattern [:uri, RDF.type, RDF::OT.Feature]
@@ -20,8 +20,8 @@ module OpenTox
     end
 
     # Load compounds via RDF (slow)
-    # @param [String] Dataset URI
-    # @return [Array] Compounds in order
+    # @param [String] uri Dataset URI
+    # @return [Array] compounds Compounds in order
     def self.find_compounds_rdf(rdf)
       query = RDF::Query.new do
         pattern [:uri, RDF.type, RDF::OT.Compound]
@@ -31,8 +31,8 @@ module OpenTox
     end
 
     # Load data entries via RDF (slow)
-    # @param [String] Dataset uri
-    # @return [Array] Data entries, ordered primarily over rows and secondarily over cols
+    # @param [String] uri Dataset uri
+    # @return [Array] entries Data entries, ordered primarily over rows and secondarily over cols
     def self.find_data_entries_rdf(rdf)
       query = RDF::Query.new do
         pattern [:data_entry, RDF::OLO.index, :cidx] # compound index: now a free variable
