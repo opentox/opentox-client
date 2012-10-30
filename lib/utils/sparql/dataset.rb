@@ -60,7 +60,7 @@ module OpenTox
 
     # Load data entries via SPARQL (fast)
     # @param [String] uri Dataset uri
-    # @return [Array] entries Data entries, ordered primarily over rows and secondarily over cols
+    # @return [Array] entries Data entries, ordered primarily over cols and secondarily over rows
     def self.find_data_entries_sparql(uri)
       sparql = "SELECT ?value FROM <#{uri}> WHERE {
         ?data_entry <#{RDF::OLO.index}> ?cidx ;
@@ -68,7 +68,7 @@ module OpenTox
         ?v          <#{RDF::OT.feature}> ?f;
                     <#{RDF::OT.value}> ?value .
         ?f          <#{RDF::OLO.index}> ?fidx.
-        } ORDER BY ?cidx ?fidx"
+        } ORDER BY ?fidx ?cidx"
       OpenTox::Backend::FourStore.query(sparql,"text/uri-list").split("\n").collect { |val| val.strip }
     end
 

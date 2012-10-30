@@ -32,7 +32,7 @@ module OpenTox
 
     # Load data entries via RDF (slow)
     # @param [String] uri Dataset uri
-    # @return [Array] entries Data entries, ordered primarily over rows and secondarily over cols
+    # @return [Array] entries Data entries, ordered primarily over cols and secondarily over rows
     def self.find_data_entries_rdf(rdf)
       query = RDF::Query.new do
         pattern [:data_entry, RDF::OLO.index, :cidx] # compound index: now a free variable
@@ -42,6 +42,19 @@ module OpenTox
         pattern [:vals, RDF::OT.value, :val]
       end
       query.execute(rdf).order_by(:fidx, :cidx).collect { |s| s.val.to_s }
+    end
+
+    # Query a dataset URI for ordered status 
+    # by loading its metadata (OpenTox compliant)
+    # @param [String] uri Dataset uri
+    # @return [TrueClass,FalseClass] status Whether the dataset is ordered
+    def self.ordered?(uri)
+      ds = OpenTox::Dataset.new # dummy 
+      ds.parse_rdfxml(RestClient.get([uri,"metadata"].join("/"),{:accept => "application/rdf+xml"}))
+      query = RDF::Query.new do
+        pattern [:dataset, RDF.type, RDF::OT.OrderedDataset]
+      end
+      query.execute(ds.rdf).size>0
     end
 
   end

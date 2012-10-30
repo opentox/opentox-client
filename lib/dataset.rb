@@ -28,25 +28,28 @@ module OpenTox
     end
 
     def get(force_no_backend_query=false)
-      super() unless (force_no_backend_query and @rdf.size>0)
+      have_rdf = (force_no_backend_query and @rdf.size>0)
+      super() unless have_rdf
+      ordered = (have_rdf or OpenTox::Dataset.ordered?(@uri))
       @features = []
       @compounds = []
       @data_entries = []
-      query = RDF::Query.new do
-        pattern [:uri, RDF.type, RDF::OT.OrderedDataset]
-      end
-      s=query.execute(@rdf) 
 
       # AM: read ordered dataset from RDF
-      if s.first 
-        @uri = s[0].uri.to_s if force_no_backend_query # AM: must rewrite URI
+      if ordered
+        @uri = s[0].uri.to_s if have_rdf # AM: must rewrite URI
         @compounds = OpenTox::Dataset.find_compounds_rdf(@rdf)
         @features = OpenTox::Dataset.find_features_rdf(@rdf)
         numeric_features = @features.collect{|f| 
           f.get
           f[RDF.type].include?(RDF::OT.NumericFeature) or f[RDF.type].include?(RDF::OT.Substructure)
         }
-        table = OpenTox::Dataset.find_data_entries_rdf(@rdf)
+        if have_rdf
+          table = OpenTox::Dataset.find_data_entries_rdf(@rdf)
+        else
+          values = OpenTox::Dataset.find_data_entries_sparql(@uri)
+          table = values + Array.new(@compounds.size*@features.size-values.size, "")
+        end
         clim=(@compounds.size-1)
         cidx = fidx = 0
         num=numeric_features[fidx]
