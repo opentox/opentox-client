@@ -38,14 +38,14 @@ module OpenTox
       # AM: read ordered dataset from RDF
       if ordered
         @uri = s[0].uri.to_s if have_rdf # AM: must rewrite URI
-        @compounds = OpenTox::Dataset.find_compounds_rdf(@rdf)
-        @features = OpenTox::Dataset.find_features_rdf(@rdf)
+        @compounds = find_compounds_rdf
+        @features = find_features_rdf
         numeric_features = @features.collect{|f| 
           f.get
           f[RDF.type].include?(RDF::OT.NumericFeature) or f[RDF.type].include?(RDF::OT.Substructure)
         }
         if have_rdf
-          table = OpenTox::Dataset.find_data_entries_rdf(@rdf)
+          table = find_data_entries_rdf
         else
           values = OpenTox::Dataset.find_data_entries_sparql(@uri)
           table = values + Array.new(@compounds.size*@features.size-values.size, "")
