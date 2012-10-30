@@ -59,7 +59,7 @@ Timings:
 
 ## 'Fill Table' Version
 
-A modification that avoids lookup operations where possible. Also pre-allocates `@data_entries`.
+Modification of 'Row Slicing' that avoids lookup operations where possible. Also pre-allocates `@data_entries`.
 
     clim=(@compounds.size-1)
     cidx=0
@@ -87,22 +87,39 @@ Timings:
                      user     system      total        real
     ds reading   3.820000   0.040000   3.860000 (  4.540800)
 
+## 'SPARQL' Version
+
+Modification of 'Fill Table' that loads data entrues via SPARQL, not RDF query.
+
+    sparql = "SELECT ?value FROM <#{uri}> WHERE {
+      ?data_entry <#{RDF::OLO.index}> ?cidx ;
+                  <#{RDF::OT.values}> ?v .
+      ?v          <#{RDF::OT.feature}> ?f;
+                  <#{RDF::OT.value}> ?value .
+      ?f          <#{RDF::OLO.index}> ?fidx.
+      } ORDER BY ?fidx ?cidx" 
+
+Timings:
+
+                 user     system      total        real
+ds reading   1.690000   0.050000   1.740000 (  2.362236)
+
 
 # Dataset Tests
 
 Test runtimes changed as follows:
 
-Test             old     new     
----------------- ------- ------- 
-dataset.rb       6.998s  7.406s  
-dataset_large.rb 64.230s 25.231s 
+Test             old     'Row Slicing' 'SPARQL'
+---------------- ------- ------------- -------- 
+dataset.rb       6.998s  7.406s        6.341s
+dataset_large.rb 64.230s 25.231s       25.071
 
 Table: Runtimes
 
 
 ## Conclusions
 
-Based on the results I implemented the 'Fill Table' variant.
+In view of the results I implemented the 'SPARQL' version.
 
 
 ## Note
