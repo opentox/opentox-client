@@ -51,9 +51,8 @@ module OpenTox
     # @return [Array] compounds Compounds in order
     def self.find_compounds_sparql(uri)
       sparql = "SELECT DISTINCT ?compound FROM <#{uri}> WHERE {
-        ?s <#{RDF.type}> <#{RDF::OT.DataEntry}> ;
-           <#{RDF::OLO.index}> ?cidx;
-           <#{RDF::OT.compound}> ?compound
+        ?compound <#{RDF.type}> <#{RDF::OT.Compound}> ;
+                  <#{RDF::OLO.index}> ?cidx;
         } ORDER BY ?cidx"
       OpenTox::Backend::FourStore.query(sparql, "text/uri-list").split("\n").collect { |uri| OpenTox::Compound.new uri.strip }
     end

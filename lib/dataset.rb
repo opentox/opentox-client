@@ -37,23 +37,34 @@ module OpenTox
 
       # AM: read ordered dataset from RDF
       if ordered
+
         # Read only some data as rdf
         unless have_rdf
           self.parse_rdfxml( RestClient.get([@uri,"allnde"].join("/"),{:accept => "application/rdf+xml"}), true )
         end
-        @compounds = self.find_compounds_rdf
-        @features = self.find_features_rdf
 
+        # Features
+        @features = self.find_features_rdf
         numeric_features = @features.collect{|f| 
           f.get
           f[RDF.type].include?(RDF::OT.NumericFeature) or f[RDF.type].include?(RDF::OT.Substructure)
         }
+
+        # Compounds
         if have_rdf
-          table = find_data_entries_rdf
+          @compounds = self.find_compounds_rdf
+        else
+          @compounds = RestClient.get([@uri,"compounds"].join("/"),{:accept => "text/uri-list"}).split("\n").collect { |cmpd| OpenTox::Compound.new cmpd }
+        end
+
+        # Data Entries
+        if have_rdf
+          table = self.find_data_entries_rdf
         else
           values = OpenTox::Dataset.find_data_entries_sparql(@uri)
           table = values + Array.new(@compounds.size*@features.size-values.size, "")
         end
+        
         clim=(@compounds.size-1)
         cidx = fidx = 0
         num=numeric_features[fidx]
