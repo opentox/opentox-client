@@ -89,7 +89,7 @@ Timings:
 
 ## 'SPARQL' Version
 
-Modification of 'Fill Table' that loads data entrues via SPARQL, not RDF query.
+Modification of 'Fill Table' that loads data entries via SPARQL, not RDF query.
 
     sparql = "SELECT ?value FROM <#{uri}> WHERE {
       ?data_entry <#{RDF::OLO.index}> ?cidx ;

@@ -47,7 +47,7 @@ module OpenTox
     # Query a dataset URI for ordered status 
     # by loading its metadata (OpenTox compliant)
     # @param [String] uri Dataset uri
-    # @return [TrueClass,FalseClass] status Whether the dataset is ordered
+    # @return [TrueClass, FalseClass] status Whether the dataset is ordered
     def self.ordered?(uri)
       ds = OpenTox::Dataset.new # dummy 
       ds.parse_rdfxml(RestClient.get([uri,"metadata"].join("/"),{:accept => "application/rdf+xml"}))
@@ -55,6 +55,18 @@ module OpenTox
         pattern [:dataset, RDF.type, RDF::OT.OrderedDataset]
       end
       query.execute(ds.rdf).size>0
+    end
+
+    # Load dataset URI from given RDF (slow)
+    # @param [String] rdf RDF
+    # @return [String] uri URI
+    def self.uri_from_rdf(rdf)
+      ds = OpenTox::Dataset.new # dummy 
+      ds.parse_rdfxml(rdf)
+      query = RDF::Query.new do
+        pattern [:dataset, RDF.type, RDF::OT.Dataset]
+      end
+      query.execute(ds.rdf).collect { |s| s.dataset.to_s }[0]
     end
 
   end

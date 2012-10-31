@@ -130,8 +130,8 @@ module OpenTox
   RDF_FORMATS.each do |format|
 
     # rdf parse methods for all formats e.g. parse_rdfxml
-    send :define_method, "parse_#{format}".to_sym do |rdf|
-      @rdf = RDF::Graph.new
+    send :define_method, "parse_#{format}".to_sym do |rdf,init=true|
+      @rdf = RDF::Graph.new if init
       RDF::Reader.for(format).new(rdf) do |reader|
         reader.each_statement{ |statement| @rdf << statement }
       end
