@@ -3,9 +3,44 @@ Description: A benchmark comparison of different dataset implementations.
 Author: Andreas Maunz `<andreas@maunz.de>`  
 Date: 10/2012
 
-# Request per row
+# Dataset Creation 
 
-(Old) implementation with one query for data entries **per compound**.
+Storing a dataset in the 4store backend.
+
+## Data analysis Generation of triples.
+
+Implementation with querying the `/compound` service for compound URIs.
+
+    date
+    task=`curl -X POST -F "file=@/home/am/opentox-ruby/opentox-test/test/data/kazius.csv;type=text/csv"  
+    http://localhost:8083/dataset 2>/dev/null`
+    get_result $task
+    date
+
+Timings for uploading the Kazius dataset (>4000 compounds. Repeated three times, median reported):
+
+    Sat Nov  3 11:10:04 CET 2012
+    http://localhost:8083/dataset/6a92fbf1-9c46-4c72-a487-365589c1210d
+    Sat Nov  3 11:10:41 CET 2012
+
+Uploading takes 37s. This time is consumed by the workflow as follows:
+
+- Compound Triples: 33.236s (89.8 %)
+- Value Triples: 1.052s (0.03 %)
+- Other Triples: <1s (<0.03 %)
+- 4store upload: <3s (<0.1 %)
+
+Based on these results I suggest to avoid querying the compound service.
+  
+
+
+# Dataset Read-In
+
+Populating an `OpenTox::Dataset` object in memory, by reading from the 4store backend.
+
+## Request per row
+
+Implementation with one query for data entries **per compound**.
 
     @compounds.each_with_index do |compound,i|
       query = RDF::Query.new do
@@ -28,7 +63,7 @@ Timings for reading a BBRC feature dataset (85 compounds, 53 features. Repeated 
     ds reading   6.640000   0.090000   6.730000 (  7.429505)
 
 
-# Single Table
+## Single Table
 
 Now some optimized versions that retrieve entries all at once. A few variables have been renamed for clarity in the query:
 
@@ -43,7 +78,7 @@ Now some optimized versions that retrieve entries all at once. A few variables h
 
 Also `RDF::Query::Solutions#order_by` is used instead of the generic `Enumerable#sort_by`, which may have advantages (not tested seperately).
 
-## 'Row Slicing' Version
+### 'Row Slicing' Version
 
 Results are sorted by compound, then by feature. The long array is sliced into rows.
 
@@ -57,7 +92,7 @@ Timings:
                      user     system      total        real
     ds reading   3.850000   0.090000   3.940000 (  4.643435)
 
-## 'Fill Table' Version
+### 'Fill Table' Version
 
 Modification of 'Row Slicing' that avoids lookup operations where possible. Also pre-allocates `@data_entries`.
 
@@ -87,7 +122,7 @@ Timings:
                      user     system      total        real
     ds reading   3.820000   0.040000   3.860000 (  4.540800)
 
-## 'SPARQL' Version
+### 'SPARQL' Version
 
 Modification of 'Fill Table' that loads data entries via SPARQL, not RDF query.
 
@@ -105,7 +140,7 @@ Timings:
 ds reading   1.690000   0.050000   1.740000 (  2.362236)
 
 
-# Dataset Tests
+## Dataset Tests
 
 Test runtimes changed as follows:
 
@@ -117,12 +152,12 @@ dataset_large.rb 64.230s 25.231s       25.071
 Table: Runtimes
 
 
-## Conclusions
+### Conclusions
 
 In view of the results I implemented the 'SPARQL' version.
 
 
-## Note
+### Note
 
 A further modification that avoids querying compounds separately made runtimes much worse again.
 The idea was to get the compound together with each data entry:
