@@ -3,17 +3,20 @@ Description: A benchmark comparison of different dataset implementations.
 Author: Andreas Maunz `<andreas@maunz.de>`  
 Date: 10/2012
 
+Some experiments made on branch `development`, using a VirtualBox VM (2 CPU, 2G of RAM), Debian 6.0.5, 64bit.
+
 # Dataset Creation 
 
-Storing a dataset in the 4store backend.
+Storing a dataset at the 4store backend.
 
-## Data analysis Generation of triples.
+## Generating and Storing Triples.
 
 Implementation with querying the `/compound` service for compound URIs.
 
     date
-    task=`curl -X POST -F "file=@/home/am/opentox-ruby/opentox-test/test/data/kazius.csv;type=text/csv"  
-    http://localhost:8083/dataset 2>/dev/null`
+    task=`curl -X POST \
+      -F "file=@/home/am/opentox-ruby/opentox-test/test/data/kazius.csv;type=text/csv"  
+      http://localhost:8083/dataset 2>/dev/null`
     get_result $task
     date
 
