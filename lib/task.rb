@@ -10,6 +10,7 @@ module OpenTox
 
       uri = File.join(service_uri,SecureRandom.uuid)
       task = Task.new uri, subjectid
+      task[RDF::OT.created_at] = DateTime.now
       task[RDF::OT.hasStatus] = "Running"
       params.each { |k,v| task[k] = v }
       task.put false
@@ -61,12 +62,14 @@ module OpenTox
     def cancel
       kill
       self.[]=(RDF::OT.hasStatus, "Cancelled")
+      self.[]=(RDF::OT.finished_at, DateTime.now)
       put false
     end
 
     def completed(uri)
       self.[]=(RDF::OT.resultURI, uri)
       self.[]=(RDF::OT.hasStatus, "Completed")
+      self.[]=(RDF::OT.finished_at, DateTime.now)
       put false
     end
 
@@ -104,7 +107,7 @@ module OpenTox
     code >= 400 and code != 503
   end
 
-  [:hasStatus, :resultURI, :finished_at].each do |method|
+  [:hasStatus, :resultURI, :created_at, :finished_at].each do |method|
     define_method method do
       get
       response = self.[](RDF::OT[method])
