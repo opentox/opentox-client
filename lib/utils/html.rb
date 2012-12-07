@@ -7,15 +7,17 @@
 * Date: 10/2012
 =end
 
+require "base64"
+
 # AM: needed since this gem has a nested directory structure
 
 class String
   # encloses URI in text with with link tag
   # @return [String] new text with marked links
   def link_urls
-    regex = Regexp.new '(https?:\/\/[\S]+)([>"])'
-    self.gsub( regex, '<a href="\1">\1</a>\2' )
+    self.gsub(/(?i)http(s?):\/\/[^\r\n\s']*/, '<a href="\0">\0</a>')
   end
+  
 end
 
 module OpenTox
@@ -29,7 +31,7 @@ module OpenTox
   # @param [optional,String] description general info
   # @param [optional,Array] post_command, infos for the post operation, object defined below
   # @return [String] html page
-  def self.text_to_html( text, subjectid=nil, related_links=nil, description=nil, post_command=nil  )
+  def self.text_to_html( text, subjectid=nil, related_links=nil, description=nil, post_command=nil, png_image=nil  )
     
     # TODO add title as parameter
     title = nil #$sinatra.url_for($sinatra.request.env['PATH_INFO'], :full) if $sinatra
@@ -41,6 +43,7 @@ module OpenTox
     html += "<h3>Related links</h3><pre><p>"+related_links.link_urls+"</p></pre>" if related_links
     html += "<h3>Content</h3>" if description || related_links
     html += "<pre><p style=\"padding:15px; border:10px solid \#5D308A\">"
+    html += "<img src=\"data:image/png;base64,#{Base64.encode64(png_image)}\">\n" if png_image
     html += text.link_urls
     html += "</p></pre></body></html>"
     html

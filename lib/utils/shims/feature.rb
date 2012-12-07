@@ -30,7 +30,7 @@ module OpenTox
       metadata[RDF.type] = [] unless metadata[RDF.type]
       metadata[RDF.type] << RDF::OT.Feature unless metadata[RDF.type].include?(RDF::OT.Feature)
       metadata[RDF::DC.title] = title unless (metadata[RDF::DC.title])
-      feature = feature_new = OpenTox::Feature.new File.join($feature[:uri], SecureRandom.uuid), @subjectid
+      feature = feature_new = OpenTox::Feature.new(File.join($feature[:uri], SecureRandom.uuid), @subjectid)
       feature_new.metadata = metadata
       sparql = "SELECT DISTINCT ?feature WHERE { ?feature <#{RDF.type}> <#{RDF::OT['feature'.capitalize]}>. ?feature <#{RDF::DC.title}> '#{title.to_s}' }"
       feature_uris = OpenTox::Backend::FourStore.query(sparql,"text/uri-list").split("\n")

@@ -6,9 +6,8 @@ module OpenTox
       @@content_type_formats = [ "application/rdf+xml", "text/turtle", "text/plain" ]
 
       def self.list mime_type
-        mime_type = "text/html" if mime_type.match(%r{\*/\*})
         bad_request_error "'#{mime_type}' is not a supported mime type. Please specify one of #{@@accept_formats.join(", ")} in the Accept Header." unless @@accept_formats.include? mime_type
-        if mime_type =~ /uri-list/
+        if mime_type =~ /(uri-list|html)/ 
           sparql = "SELECT DISTINCT ?g WHERE {GRAPH ?g {?s <#{RDF.type}> <#{klass}>; ?p ?o. } }"
         else 
           sparql = "CONSTRUCT {?s ?p ?o.} WHERE {?s <#{RDF.type}> <#{klass}>; ?p ?o. }"
@@ -17,7 +16,6 @@ module OpenTox
       end
 
       def self.get uri, mime_type
-        mime_type = "text/html" if mime_type.match(%r{\*/\*})
         bad_request_error "'#{mime_type}' is not a supported mime type. Please specify one of #{@@accept_formats.join(", ")} in the Accept Header." unless @@accept_formats.include? mime_type
         sparql = "CONSTRUCT {?s ?p ?o.} FROM <#{uri}> WHERE { ?s ?p ?o. }"
         rdf = query sparql, mime_type
@@ -61,8 +59,9 @@ module OpenTox
           case mime_type
           when 'application/sparql-results+xml' 
             RestClient.get(sparql_uri, :params => { :query => sparql }, :accept => mime_type).body
-          when "text/uri-list"
-            RestClient.get(sparql_uri, :params => { :query => sparql }, :accept => "text/plain").body.gsub(/"|<|>/,'').split("\n").drop(1).join("\n")
+          when /(uri-list|html)/
+            uri_list = RestClient.get(sparql_uri, :params => { :query => sparql }, :accept => "text/plain").body.gsub(/"|<|>/,'').split("\n").drop(1).join("\n")
+            uri_list = OpenTox.text_to_html(uri_list) if mime_type=~/html/
           else
             bad_request_error "#{mime_type} is not a supported mime type for SELECT statements."
           end
