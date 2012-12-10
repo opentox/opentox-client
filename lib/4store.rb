@@ -62,6 +62,7 @@ module OpenTox
           when /(uri-list|html)/
             uri_list = RestClient.get(sparql_uri, :params => { :query => sparql }, :accept => "text/plain").body.gsub(/"|<|>/,'').split("\n").drop(1).join("\n")
             uri_list = OpenTox.text_to_html(uri_list) if mime_type=~/html/
+            return uri_list
           else
             bad_request_error "#{mime_type} is not a supported mime type for SELECT statements."
           end
