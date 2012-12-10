@@ -55,7 +55,7 @@ module URI
       true
     else
       parsed_uri = URI.parse(uri + (subjectid ? "?subjectid=#{CGI.escape subjectid}" : ""))
-      unless URI.ssl? uri      
+      unless URI.ssl? uri
         Net::HTTP.get_response(parsed_uri).code.to_i < 400
       else
         http = Net::HTTP.new(parsed_uri.host, parsed_uri.port)
