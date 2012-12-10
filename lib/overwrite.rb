@@ -54,7 +54,16 @@ module URI
       Net::HTTP.get_response(URI.parse(uri))
       true
     else
-      Net::HTTP.get_response(URI.parse(uri + (subjectid ? "?subjectid=#{CGI.escape subjectid}" : ""))).code.to_i < 400
+      parsed_uri = URI.parse(uri + (subjectid ? "?subjectid=#{CGI.escape subjectid}" : ""))
+      unless URI.ssl? uri      
+        Net::HTTP.get_response(parsed_uri).code.to_i < 400
+      else
+        http = Net::HTTP.new(parsed_uri.host, parsed_uri.port)
+        http.use_ssl = true
+        http.verify_mode = OpenSSL::SSL::VERIFY_NONE
+        request = Net::HTTP::Get.new(parsed_uri.request_uri)
+        http.request(request).code.to_i < 400
+      end
     end
   rescue
     false
