@@ -104,7 +104,7 @@ module OpenTox
   # Save object at webservice
   def put wait=true
     # TODO: RDFXML
-    append RDF::DC.modified, DateTime.now
+    #append RDF::DC.modified, DateTime.now
     uri = RestClientWrapper.put @uri.to_s, self.to_ntriples, { :content_type => "text/plain", :subjectid => @subjectid}
     wait_for_task uri if wait
   end

@@ -11,7 +11,7 @@ module OpenTox
     # @param [String] smiles Smiles string
     # @return [OpenTox::Compound] Compound
     def self.from_smiles service_uri, smiles, subjectid=nil
-      @smiles = smiles
+      #@smiles = smiles
       Compound.new RestClientWrapper.post(service_uri, smiles, {:content_type => 'chemical/x-daylight-smiles', :subjectid => subjectid})
     end
 
@@ -19,7 +19,7 @@ module OpenTox
     # @param [String] smiles InChI string
     # @return [OpenTox::Compound] Compound
     def self.from_inchi service_uri, inchi, subjectid=nil
-      @inchi = inchi
+      #@inchi = inchi
       Compound.new RestClientWrapper.post(service_uri, inchi, {:content_type => 'chemical/x-inchi', :subjectid => subjectid})
     end
 

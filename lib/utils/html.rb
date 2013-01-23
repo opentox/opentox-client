@@ -34,7 +34,7 @@ module OpenTox
   def self.text_to_html( text, subjectid=nil, related_links=nil, description=nil, post_command=nil, png_image=nil  )
     
     # TODO add title as parameter
-    title = nil #$sinatra.url_for($sinatra.request.env['PATH_INFO'], :full) if $sinatra
+    title = nil #$sinatra.to($sinatra.request.env['PATH_INFO'], :full) if $sinatra
     html = "<html>"
     html += "<title>"+title+"</title>" if title
     #html += "<img src=\""+OT_LOGO+"\"><\/img><body>"
