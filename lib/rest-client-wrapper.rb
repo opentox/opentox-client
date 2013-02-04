@@ -13,13 +13,13 @@ module OpenTox
     # @return [RestClient::Response] REST call response 
     [:head,:get,:post,:put,:delete].each do |method|
 
-      define_singleton_method method do |uri,payload={},headers={}|
+      define_singleton_method method do |uri,payload={},headers={},waiting_task=nil|
 
-        # check input 
+        # check input
+        bad_request_error "Headers are not a hash: #{headers.inspect}", uri unless headers==nil or headers.is_a?(Hash) 
         @subjectid = headers[:subjectid] ? headers[:subjectid] : nil
         bad_request_error "Invalid URI: '#{uri}'", uri unless URI.valid? uri
         #resource_not_found_error "URI '#{uri}' not found.", uri unless URI.accessible?(uri, @subjectid) unless URI.ssl?(uri)
-        bad_request_error "Headers are not a hash: #{headers.inspect}", uri unless headers==nil or headers.is_a?(Hash)
         # make sure that no header parameters are set in the payload
         [:accept,:content_type,:subjectid].each do |header|
           if defined? $aa || URI(uri).host == URI($aa[:uri]).host
@@ -36,6 +36,8 @@ module OpenTox
         args[:payload] = payload
         headers.each{ |k,v| headers.delete(k) if v==nil } if headers #remove keys with empty values, as this can cause problems
         args[:headers] = headers 
+        
+        $logger.debug "POST #{uri} #{payload.inspect}" if method.to_s=="post" && payload.is_a?(Hash)
 
         @request = RestClient::Request.new(args)
         # ignore error codes from Task services (may return error codes >= 400 according to API, which causes exceptions in RestClient and RDF::Reader)

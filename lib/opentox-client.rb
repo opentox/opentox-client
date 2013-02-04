@@ -37,7 +37,8 @@ FALSE_REGEXP = /^(false|inactive|0|0.0|low tox|deactivating|non-carcinogen|non-m
   "dataset.rb",
   "model.rb",
   "algorithm.rb",
-  "4store.rb"
+  "4store.rb",
+  "validation.rb"
 ].each{ |f| require File.join(File.dirname(__FILE__),f) }
 
 Dir["#{File.dirname(__FILE__)}/utils/shims/*.rb"].each { |f| require f } # Shims for legacy code
