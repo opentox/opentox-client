@@ -15,6 +15,10 @@ module OldOpenTox
     #puts yaml
     @metadata = YAML.load(yaml)
   end
+  
+  def delete (subjectid=nil)
+    OpenTox::RestClientWrapper.delete(@uri.to_s,nil,{:subjectid => subjectid})
+  end
 end
 
 module OpenTox
