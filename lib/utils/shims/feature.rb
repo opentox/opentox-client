@@ -66,7 +66,7 @@ module OpenTox
       bad_request_error "rdf type of feature '#{@uri}' not set" unless self[RDF.type]
       if self[RDF.type].include?(OT.NominalFeature)
         "classification"
-      elsif [RDF.type].to_a.flatten.include?(OT.NumericFeature)
+      elsif self[RDF.type].include?(OT.NumericFeature)
         "regression"
       else
         "unknown"

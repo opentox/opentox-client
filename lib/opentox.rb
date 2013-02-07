@@ -115,6 +115,10 @@ module OpenTox
   end
 
   def wait_for_task uri
+    OpenTox.wait_for_task uri
+  end
+
+  def self.wait_for_task uri
     if URI.task?(uri) 
       t = OpenTox::Task.new uri
       t.wait

@@ -12,7 +12,7 @@ module OpenTox
 
     #Helper Class to create and send default policies out of xml templates
     #@example Creating a default policy to a URI
-    #  aa=OpenTox::Authorization::AA.new(tok)
+    #  aa=OpenTox::Authorization::Helper.new(tok)
     #  xml=aa.get_xml('http://uri....')
     #  OpenTox::Authorization.create_policy(xml,tok)
 
