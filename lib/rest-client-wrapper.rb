@@ -45,7 +45,8 @@ module OpenTox
           elsif response.code >= 400 and !URI.task?(uri)
             message = response.to_s
             parameters = request.args
-            parameters[:headers][:subjectid] = "REMOVED" if parameters[:headers] and parameters[:headers][:subjectid] 
+            parameters[:headers][:subjectid] = "REMOVED" if parameters[:headers] and parameters[:headers][:subjectid]
+            parameters[:url] = parameters[:url].gsub(/(http|https|)\:\/\/[a-zA-Z0-9\-]+\:[a-zA-Z0-9]+\@/, "REMOVED@") if parameters[:url]
             message += "\nREST parameters:\n#{parameters.inspect}" 
             error = known_errors.collect{|e| e if e[:code] == response.code}.compact.first
             Object.method(error[:method]).call message, uri # call error method
