@@ -18,7 +18,16 @@ module OpenTox
         begin
           result_uri = yield 
           task.completed result_uri
-        rescue 
+        rescue
+          unless $!.is_a?(RuntimeError) # PENDING: only runtime Errors are logged when raised
+            cut_index = $!.backtrace.find_index{|line| line.match /gems\/sinatra/}
+            msg = "\nTask ERROR\n"+
+              "task description: #{params[RDF::DC.description]}\n"+
+              "task uri:         #{$!.class.to_s}\n"+
+              "error msg:        #{$!.message}\n"+
+              "error backtrace:\n#{$!.backtrace[0..cut_index].join("\n")}\n"
+            $logger.error msg
+          end
           if $!.respond_to? :to_ntriples
             RestClientWrapper.put(File.join(task.uri,'Error'),:errorReport => $!.to_ntriples,:content_type => 'text/plain') 
           else
