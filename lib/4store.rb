@@ -55,9 +55,11 @@ module OpenTox
 
       def self.query sparql, mime_type
         if sparql =~ /SELECT/i
-#         return list unless mime_type
+          # return list unless mime_type
           case mime_type
           when 'application/sparql-results+xml' 
+            RestClient.get(sparql_uri, :params => { :query => sparql }, :accept => mime_type).body
+          when 'application/json'
             RestClient.get(sparql_uri, :params => { :query => sparql }, :accept => mime_type).body
           when /(uri-list|html)/
             uri_list = RestClient.get(sparql_uri, :params => { :query => sparql }, :accept => "text/plain").body.gsub(/"|<|>/,'').split("\n").drop(1).join("\n")
