@@ -1,3 +1,5 @@
+require 'csv'
+
 module OpenTox
 
   # Ruby wrapper for OpenTox Dataset Webservices (http://opentox.org/dev/apis/api-1.2/dataset).
