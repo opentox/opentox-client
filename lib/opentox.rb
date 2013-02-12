@@ -104,7 +104,6 @@ module OpenTox
   # Save object at webservice
   def put wait=true
     # TODO: RDFXML
-    #append RDF::DC.modified, DateTime.now
     uri = RestClientWrapper.put @uri.to_s, self.to_ntriples, { :content_type => "text/plain", :subjectid => @subjectid}
     wait_for_task uri if wait
   end
@@ -123,8 +122,8 @@ module OpenTox
       t = OpenTox::Task.new uri
       t.wait
       unless t.completed?
-        #TODO raise correct error
-        #internal_server_error "Task #{uri} failed with #{$!.inspect}"
+        method = RestClientWrapper.known_errors.select{|error| error[:code] == t.hasStatus.to_i}.first[:method]
+        Object.send(method,t.message,t.uri)
       end
       uri = t.resultURI
     end
