@@ -92,27 +92,30 @@ module OpenTox
       while running? 
         sleep dur
         dur = [[(Time.new - start_time)/20.0,0.3].max,300.0].min
-        time_out_error "max wait time exceeded ("+DEFAULT_TASK_MAX_DURATION.to_s+"sec), task: '"+@uri.to_s+"'" if (Time.new > due_to_time)
+        request_timeout_error "max wait time exceeded ("+DEFAULT_TASK_MAX_DURATION.to_s+"sec), task: '"+@uri.to_s+"'" if (Time.new > due_to_time)
       end
     end
 
   end
 
+  def code
+    RestClientWrapper.head(@uri).code.to_i
+  end
+
   # get only header for status requests
   def running?
-    RestClientWrapper.head(@uri).code == 202 
+    code == 202 
   end
 
   def cancelled?
-    RestClientWrapper.head(@uri).code == 503
+    code == 503
   end
 
   def completed?
-    RestClientWrapper.head(@uri).code == 200
+    code == 200
   end
 
   def error?
-    code = RestClientWrapper.head(@uri).code
     code >= 400 and code != 503
   end
 

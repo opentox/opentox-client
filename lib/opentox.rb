@@ -122,8 +122,9 @@ module OpenTox
       t = OpenTox::Task.new uri
       t.wait
       unless t.completed?
-        method = RestClientWrapper.known_errors.select{|error| error[:code] == t.hasStatus.to_i}.first[:method]
-        Object.send(method,t.message,t.uri)
+        method = RestClientWrapper.known_errors.select{|error| error[:code] == t.code}.first[:method]
+        t.get
+        Object.send(method,t.error_report[RDF::OT.message],t.uri)
       end
       uri = t.resultURI
     end

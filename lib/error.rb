@@ -31,7 +31,7 @@ class RuntimeError
     # rdf serialization methods for all formats e.g. to_rdfxml
     send :define_method, "to_#{format}".to_sym do
       RDF::Writer.for(format).buffer do |writer|
-        @rdf.each{|statement| writer << statement}
+        @rdf.each{|statement| writer << statement} if @rdf
       end
     end
   end
