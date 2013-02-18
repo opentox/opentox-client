@@ -3,7 +3,7 @@ module OpenTox
     class FourStore
 
       @@accept_formats = [ "application/rdf+xml", "text/turtle", "text/plain", "text/uri-list", "text/html", 'application/sparql-results+xml' ]
-      @@content_type_formats = [ "application/rdf+xml", "text/turtle", "text/plain" ]
+      @@content_type_formats = [ "application/rdf+xml", "text/turtle", "text/plain", "application/x-turtle" ]
 
       def self.list mime_type
         bad_request_error "'#{mime_type}' is not a supported mime type. Please specify one of #{@@accept_formats.join(", ")} in the Accept Header." unless @@accept_formats.include? mime_type
