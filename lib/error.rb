@@ -50,9 +50,10 @@ class RuntimeError
   include OpenToxError
 end
 
-class NoMethodError
-  include OpenToxError
-end
+# clutters log file with library errors
+#class NoMethodError
+  #include OpenToxError
+#end
 
 module OpenTox
 
