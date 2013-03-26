@@ -10,23 +10,21 @@ module OpenTox
     #   compound = OpenTox::Compound.from_smiles("c1ccccc1")
     # @param [String] smiles Smiles string
     # @return [OpenTox::Compound] Compound
-    def self.from_smiles service_uri, smiles, subjectid=nil
-      #@smiles = smiles
+    def self.from_smiles smiles, subjectid=nil
       Compound.new RestClientWrapper.post(service_uri, smiles, {:content_type => 'chemical/x-daylight-smiles', :subjectid => subjectid})
     end
 
     # Create a compound from inchi string
     # @param [String] smiles InChI string
     # @return [OpenTox::Compound] Compound
-    def self.from_inchi service_uri, inchi, subjectid=nil
-      #@inchi = inchi
+    def self.from_inchi inchi, subjectid=nil
       Compound.new RestClientWrapper.post(service_uri, inchi, {:content_type => 'chemical/x-inchi', :subjectid => subjectid})
     end
 
     # Create a compound from sdf string
     # @param [String] smiles SDF string
     # @return [OpenTox::Compound] Compound
-    def self.from_sdf service_uri, sdf, subjectid=nil
+    def self.from_sdf sdf, subjectid=nil
       Compound.new RestClientWrapper.post(service_uri, sdf, {:content_type => 'chemical/x-mdl-sdfile', :subjectid => subjectid})
     end
 
@@ -36,7 +34,7 @@ module OpenTox
     # @param [String] name name can be also an InChI/InChiKey, CAS number, etc
     # @return [OpenTox::Compound] Compound
     #
-    def self.from_name service_uri, name, subjectid=nil
+    def self.from_name name, subjectid=nil
       @inchi = RestClientWrapper.get File.join(CACTUS_URI,URI.escape(name),"stdinchi")
       Compound.new RestClientWrapper.post(service_uri, @inchi, {:content_type => 'chemical/x-inchi', :subjectid => subjectid})
     end
@@ -216,7 +214,7 @@ module OpenTox
           end
         end
       end
-      return smarts_hits
+      smarts_hits
     end
 
     # Provided for backward compatibility

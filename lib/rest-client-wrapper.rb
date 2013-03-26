@@ -37,8 +37,6 @@ module OpenTox
         headers.each{ |k,v| headers.delete(k) if v==nil } if headers #remove keys with empty values, as this can cause problems
         args[:headers] = headers 
         
-        $logger.debug "POST #{uri} #{payload.inspect}" if method.to_s=="post" && payload.is_a?(Hash)
-
         @request = RestClient::Request.new(args)
         # ignore error codes from Task services (may return error codes >= 400 according to API, which causes exceptions in RestClient and RDF::Reader)
         @response = @request.execute do |response, request, result|

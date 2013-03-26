@@ -5,17 +5,19 @@ module OpenToxError
   attr_accessor :http_code, :uri
   def initialize message, uri=nil
     super message
-    @uri = uri.to_s.sub(%r{//.*:.*@},'//') # remove credentials from uri
-    @http_code ||= 500
-    @rdf = RDF::Graph.new
-    subject = RDF::Node.new
-    @rdf << [subject, RDF.type, RDF::OT.ErrorReport]
-    @rdf << [subject, RDF::OT.actor, @uri]
-    @rdf << [subject, RDF::OT.message, message.to_s]
-    @rdf << [subject, RDF::OT.statusCode, @http_code]
-    @rdf << [subject, RDF::OT.errorCode, self.class.to_s]
-    @rdf << [subject, RDF::OT.errorCause, short_backtrace]
-    $logger.error("\n"+self.to_turtle)
+    #unless self.is_a? Errno::EAGAIN # avoid "Resource temporarily unavailable" errors
+      @uri = uri.to_s.sub(%r{//.*:.*@},'//') # remove credentials from uri
+      @http_code ||= 500
+      @rdf = RDF::Graph.new
+      subject = RDF::Node.new
+      @rdf << [subject, RDF.type, RDF::OT.ErrorReport]
+      @rdf << [subject, RDF::OT.actor, @uri]
+      @rdf << [subject, RDF::OT.message, message.sub(/^"/,'').sub(/"$/,'')]
+      @rdf << [subject, RDF::OT.statusCode, @http_code]
+      @rdf << [subject, RDF::OT.errorCode, self.class.to_s]
+      @rdf << [subject, RDF::OT.errorCause, short_backtrace]
+      $logger.error("\n"+self.to_turtle)
+    #end
   end
 
   def short_backtrace
@@ -40,13 +42,14 @@ module OpenToxError
     prefixes = {:rdf => "http://www.w3.org/1999/02/22-rdf-syntax-ns#"}
     ['OT', 'DC', 'XSD', 'OLO'].each{|p| prefixes[p.downcase.to_sym] = eval("RDF::#{p}.to_s") }
     RDF::N3::Writer.for(:turtle).buffer(:prefixes => prefixes)  do |writer|
-      @rdf.each{|statement| writer << statement}
+      @rdf.each{|statement| writer << statement} if @rdf
     end
   end
 
 end
 
 class RuntimeError
+#class StandardError
   include OpenToxError
 end
 
@@ -58,6 +61,7 @@ end
 module OpenTox
 
   class Error < RuntimeError
+    include OpenToxError
     
     def initialize code, message, uri=nil
       @http_code = code
@@ -77,7 +81,7 @@ module OpenTox
     
     # define global methods for raising errors, eg. bad_request_error
     Object.send(:define_method, error[:method]) do |message,uri=nil|
-      raise c.new(message, uri)
+      raise c.new(message.inspect, uri)
     end
   end
   

@@ -34,15 +34,10 @@ FALSE_REGEXP = /^(false|inactive|0|0.0|low tox|deactivating|non-carcinogen|non-m
   "opentox.rb",
   "task.rb",
   "compound.rb",
+  "feature.rb",
   "dataset.rb",
   "model.rb",
   "algorithm.rb",
-  "4store.rb",
   "validation.rb"
-].each{ |f| require File.join(File.dirname(__FILE__),f) }
-
-Dir["#{File.dirname(__FILE__)}/utils/shims/*.rb"].each { |f| require f } # Shims for legacy code
-Dir["#{File.dirname(__FILE__)}/utils/sparql/*.rb"].each { |f| require f } # SPARQL code
-Dir["#{File.dirname(__FILE__)}/utils/rdf/*.rb"].each { |f| require f } # RDF code
-Dir["#{File.dirname(__FILE__)}/utils/*.rb"].each { |f| require f } # Utils for Libs
+].each{ |f| require_relative f }
 
