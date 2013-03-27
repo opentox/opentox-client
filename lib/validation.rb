@@ -190,7 +190,8 @@ module OpenTox
       params[:subjectid] = subjectid if subjectid
       uri = OpenTox::RestClientWrapper.post( File.join($validation[:uri],"crossvalidation"),
         params,{:content_type => "text/uri-list"},waiting_task )
-      Crossvalidation.new(wait_for_task(uri))
+      uri = wait_for_task(uri)
+      Crossvalidation.new(uri)
     end
 
     # looks for report for this crossvalidation, creates a report if no report is found
@@ -299,7 +300,8 @@ module OpenTox
     def self.create( crossvalidation_uri, subjectid=nil, waiting_task=nil )
       uri = RestClientWrapper.post(File.join($validation[:uri],"/report/crossvalidation"),
         { :validation_uris => crossvalidation_uri, :subjectid => subjectid }, {}, waiting_task )
-      CrossvalidationReport.new(wait_for_task(uri))
+      uri = wait_for_task(uri)
+      CrossvalidationReport.new(uri)
     end
   end
   
