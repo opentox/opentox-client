@@ -153,7 +153,8 @@ module Kernel
           report ? error_message = report[RDF::OT.message] : error_message = $!.message
           Object.send(error_method,error_message,t.uri)
         rescue
-          internal_server_error "#{$!.message}\n#{$!.backtrace}", t.uri
+          internal_server_error "#{$!.message}", t.uri
+          #internal_server_error "#{$!.message}\n#{$!.backtrace}", t.uri
         end
       end
       uri = t.resultURI

@@ -76,14 +76,8 @@ module OpenTox
     # @param [OpenTox::Feature] Feature 
     # @return [Array] Data entry values
     def values(compound, feature)
-      #puts compounds.inspect
-      #puts "=="
-      #puts compound.inspect
       rows = (0 ... compounds.length).select { |r| compounds[r].uri == compound.uri }
-      #puts rows.inspect
       col = features.collect{|f| f.uri}.index feature.uri
-      #puts col
-      #puts data_entries(true).inspect
       rows.collect{|row| data_entries[row][col]}
     end
 
@@ -340,8 +334,9 @@ module OpenTox
     end
     
     def data_entry_value(compound_index, feature_uri)
+      data_entries(true) if @data_entries.empty?
       col = @features.collect{|f| f.uri}.index feature_uri
-      @data_entries[compound_index][col]
+      @data_entries[compound_index] ?  @data_entries[compound_index][col] : nil
     end
   end
 

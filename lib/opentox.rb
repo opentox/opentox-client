@@ -25,8 +25,8 @@ module OpenTox
   # Object metadata (lazy loading)
   # @return [Hash] Object metadata
   def metadata force_update=false
-    if (@metadata.empty? or force_update) and URI.accessible? @uri
-      get if @rdf.empty? or force_update 
+    if (@metadata.nil? or @metadata.empty? or force_update) and URI.accessible? @uri
+      get if @rdf.nil? or @rdf.empty? or force_update 
       # return values as plain strings instead of RDF objects
       @metadata = @rdf.to_hash[RDF::URI.new(@uri)].inject({}) { |h, (predicate, values)| h[predicate] = values.collect{|v| v.to_s}; h }
     end

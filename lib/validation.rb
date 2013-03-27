@@ -58,7 +58,7 @@ module OpenTox
       params[:subjectid] = subjectid if subjectid
       uri = OpenTox::RestClientWrapper.post( File.join($validation[:uri],"training_test_split"),
         params,{:content_type => "text/uri-list"},waiting_task )
-      Validation.new(OpenTox.wait_for_task(uri))
+      Validation.new(wait_for_task(uri))
     end
     
     # creates a training test validation, waits until it finishes, may take some time
@@ -70,7 +70,7 @@ module OpenTox
       params[:subjectid] = subjectid if subjectid
       uri = OpenTox::RestClientWrapper.post( File.join($validation[:uri],"training_test_validation"),
         params,{:content_type => "text/uri-list"},waiting_task )
-      Validation.new(OpenTox.wait_for_task(uri))
+      Validation.new(wait_for_task(uri))
     end
     
     # creates a bootstrapping validation, waits until it finishes, may take some time
@@ -82,7 +82,7 @@ module OpenTox
       params[:subjectid] = subjectid if subjectid
       uri = OpenTox::RestClientWrapper.post( File.join($validation[:uri],"bootstrapping"),
         params,{:content_type => "text/uri-list"},waiting_task )
-      Validation.new(OpenTox.wait_for_task(uri))
+      Validation.new(wait_for_task(uri))
     end
     
     # looks for report for this validation, creates a report if no report is found
@@ -109,16 +109,16 @@ module OpenTox
     # [[nil,"active","moderate","inactive"],["active",1,3,99],["moderate",4,2,8],["inactive",3,8,6]]
     # -> 99 inactive compounds have been predicted as active 
     def confusion_matrix
-      raise "no classification statistics, probably a regression valdiation" unless @metadata[OT.classificationStatistics]
-      matrix =  @metadata[OT.classificationStatistics][OT.confusionMatrix][OT.confusionMatrixCell]
-      values = matrix.collect{|cell| cell[OT.confusionMatrixPredicted]}.uniq
+      raise "no classification statistics, probably a regression valdiation" unless @metadata[RDF::OT.classificationStatistics]
+      matrix =  @metadata[RDF::OT.classificationStatistics][RDF::OT.confusionMatrix][RDF::OT.confusionMatrixCell]
+      values = matrix.collect{|cell| cell[RDF::OT.confusionMatrixPredicted]}.uniq
       table = [[nil]+values]
       values.each do |c|
         table << [c]
         values.each do |r|
           matrix.each do |cell|
-            if cell[OT.confusionMatrixPredicted]==c and cell[OT.confusionMatrixActual]==r
-              table[-1] << cell[OT.confusionMatrixValue].to_f
+            if cell[RDF::OT.confusionMatrixPredicted]==c and cell[RDF::OT.confusionMatrixActual]==r
+              table[-1] << cell[RDF::OT.confusionMatrixValue].to_f
               break
             end
           end
@@ -190,7 +190,7 @@ module OpenTox
       params[:subjectid] = subjectid if subjectid
       uri = OpenTox::RestClientWrapper.post( File.join($validation[:uri],"crossvalidation"),
         params,{:content_type => "text/uri-list"},waiting_task )
-      Crossvalidation.new(OpenTox.wait_for_task(uri))
+      Crossvalidation.new(wait_for_task(uri))
     end
 
     # looks for report for this crossvalidation, creates a report if no report is found
@@ -204,7 +204,7 @@ module OpenTox
     end
     
     # loads metadata via yaml from crossvalidation object
-    # fields (like for example the validations) can be acces via validation.metadata[OT.validation]
+    # fields (like for example the validations) can be acces via validation.metadata[RDF::OT.validation]
     def load_metadata( subjectid=nil )
       @metadata = YAML.load(OpenTox::RestClientWrapper.get(uri,nil,{:subjectid => subjectid, :accept => "application/x-yaml"}))
     end
@@ -255,12 +255,14 @@ module OpenTox
     # @return [OpenTox::ValidationReport]
     def self.create( validation_uri, params={}, subjectid=nil, waiting_task=nil )
       params = {} if params==nil
-      raise OpenTox::BadRequestError.new "params is no hash" unless params.is_a?(Hash)
+      bad_request_error "params is no hash" unless params.is_a?(Hash)
       params[:validation_uris] = validation_uri
       params[:subjectid] = subjectid
       uri = RestClientWrapper.post(File.join($validation[:uri],"/report/validation"),
         params, {}, waiting_task )
-      ValidationReport.new(OpenTox.wait_for_task(uri))
+      puts uri
+      uri = wait_for_task(uri)
+      ValidationReport.new(uri)
     end
     
   end
@@ -297,7 +299,7 @@ module OpenTox
     def self.create( crossvalidation_uri, subjectid=nil, waiting_task=nil )
       uri = RestClientWrapper.post(File.join($validation[:uri],"/report/crossvalidation"),
         { :validation_uris => crossvalidation_uri, :subjectid => subjectid }, {}, waiting_task )
-      CrossvalidationReport.new(OpenTox.wait_for_task(uri))
+      CrossvalidationReport.new(wait_for_task(uri))
     end
   end
   
@@ -352,7 +354,11 @@ module OpenTox
       params[:subjectid] = subjectid
       uri = RestClientWrapper.post(File.join($validation[:uri],"/report/algorithm_comparison"),
         params, {}, waiting_task )
-      AlgorithmComparisonReport.new(OpenTox.wait_for_task(uri))
+      puts uri
+      
+      uri = wait_for_task(uri)
+      #AlgorithmComparisonReport.new(wait_for_task(uri))
+      AlgorithmComparisonReport.new(uri)
     end
   end  
   
