@@ -1,7 +1,7 @@
 require 'open4'
 
 # add additional fields to Exception class to format errors according to OT-API
-class RuntimeError
+module OpenToxError
   attr_accessor :http_code, :uri
   def initialize message, uri=nil
     super message
@@ -45,6 +45,15 @@ class RuntimeError
   end
 
 end
+
+class RuntimeError
+  include OpenToxError
+end
+
+# clutters log file with library errors
+#class NoMethodError
+  #include OpenToxError
+#end
 
 module OpenTox
 

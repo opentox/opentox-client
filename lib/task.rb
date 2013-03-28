@@ -21,6 +21,7 @@ module OpenTox
         rescue
           unless $!.is_a?(RuntimeError) # PENDING: only runtime Errors are logged when raised
             cut_index = $!.backtrace.find_index{|line| line.match /gems\/sinatra/}
+            cut_index = -1 unless cut_index
             msg = "\nTask ERROR\n"+
               "task description: #{params[RDF::DC.description]}\n"+
               "task uri:         #{$!.class.to_s}\n"+
