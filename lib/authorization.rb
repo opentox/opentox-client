@@ -88,12 +88,8 @@ module OpenTox
     # @return [Boolean, nil]  returns true, false or nil (if authorization-request fails).
     def self.authorize(uri, action, subjectid)
       return true if !AA
-      #begin
       return true if RestClientWrapper.post("#{AA}/auth/authorize",{:uri => uri, :action => action, :subjectid => subjectid})== "boolean=true\n"
       return false
-      #rescue
-      #  return nil
-      #end
     end
 
     #Checks if a token is a valid token
@@ -323,10 +319,8 @@ module OpenTox
     def self.authorized?(uri, request_method, subjectid)
       request_method = request_method.to_sym if request_method
       if $aa[:free_request].include?(request_method)
-        #$logger.debug "authorized? >>true<< (request is free), method: #{request_method}, URI: #{uri}, subjectid: #{subjectid}"
         true
       elsif OpenTox::Authorization.free_uri?(uri, request_method)
-        #$logger.debug "authorized? >>true<< (uris is free_uri), method: #{request_method}, URI: #{uri}, subjectid: #{subjectid}"
         true
       elsif $aa[:authenticate_request].include?(request_method)
         ret = OpenTox::Authorization.is_token_valid(subjectid)
