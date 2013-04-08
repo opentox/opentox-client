@@ -11,8 +11,6 @@ module OldOpenTox
   # loads metadata via yaml
   def load_metadata( subjectid=nil )
     yaml = OpenTox::RestClientWrapper.get(uri,nil,{:subjectid => subjectid, :accept => "application/x-yaml"})
-    #puts uri
-    #puts yaml
     @metadata = YAML.load(yaml)
   end
   
@@ -261,7 +259,6 @@ module OpenTox
       params[:subjectid] = subjectid
       uri = RestClientWrapper.post(File.join($validation[:uri],"/report/validation"),
         params, {}, waiting_task )
-      puts uri
       uri = wait_for_task(uri)
       ValidationReport.new(uri)
     end
@@ -354,12 +351,8 @@ module OpenTox
       params[:validation_uris] = validation_uris.join(",")
       params[:identifier] = identifier.join(",")
       params[:subjectid] = subjectid
-      uri = RestClientWrapper.post(File.join($validation[:uri],"/report/algorithm_comparison"),
-        params, {}, waiting_task )
-      puts uri
-      
+      uri = RestClientWrapper.post(File.join($validation[:uri],"/report/algorithm_comparison"), params, {}, waiting_task )
       uri = wait_for_task(uri)
-      #AlgorithmComparisonReport.new(wait_for_task(uri))
       AlgorithmComparisonReport.new(uri)
     end
   end  

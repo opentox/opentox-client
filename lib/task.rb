@@ -35,7 +35,6 @@ module OpenTox
           #end
 =end
           if $!.respond_to? :to_ntriples
-            puts $!.to_turtle
             RestClientWrapper.put(File.join(task.uri,'Error'),:errorReport => $!.to_ntriples,:content_type => 'text/plain') 
           else
             cut_index = $!.backtrace.find_index{|line| line.match /gems\/sinatra/}
