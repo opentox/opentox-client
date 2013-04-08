@@ -89,21 +89,16 @@ module URI
   end
 
   def self.accessible?(uri, subjectid=nil)
-    if URI.task? uri or URI.compound? uri
-      # just try to get a response, valid tasks may return codes > 400
-      Net::HTTP.get_response(URI.parse(uri))
-      true
+    parsed_uri = URI.parse(uri + (subjectid ? "?subjectid=#{CGI.escape subjectid}" : ""))
+    http_code = URI.task?(uri) ? 600 : 400
+    unless URI.ssl? uri
+      Net::HTTP.get_response(parsed_uri).code.to_i < http_code
     else
-      parsed_uri = URI.parse(uri + (subjectid ? "?subjectid=#{CGI.escape subjectid}" : ""))
-      unless URI.ssl? uri
-        Net::HTTP.get_response(parsed_uri).code.to_i < 400
-      else
-        http = Net::HTTP.new(parsed_uri.host, parsed_uri.port)
-        http.use_ssl = true
-        http.verify_mode = OpenSSL::SSL::VERIFY_NONE
-        request = Net::HTTP::Get.new(parsed_uri.request_uri)
-        http.request(request).code.to_i < 400
-      end
+      http = Net::HTTP.new(parsed_uri.host, parsed_uri.port)
+      http.use_ssl = true
+      http.verify_mode = OpenSSL::SSL::VERIFY_NONE
+      request = Net::HTTP::Get.new(parsed_uri.request_uri)
+      http.request(request).code.to_i < http_code
     end
   rescue
     false
