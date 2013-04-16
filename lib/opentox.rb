@@ -48,6 +48,9 @@ module OpenTox
     @metadata[predicate] = [values].flatten
   end
 
+  # Object parameters (lazy loading)
+  # {http://opentox.org/dev/apis/api-1.2/interfaces OpenTox API}
+  # @return [Hash] Object parameters
   def parameters force_update=false
     if (@parameters.empty? or force_update) and URI.accessible? @uri
       get if @rdf.empty? or force_update
@@ -66,12 +69,16 @@ module OpenTox
     end
     @parameters
   end
-
+  
+  # Parameter value 
+  # @param [String] title 
+  # @return [String] value
   def parameter_value title
     @parameters.collect{|p| p[RDF::OT.paramValue] if p[RDF::DC.title] == title}.compact.first
   end
 
   # Get object from webservice
+  # @param [String,optional] mime_type
   def get mime_type="text/plain"
     bad_request_error "Mime type #{mime_type} is not supported. Please use 'text/plain' (default) or 'application/rdf+xml'." unless mime_type == "text/plain" or mime_type == "application/rdf+xml"
     response = RestClientWrapper.get(@uri,{},{:accept => mime_type, :subjectid => @subjectid})
@@ -84,6 +91,7 @@ module OpenTox
   end
 
   # Post object to webservice (append to object), rarely useful and deprecated 
+  # @deprecated
   def post wait=true, mime_type="text/plain"
     bad_request_error "Mime type #{mime_type} is not supported. Please use 'text/plain' (default) or 'application/rdf+xml'." unless mime_type == "text/plain" or mime_type == "application/rdf+xml"
     case mime_type
@@ -117,7 +125,7 @@ module OpenTox
   def service_uri
     self.class.service_uri
   end
-
+  
   def create_rdf
     @rdf = RDF::Graph.new
     @metadata[RDF.type] ||= eval("RDF::OT."+self.class.to_s.split('::').last)
@@ -132,7 +140,8 @@ module OpenTox
       parameter.each { |k,v| @rdf << [p_node, k, v] }
     end
   end
-
+  
+  # as defined in opentox-client.rb
   RDF_FORMATS.each do |format|
 
     # rdf parse methods for all formats e.g. parse_rdfxml
@@ -165,7 +174,8 @@ module OpenTox
     to_turtle.to_html
   end
 
-  { :title => RDF::DC.title, :dexcription => RDF::DC.description, :type => RDF.type }.each do |method,predicate|
+  # short access for metadata keys title, description and type
+  { :title => RDF::DC.title, :description => RDF::DC.description, :type => RDF.type }.each do |method,predicate|
     send :define_method, method do 
       self.[](predicate) 
     end
@@ -175,6 +185,7 @@ module OpenTox
   end
 
   # create default OpenTox classes with class methods
+  # (defined in opentox-client.rb)
   CLASSES.each do |klass|
     c = Class.new do
       include OpenTox
@@ -184,6 +195,8 @@ module OpenTox
         uris.collect{|uri| self.new(uri, subjectid)}
       end
 
+      #@example fetching a model
+      #  OpenTox::Model.find(<model-uri>) -> model-object
       def self.find uri, subjectid=nil
         URI.accessible?(uri) ? self.new(uri, subjectid) : nil
       end
