@@ -22,7 +22,7 @@ Gem::Specification.new do |s|
   s.add_runtime_dependency "bundler"
   s.add_runtime_dependency "rest-client"
   s.add_runtime_dependency "rdf"
-  s.add_runtime_dependency "rdf-raptor", '~> 0.4.2'
+  s.add_runtime_dependency "rdf-raptor"
   s.add_runtime_dependency 'rdf-n3'
   s.add_runtime_dependency "open4"
   
