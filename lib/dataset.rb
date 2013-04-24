@@ -220,8 +220,8 @@ module OpenTox
 
     end
 
-=begin
 # TODO: fix bug that affects data_entry positions
+=begin
     def to_ntriples # redefined string version for better performance
 
       ntriples = ""
@@ -248,13 +248,15 @@ module OpenTox
         end
 
         ntriples <<  "<#{compound.uri}> <#{RDF::OLO.index}> '#{i}' .\n"
-        data_entry_node = RDF::Node.new
+        #data_entry_node = RDF::Node.new
+        data_entry_node = "_:dataentry"+ i.to_s
         ntriples <<  "<#{@uri}> <#{RDF::OT.dataEntry}> #{data_entry_node} .\n"
         ntriples <<  "#{data_entry_node} <#{RDF.type}> <#{RDF::OT.DataEntry}> .\n"
         ntriples <<  "#{data_entry_node} <#{RDF::OLO.index}> '#{i}' .\n"
         ntriples <<  "#{data_entry_node} <#{RDF::OT.compound}> <#{compound.uri}> .\n"
         @data_entries[i].each_with_index do |value,j|
-          value_node = RDF::Node.new
+          value_node = data_entry_node+ "_value"+ j.to_s
+          #value_node = RDF::Node.new
           ntriples <<  "#{data_entry_node} <#{RDF::OT.values}> #{value_node} .\n"
           ntriples <<  "#{value_node} <#{RDF::OT.feature}> <#{@features[j].uri}> .\n"
           ntriples <<  "#{value_node} <#{RDF::OT.value}> '#{value}' .\n"
