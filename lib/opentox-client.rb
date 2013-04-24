@@ -16,6 +16,9 @@ RDF::OT =  RDF::Vocabulary.new 'http://www.opentox.org/api/1.2#'
 RDF::OT1 =  RDF::Vocabulary.new 'http://www.opentox.org/api/1.1#'
 RDF::OTA =  RDF::Vocabulary.new 'http://www.opentox.org/algorithmTypes.owl#'
 RDF::OLO =  RDF::Vocabulary.new 'http://purl.org/ontology/olo/core#'
+RDF::TB  = RDF::Vocabulary.new "http://onto.toxbank.net/api/"
+RDF::ISA = RDF::Vocabulary.new "http://onto.toxbank.net/isa/"
+RDF::OWL = RDF::Vocabulary.new "http://www.w3.org/2002/07/owl#"
 
 CLASSES = ["Generic", "Compound", "Feature", "Dataset", "Algorithm", "Model", "Validation", "Task", "Investigation"]
 RDF_FORMATS = [:rdfxml,:ntriples,:turtle]
