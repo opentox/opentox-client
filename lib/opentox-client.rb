@@ -11,7 +11,6 @@ require 'logger'
 require "securerandom"
 
 # define constants and global variables
-#TODO: switch services to 1.2
 RDF::OT =  RDF::Vocabulary.new 'http://www.opentox.org/api/1.2#'
 RDF::OT1 =  RDF::Vocabulary.new 'http://www.opentox.org/api/1.1#'
 RDF::OTA =  RDF::Vocabulary.new 'http://www.opentox.org/algorithmTypes.owl#'
