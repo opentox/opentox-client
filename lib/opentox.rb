@@ -100,6 +100,7 @@ module OpenTox
     when 'application/rdf+xml'
       body = self.to_rdfxml
     end
+    Authorization.check_policy(@uri, @subjectid) if $aa[:uri]
     uri = RestClientWrapper.post @uri.to_s, body, { :content_type => mime_type, :subjectid => @subjectid}
     wait ? wait_for_task(uri) : uri
   end
@@ -113,6 +114,7 @@ module OpenTox
     when 'application/rdf+xml'
       body = self.to_rdfxml
     end
+    Authorization.check_policy(@uri, @subjectid) if $aa[:uri]
     uri = RestClientWrapper.put @uri.to_s, body, { :content_type => mime_type, :subjectid => @subjectid}
     wait ? wait_for_task(uri) : uri
   end
@@ -120,6 +122,7 @@ module OpenTox
   # Delete object at webservice
   def delete 
     RestClientWrapper.delete(@uri.to_s,nil,{:subjectid => @subjectid})
+    Authorization.delete_policies_from_uri(@uri, @subjectid) if $aa[:uri]
   end
 
   def service_uri
@@ -191,7 +194,7 @@ module OpenTox
       include OpenTox
 
       def self.all subjectid=nil
-        uris = RestClientWrapper.get(service_uri, {}, :accept => 'text/uri-list').split("\n").compact
+        uris = RestClientWrapper.get(service_uri, {}, :accept => 'text/uri-list', :subjectid => subjectid).split("\n").compact
         uris.collect{|uri| self.new(uri, subjectid)}
       end
 

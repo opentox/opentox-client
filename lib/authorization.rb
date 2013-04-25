@@ -283,11 +283,7 @@ module OpenTox
     # @return [Boolean] true if policy checked/created successfully (or no uri/subjectid given), false else
     def self.check_policy(uri, subjectid)
       return true unless uri and subjectid
-      token_valid = OpenTox::Authorization.is_token_valid(subjectid)
-      $logger.debug "OpenTox::Authorization.check_policy with uri: #{uri}, subjectid: #{subjectid} is valid: #{token_valid}"
-      # check if subjectid is valid
-      unless token_valid
-        # abort if invalid
+      unless OpenTox::Authorization.is_token_valid(subjectid)
         $logger.error "OpenTox::Authorization.check_policy, subjectid NOT valid: #{subjectid}"
         return false
       end
