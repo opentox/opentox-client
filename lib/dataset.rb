@@ -123,7 +123,6 @@ module OpenTox
     # Adding data (@features and @compounds are also writable)
 
     def upload filename, wait=true
-      Authorization.check_policy(@uri, @subjectid) if $aa[:uri]
       uri = RestClientWrapper.put(@uri, {:file => File.new(filename)}, {:subjectid => @subjectid})
       wait_for_task uri if URI.task?(uri) and wait
       metadata true 

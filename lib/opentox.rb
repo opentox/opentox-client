@@ -114,7 +114,6 @@ module OpenTox
     when 'application/rdf+xml'
       body = self.to_rdfxml
     end
-    Authorization.check_policy(@uri, @subjectid) if $aa[:uri]
     uri = RestClientWrapper.put @uri.to_s, body, { :content_type => mime_type, :subjectid => @subjectid}
     wait ? wait_for_task(uri) : uri
   end
