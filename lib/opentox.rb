@@ -25,7 +25,7 @@ module OpenTox
   # Object metadata (lazy loading)
   # @return [Hash] Object metadata
   def metadata force_update=false
-    if (@metadata.nil? or @metadata.empty? or force_update) and URI.accessible? @uri
+    if (@metadata.nil? or @metadata.empty? or force_update) and URI.accessible? @uri, @subjectid
       get if @rdf.nil? or @rdf.empty? or force_update 
       # return values as plain strings instead of RDF objects
       @metadata = @rdf.to_hash[RDF::URI.new(@uri)].inject({}) { |h, (predicate, values)| h[predicate] = values.collect{|v| v.to_s}; h }
@@ -52,7 +52,7 @@ module OpenTox
   # {http://opentox.org/dev/apis/api-1.2/interfaces OpenTox API}
   # @return [Hash] Object parameters
   def parameters force_update=false
-    if (@parameters.empty? or force_update) and URI.accessible? @uri
+    if (@parameters.empty? or force_update) and URI.accessible? @uri, @subjectid
       get if @rdf.empty? or force_update
       params = {}
       query = RDF::Query.new({
@@ -200,7 +200,7 @@ module OpenTox
       #@example fetching a model
       #  OpenTox::Model.find(<model-uri>) -> model-object
       def self.find uri, subjectid=nil
-        URI.accessible?(uri) ? self.new(uri, subjectid) : nil
+        URI.accessible?(uri, subjectid) ? self.new(uri, subjectid) : nil
       end
 
       def self.create metadata, subjectid=nil 
@@ -226,11 +226,11 @@ module OpenTox
           end
         end
         sparql <<  "}"
-        uris = RestClientWrapper.get(service_uri,{:query => sparql},{:accept => "text/uri-list", :subjectid => @subjectid}).split("\n")
+        uris = RestClientWrapper.get(service_uri,{:query => sparql},{:accept => "text/uri-list", :subjectid => subjectid}).split("\n")
         if uris.empty?
           self.create metadata, subjectid
         else
-          self.new uris.first
+          self.new uris.first, subjectid
         end
       end
 
