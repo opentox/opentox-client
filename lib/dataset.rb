@@ -178,7 +178,7 @@ module OpenTox
         query = RDF::Query.new({ :uri => { RDF.type => RDF::OT.Compound } })
         @compounds = query.execute(@rdf).collect { |solution| OpenTox::Compound.new solution.uri }
         query = RDF::Query.new({ :uri => { RDF.type => RDF::OT.Feature } })
-        @features = query.execute(@rdf).collect { |solution| OpenTox::Feature.new solution.uri }
+        @features = query.execute(@rdf).collect { |solution| OpenTox::Feature.new solution.uri, @subjectid }
         @compounds.each_with_index do |c,i|
           @features.each_with_index do |f,j|
           end
