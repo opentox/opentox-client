@@ -2,7 +2,7 @@ require 'rubygems'
 require "bundler/setup"
 require 'rdf'
 require 'rdf/raptor'
-require 'rdf/n3'
+require 'rdf/turtle'
 require "rest-client"
 require 'uri'
 require 'yaml'
