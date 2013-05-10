@@ -46,7 +46,7 @@ module OpenTox
             @rdf << [subject, RDF::OT.errorCode, $!.class.to_s]
             @rdf << [subject, RDF::OT.errorCause, $!.backtrace[0..cut_index].join("\n")]
             prefixes = {:rdf => "http://www.w3.org/1999/02/22-rdf-syntax-ns#", :ot => RDF::OT.to_s}
-            turtle = RDF::N3::Writer.for(:turtle).buffer(:prefixes => prefixes)  do |writer|
+            turtle = RDF::Turtle::Writer.for(:turtle).buffer(:prefixes => prefixes)  do |writer|
               @rdf.each{|statement| writer << statement}
             end
             $logger.error turtle
