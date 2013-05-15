@@ -129,7 +129,7 @@ module OpenTox
   end
   
   def create_rdf
-    @rdf = RDF::Graph.new
+    @rdf = RDF::Graph.new if @rdf.empty? or URI.task?(@uri)
     @metadata[RDF.type] ||= eval("RDF::OT."+self.class.to_s.split('::').last)
     @metadata[RDF::DC.date] ||= DateTime.now
     @metadata.each do |predicate,values|
