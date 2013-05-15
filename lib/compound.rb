@@ -1,3 +1,4 @@
+require "openbabel"
 CACTUS_URI="http://cactus.nci.nih.gov/chemical/structure/"
 
 module OpenTox
