@@ -64,7 +64,15 @@ module OpenTox
         # TODO: fallbacks for external and unordered datasets
         features.each_with_index do |feature,i|
           if feature[RDF.type].include? RDF::OT.NumericFeature
-            @data_entries.each { |row| row[i] = row[i].to_f if row[i] }
+            if feature[RDF.type].include? RDF::OT.NominalFeature
+              if feature[RDF.type].include? RDF::OT.StringFeature
+                @data_entries.each { |row| row[i] = row[i].to_s if row[i] }
+              else
+                @data_entries.each { |row| row[i] = row[i] if row[i] }
+              end
+            else
+              @data_entries.each { |row| row[i] = row[i].to_f if row[i] }
+            end
           end
         end
       end
