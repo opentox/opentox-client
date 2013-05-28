@@ -12,13 +12,14 @@ class Object
 end
 
 module Enumerable
+  # @return [Array] only the duplicates of an enumerable
   def duplicates
     inject({}) {|h,v| h[v]=h[v].to_i+1; h}.reject{|k,v| v==1}.keys
   end
 end
 
 class String
-
+  # @return [String] converts camel-case to underscore-case (OpenTox::SuperModel -> open_tox/super_model)
   def underscore
     self.gsub(/::/, '/').
     gsub(/([A-Z]+)([A-Z][a-z])/,'\1_\2').
@@ -88,6 +89,7 @@ module URI
     URI.parse(uri).instance_of? URI::HTTPS
   end
 
+  # @return [Boolean] checks if resource exists by making a HEAD-request
   def self.accessible?(uri, subjectid=nil)
     parsed_uri = URI.parse(uri + (subjectid ? "?subjectid=#{CGI.escape subjectid}" : ""))
     http_code = URI.task?(uri) ? 600 : 400
@@ -116,6 +118,7 @@ module URI
 end
 
 class File
+  # @return [String] mime_type including charset using linux cmd command
   def mime_type 
     `file -ib #{self.path}`.chomp
   end
@@ -138,6 +141,7 @@ module Kernel
     internal_server_error $!.message 
   end
 
+  # @return [String] uri of task result, if task fails, an error according to task is raised
   def wait_for_task uri
     if URI.task?(uri) 
       t = OpenTox::Task.new uri
@@ -165,7 +169,7 @@ end
 
 class Array
 
-  # Sum of an array for Arrays
+  # Sum up the size of single arrays in an array of arrays
   # @param [Array] Array of arrays
   # @return [Integer] Sum of size of array elements
   def sum_size
