@@ -1,3 +1,5 @@
+
+# extend logger to add current source file, line-number and source location where the log command is called
 class OTLogger < Logger
   
   def pwd
