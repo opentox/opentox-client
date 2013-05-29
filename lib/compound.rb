@@ -183,7 +183,6 @@ module OpenTox
 				obconversion.write_string(obmol)
 			end
 		end
-=end
 
 
 
@@ -221,6 +220,7 @@ module OpenTox
     def match(smarts_array)
       match_hits(smarts_array,false)
     end
+=end
 
 	end
 end

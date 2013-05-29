@@ -108,6 +108,8 @@ module OpenTox
   # Save object at webservice (replace or create object)
   def put wait=true, mime_type="text/plain"
     bad_request_error "Mime type #{mime_type} is not supported. Please use 'text/plain' (default) or 'application/rdf+xml'." unless mime_type == "text/plain" or mime_type == "application/rdf+xml"
+    @metadata[RDF::OT.created_at] = DateTime.now unless URI.accessible? @uri, @subjectid
+    @metadata[RDF::DC.modified] = DateTime.now
     case mime_type
     when 'text/plain'
       body = self.to_ntriples
