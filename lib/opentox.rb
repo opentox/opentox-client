@@ -131,7 +131,7 @@ module OpenTox
   end
   
   def create_rdf
-    @rdf = RDF::Graph.new
+    @rdf = RDF::Graph.new if @rdf.empty? or URI.task?(@uri)
     @metadata[RDF.type] ||= eval("RDF::OT."+self.class.to_s.split('::').last)
     @metadata[RDF::DC.date] ||= DateTime.now
     @metadata.each do |predicate,values|
@@ -169,7 +169,7 @@ module OpenTox
     prefixes = {:rdf => "http://www.w3.org/1999/02/22-rdf-syntax-ns#"}
     ['OT', 'DC', 'XSD', 'OLO'].each{|p| prefixes[p.downcase.to_sym] = eval("RDF::#{p}.to_s") }
     create_rdf
-    RDF::N3::Writer.for(:turtle).buffer(:prefixes => prefixes)  do |writer|
+    RDF::Turtle::Writer.for(:turtle).buffer(:prefixes => prefixes)  do |writer|
       @rdf.each{|statement| writer << statement}
     end
   end

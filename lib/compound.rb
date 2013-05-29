@@ -1,9 +1,10 @@
+require "openbabel"
 CACTUS_URI="http://cactus.nci.nih.gov/chemical/structure/"
 
 module OpenTox
 
   # Ruby wrapper for OpenTox Compound Webservices (http://opentox.org/dev/apis/api-1.2/structure).
-	class Compound 
+  class Compound
 
     # Create a compound from smiles string
     # @example
@@ -39,57 +40,57 @@ module OpenTox
       Compound.new RestClientWrapper.post(service_uri, @inchi, {:content_type => 'chemical/x-inchi', :subjectid => subjectid})
     end
 
-		# Get InChI
+    # Get InChI
     # @return [String] InChI string
-		def inchi
+    def inchi
       @inchi ||= RestClientWrapper.get(@uri,{},{:accept => 'chemical/x-inchi'}).chomp
-		end
+    end
 
-		# Get InChIKey
+    # Get InChIKey
     # @return [String] InChI string
-		def inchikey
+    def inchikey
       @inchikey ||= RestClientWrapper.get(@uri,{},{:accept => 'chemical/x-inchikey'}).chomp
-		end
+    end
 
-		# Get (canonical) smiles
+    # Get (canonical) smiles
     # @return [String] Smiles string
-		def smiles
+    def smiles
       @smiles ||= RestClientWrapper.get(@uri,{},{:accept => 'chemical/x-daylight-smiles'}).chomp
-		end
+    end
 
     # Get sdf
     # @return [String] SDF string
-		def sdf
+    def sdf
       RestClientWrapper.get(@uri,{},{:accept => 'chemical/x-mdl-sdfile'}).chomp
-		end
+    end
 
     # Get gif image
     # @return [image/gif] Image data
-		def gif
+    def gif
       RestClientWrapper.get File.join(CACTUS_URI,inchi,"image")
-		end
+    end
 
     # Get png image
     # @example
     #   image = compound.png
     # @return [image/png] Image data
-		def png
+    def png
       RestClientWrapper.get(File.join @uri, "image")
-		end
+    end
 
     # Get URI of compound image
     # @return [String] Compound image URI
-		def image_uri
+    def image_uri
       File.join @uri, "image"
-		end
+    end
 
     # Get all known compound names. Relies on an external service for name lookups.
     # @example
     #   names = compound.names
     # @return [String] Compound names
-		def names
+    def names
       RestClientWrapper.get("#{CACTUS_URI}#{inchi}/names").split("\n")
-		end
+    end
 
     def cid
       pug_uri = "http://pubchem.ncbi.nlm.nih.gov/rest/pug/"
@@ -106,40 +107,40 @@ module OpenTox
     end
 
 =begin
-		# Match a smarts string
+    # Match a smarts string
     # @example
     #   compound = OpenTox::Compound.from_name("Benzene")
     #   compound.match?("cN") # returns false
     # @param [String] smarts Smarts string
-		def match?(smarts)
-			obconversion = OpenBabel::OBConversion.new
-			obmol = OpenBabel::OBMol.new
-			obconversion.set_in_format('inchi')
-			obconversion.read_string(obmol,@inchi) 
-			smarts_pattern = OpenBabel::OBSmartsPattern.new
-			smarts_pattern.init(smarts)
-			smarts_pattern.match(obmol)
-		end
+    def match?(smarts)
+      obconversion = OpenBabel::OBConversion.new
+      obmol = OpenBabel::OBMol.new
+      obconversion.set_in_format('inchi')
+      obconversion.read_string(obmol,@inchi)
+      smarts_pattern = OpenBabel::OBSmartsPattern.new
+      smarts_pattern.init(smarts)
+      smarts_pattern.match(obmol)
+    end
 
-		# Match an array of smarts strings, returns array with matching smarts
+    # Match an array of smarts strings, returns array with matching smarts
     # @example
     #   compound = OpenTox::Compound.from_name("Benzene")
     #   compound.match(['cc','cN']) # returns ['cc']
     # @param [Array] smarts_array Array with Smarts strings
     # @return [Array] Array with matching Smarts strings
-		def match(smarts_array)
+    def match(smarts_array)
       # avoid recreation of OpenBabel objects
-			obconversion = OpenBabel::OBConversion.new
-			obmol = OpenBabel::OBMol.new
-			obconversion.set_in_format('inchi')
-			obconversion.read_string(obmol,@inchi) 
-			smarts_pattern = OpenBabel::OBSmartsPattern.new
-			smarts_array.collect do |smarts|
+      obconversion = OpenBabel::OBConversion.new
+      obmol = OpenBabel::OBMol.new
+      obconversion.set_in_format('inchi')
+      obconversion.read_string(obmol,@inchi)
+      smarts_pattern = OpenBabel::OBSmartsPattern.new
+      smarts_array.collect do |smarts|
         smarts_pattern.init(smarts)
         smarts if smarts_pattern.match(obmol)
       end.compact
       #smarts_array.collect { |s| s if match?(s)}.compact
-		end
+    end
 
     # Get URI of compound image with highlighted fragments
     #
@@ -156,19 +157,19 @@ module OpenTox
     private
 
     # Convert sdf to inchi
-		def self.sdf2inchi(sdf)
-			Compound.obconversion(sdf,'sdf','inchi')
-		end
+    def self.sdf2inchi(sdf)
+      Compound.obconversion(sdf,'sdf','inchi')
+    end
 
     # Convert smiles to inchi
-		def self.smiles2inchi(smiles)
-			Compound.obconversion(smiles,'smi','inchi')
-		end
+    def self.smiles2inchi(smiles)
+      Compound.obconversion(smiles,'smi','inchi')
+    end
 
     # Convert smiles to canonical smiles
-		def self.smiles2cansmi(smiles)
-			Compound.obconversion(smiles,'smi','can')
-		end
+    def self.smiles2cansmi(smiles)
+      Compound.obconversion(smiles,'smi','can')
+    end
 
     # Convert identifier from OpenBabel input_format to OpenBabel output_format
 		def self.obconversion(identifier,input_format,output_format)
@@ -205,7 +206,7 @@ module OpenTox
       smarts_array.collect do |smarts|
         smarts_pattern.init(smarts)
         if smarts_pattern.match(obmol)
-          if use_hits 
+          if use_hits
             hits = smarts_pattern.get_map_list
             smarts_hits[smarts] = hits.to_a.size
           else
@@ -222,5 +223,5 @@ module OpenTox
     end
 =end
 
-	end
+  end
 end

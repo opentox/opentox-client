@@ -23,8 +23,9 @@ Gem::Specification.new do |s|
   s.add_runtime_dependency "rest-client"
   s.add_runtime_dependency "rdf"
   s.add_runtime_dependency "rdf-raptor"
-  s.add_runtime_dependency 'rdf-n3'
+  s.add_runtime_dependency 'rdf-turtle'
   s.add_runtime_dependency "open4"
+  s.add_runtime_dependency "openbabel"
   
   # external requirements
   ["libraptor-dev"].each{|r| s.requirements << r}

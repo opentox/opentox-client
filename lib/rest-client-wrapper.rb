@@ -57,6 +57,7 @@ module OpenTox
       end
     end
 
+    #@return [Array] of hashes with error code, method and class
     def self.known_errors
       errors = []
       RestClient::STATUSES.each do |code,k|

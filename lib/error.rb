@@ -41,7 +41,7 @@ module OpenToxError
   def to_turtle # redefine to use prefixes (not supported by RDF::Writer)
     prefixes = {:rdf => "http://www.w3.org/1999/02/22-rdf-syntax-ns#"}
     ['OT', 'DC', 'XSD', 'OLO'].each{|p| prefixes[p.downcase.to_sym] = eval("RDF::#{p}.to_s") }
-    RDF::N3::Writer.for(:turtle).buffer(:prefixes => prefixes)  do |writer|
+    RDF::Turtle::Writer.for(:turtle).buffer(:prefixes => prefixes)  do |writer|
       @rdf.each{|statement| writer << statement} if @rdf
     end
   end

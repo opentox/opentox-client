@@ -5,7 +5,7 @@ module OpenTox
 
     # Execute algorithm with parameters, please consult the OpenTox API and the webservice documentation for acceptable parameters
     # @param [optional,Hash] params Algorithm parameters
-    # @param [optional,OpenTox::Task] waiting_task (can be a OpenTox::Subtask as well), progress is updated accordingly
+    # @param [optional,Boolean] set to true if method should wait for task result
     # @return [String] URI of new resource (dataset, model, ...)
     def run params=nil, wait=true
       uri = RestClientWrapper.post @uri, params, { :content_type => "text/uri-list", :subjectid => @subjectid}

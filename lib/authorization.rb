@@ -1,10 +1,10 @@
 module OpenTox
   AA = $aa[:uri] if defined? $aa
-  AA ||= "https://opensso.in-silico.ch" #if not set in .opentox/conf/[application]/[test].rb
+  AA ||= "https://opensso.in-silico.ch" #if not set in .opentox/conf/[SERVICE].rb
   #Module for Authorization and Authentication
   #@example Authentication
   #  require "opentox-client"
-  #  OpenTox::Authorization::AA = "https://opensso.in-silico.ch" #if not set in .opentox/conf/[environment].yaml
+  #  OpenTox::Authorization::AA = "https://opensso.in-silico.ch" #if not set in .opentox/conf/[SERVICE].rb
   #  subjectid = OpenTox::Authorization.authenticate("username", "password")
   #@see http://www.opentox.org/dev/apis/api-1.2/AA OpenTox A&A API 1.2 specification
 
@@ -337,31 +337,24 @@ module OpenTox
     end
 
     private
-    def self.free_uri?(uri, request_method)
-      if $aa[:free_uris]
-        $aa[:free_uris].each do |request_methods,uris|
-          if request_methods and uris and request_methods.include?(request_method.to_s)
-            uris.each do |u|
-              return true if u.match uri
+    # extend class methods
+    class << self
+      # methods: free_uri and authorize_exception
+      # @return [Boolean] checks if uri-method pair is included in $aa[:free_uri] or $aa[:authorize_exception]
+      [:free_uri, :authorize_exception].each do |method|
+        define_method "#{method}?".to_sym do |uri, request_method|
+          if $aa["#{method}s".to_sym]
+            $aa["#{method}s".to_sym].each do |request_methods, uris|
+              if request_methods and uris and request_methods.include?(request_method.to_sym) 
+                uris.each do |u|
+                  return true if u.match uri
+                end
+              end
             end
           end
+          return false
         end
       end
-      return false
     end
-
-    def self.authorize_exception?(uri, request_method)
-      if $aa[:authorize_exceptions]
-        $aa[:authorize_exceptions].each do |request_methods,uris|
-          if request_methods and uris and request_methods.include?(request_method.to_sym)
-            uris.each do |u|
-              return true if u.match uri
-            end
-          end
-        end
-      end
-      return false
-    end
-
   end
 end
