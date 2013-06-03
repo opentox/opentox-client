@@ -16,14 +16,14 @@ module OpenTox
     end
 
     # Create a compound from inchi string
-    # @param [String] smiles InChI string
+    # @param inchi [String] smiles InChI string
     # @return [OpenTox::Compound] Compound
     def self.from_inchi inchi, subjectid=nil
       Compound.new RestClientWrapper.post(service_uri, inchi, {:content_type => 'chemical/x-inchi', :subjectid => subjectid})
     end
 
     # Create a compound from sdf string
-    # @param [String] smiles SDF string
+    # @param sdf [String] smiles SDF string
     # @return [OpenTox::Compound] Compound
     def self.from_sdf sdf, subjectid=nil
       Compound.new RestClientWrapper.post(service_uri, sdf, {:content_type => 'chemical/x-mdl-sdfile', :subjectid => subjectid})
@@ -32,9 +32,8 @@ module OpenTox
     # Create a compound from name. Relies on an external service for name lookups.
     # @example
     #   compound = OpenTox::Compound.from_name("Benzene")
-    # @param [String] name name can be also an InChI/InChiKey, CAS number, etc
+    # @param name [String] can be also an InChI/InChiKey, CAS number, etc
     # @return [OpenTox::Compound] Compound
-    #
     def self.from_name name, subjectid=nil
       @inchi = RestClientWrapper.get File.join(CACTUS_URI,URI.escape(name),"stdinchi")
       Compound.new RestClientWrapper.post(service_uri, @inchi, {:content_type => 'chemical/x-inchi', :subjectid => subjectid})
@@ -190,7 +189,7 @@ module OpenTox
     # Match an array of smarts strings, returns hash
     # Keys: matching smarts, values: number of non-unique hits, or 1
     # @param [Array] smarts_array Array with Smarts strings
-    # @param [Boolean] Whether non-unique hits or 1 should be produced
+    # @param use_hits [Boolean] Whether non-unique hits or 1 should be produced
     # @return [Array] Array with matching Smarts strings
     # @example {
     #   compound = Compound.from_name("Benzene")
