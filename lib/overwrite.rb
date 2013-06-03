@@ -38,19 +38,18 @@ class String
   # format of text (=string params) is preserved (e.g. line breaks)
   # urls are marked as links
   #
-  # @param [String] text this is the actual content, 
-  # @param [optional,String] related_links info on related resources
-  # @param [optional,String] description general info
-  # @param [optional,Array] post_command, infos for the post operation, object defined below
+  # @param related_links [optional,String] uri on related resources
+  # @param description [optional,String] general info
+  # @param png_image [optional,String] imagename
   # @return [String] html page
   def to_html(related_links=nil, description=nil, png_image=nil  )
-    
+
     # TODO add title as parameter
     title = nil #$sinatra.to($sinatra.request.env['PATH_INFO'], :full) if $sinatra
     html = "<html>"
     html << "<title>"+title+"</title>" if title
     #html += "<img src=\""+OT_LOGO+"\"><\/img><body>"
-      
+
     html << "<h3>Description</h3><pre><p>"+description.link_urls+"</p></pre>" if description
     html << "<h3>Related links</h3><pre><p>"+related_links.link_urls+"</p></pre>" if related_links
     html << "<h3>Content</h3>" if description || related_links
@@ -60,7 +59,7 @@ class String
     html << "</p></pre></body></html>"
     html
   end
-  
+
   def uri?
     URI.valid?(self)
   end
@@ -76,7 +75,7 @@ module URI
   def self.task? uri
     uri =~ /task/ and URI.valid? uri
   end
-  
+
   def self.dataset? uri, subjectid=nil
     uri =~ /dataset/ and URI.accessible? uri, subjectid=nil
   end
@@ -119,7 +118,7 @@ end
 
 class File
   # @return [String] mime_type including charset using linux cmd command
-  def mime_type 
+  def mime_type
     `file -ib #{self.path}`.chomp
   end
 end
@@ -138,12 +137,12 @@ module Kernel
     internal_server_error "`" + cmd + "` failed.\n" + stdout + stderr unless status.success?
     return stdout
   rescue
-    internal_server_error $!.message 
+    internal_server_error $!.message
   end
 
   # @return [String] uri of task result, if task fails, an error according to task is raised
   def wait_for_task uri
-    if URI.task?(uri) 
+    if URI.task?(uri)
       t = OpenTox::Task.new uri
       t.wait
       unless t.completed?

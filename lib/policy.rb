@@ -3,7 +3,7 @@ module OpenTox
 
   #Module for policy-processing
   # @see also http://www.opentox.org/dev/apis/api-1.2/AA for opentox API specs
-  # Class Policies corresponds to <policies> container of an xml-policy-fle
+  # Class Policies corresponds to <policies> container of an xml-policy-file
   class Policies
 
     #Hash for policy objects see {Policy Policy}
@@ -205,12 +205,13 @@ module OpenTox
     end
 
     # Subject type LDAPUsers or LDAPGroups
+    # @return [String]
     def type
       @subject.type
     end
 
     # Set subject type <LDAPUsers, LDAPGroups>
-    # @param [String],type
+    # @param type [String] the subjecttype
     def type=(type)
       @subject.type = type
     end
@@ -221,19 +222,19 @@ module OpenTox
     end
 
     # sets LDAP Distinguished Name (DN) for policy e.g.
-    # @param [String],LDAPString
+    # @param value [String] LDAPString
     def value=(value)
       @subject.value = value
     end
 
     # uri affected by policy
-    # @return uri affected by policy
+    # @return [String] uri affected by policy
     def uri
       @rule.uri
     end
 
     # sets uri affected by policy
-    # @param [String] set URI
+    # @param uri [String] set URI
     def uri=(uri)
       @rule.uri = uri
     end
@@ -251,14 +252,14 @@ module OpenTox
     end
 
     # helper method sets value and type to opentox LDAP Distinguished Name (DN) of a user
-    # @param [String]Username set a username into LDAP DN
+    # @param username [String] set a username into LDAP DN
     def set_ot_user(username)
       self.value = "uid=#{username},ou=people,dc=opentox,dc=org"
       self.type = "LDAPUsers"
       true
     end
 
-    # @param [String]Username set a groupname into LDAP DN
+    # @param groupname [String] Username set a groupname into LDAP DN
     def set_ot_group(groupname)
       self.value = "cn=#{groupname},ou=groups,dc=opentox,dc=org"
       self.type = "LDAPGroups"
@@ -277,7 +278,7 @@ module OpenTox
       end
 
       #Set Rule attribute for request-method GET
-      # @param [String]value (allow,deny,nil)
+      # @param value [String] (allow,deny,nil)
       def get=(value)
         @get = check_value(value, @get)
       end

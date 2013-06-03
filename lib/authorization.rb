@@ -6,6 +6,7 @@ module OpenTox
   #  require "opentox-client"
   #  OpenTox::Authorization::AA = "https://opensso.in-silico.ch" #if not set in .opentox/conf/[SERVICE].rb
   #  subjectid = OpenTox::Authorization.authenticate("username", "password")
+  #  puts OpenTox::Authorization.authorize("http://example.uri/testpath/", "GET", subjectid)
   #@see http://www.opentox.org/dev/apis/api-1.2/AA OpenTox A&A API 1.2 specification
 
   module Authorization
@@ -29,7 +30,7 @@ module OpenTox
 
       #Cleans AA Policies and loads default xml file into policy attribute
       #set uri and user, returns Policyfile(XML) for open-sso
-      # @param [String] URI to create a policy for
+      # @param uri [String] URI to create a policy for
       def get_xml(uri)
         @policy.drop_policies
         @policy.load_default_policy(@user, uri)
@@ -37,7 +38,7 @@ module OpenTox
       end
 
       #Loads and sends Policyfile(XML) to open-sso server
-      # @param [String] URI to create a policy for
+      # @param uri [String] URI to create a policy for
       def send(uri)
         xml = get_xml(uri)
         ret = false
@@ -57,7 +58,8 @@ module OpenTox
     end
 
     #Authentication against OpenSSO. Returns token. Requires Username and Password.
-    # @param [String, String]Username,Password
+    # @param user [String] Username
+    # @param pw [String] Password
     # @return [String, nil] gives subjectid or nil
     def self.authenticate(user, pw)
       return nil if !AA
@@ -71,7 +73,7 @@ module OpenTox
     end
 
     #Logout on opensso. Make token invalid. Requires token
-    # @param [String]subjectid the subjectid
+    # @param [String] subjectid the subjectid
     # @return [Boolean] true if logout is OK
     def self.logout(subjectid)
       begin
@@ -84,7 +86,9 @@ module OpenTox
     end
 
     #Authorization against OpenSSO for a URI with request-method (action) [GET/POST/PUT/DELETE]
-    # @param [String,String,String]uri,action,subjectid
+    # @param [String] uri URI to request
+    # @param [String] action request method
+    # @param [String] subjectid
     # @return [Boolean, nil]  returns true, false or nil (if authorization-request fails).
     def self.authorize(uri, action, subjectid)
       return true if !AA
@@ -118,7 +122,8 @@ module OpenTox
     end
 
     #Returns a policy in xml-format
-    # @param [String, String]policy,subjectid
+    # @param policy [String] policyname
+    # @param subjectid [String]
     # @return [String] XML of the policy
     def self.list_policy(policy, subjectid)
       begin
@@ -150,7 +155,8 @@ module OpenTox
     end
 
     #Returns the owner (who created the first policy) of an URI
-    # @param [String, String]uri,subjectid
+    # @param uri [String] URI
+    # @param subjectid [String] subjectid
     # return [String, nil]owner,nil returns owner of the URI
     def self.get_uri_owner(uri, subjectid)
       begin
@@ -161,14 +167,16 @@ module OpenTox
     end
 
     #Returns true or false if owner (who created the first policy) of an URI
-    # @param [String, String]uri,subjectid
+    # @param uri [String] URI
+    # @param subjectid [String]
     # return [Boolean]true,false status of ownership of the URI
     def self.uri_owner?(uri, subjectid)
       get_uri_owner(uri, subjectid) == get_user(subjectid)
     end
 
     #Checks if a policy exists to a URI. Requires URI and token.
-    # @param [String, String]uri,subjectid
+    # @param uri [String] URI
+    # @param subjectid [String]
     # return [Boolean]
     def self.uri_has_policy(uri, subjectid)
       owner = get_uri_owner(uri, subjectid)
@@ -177,7 +185,8 @@ module OpenTox
     end
 
     #List all policynames for a URI. Requires URI and token.
-    # @param [String, String]uri,subjectid
+    # @param uri [String] URI
+    # @param subjectid [String]
     # return [Array, nil] returns an Array of policy names or nil if request fails
     def self.list_uri_policies(uri, subjectid)
       begin
@@ -194,7 +203,8 @@ module OpenTox
     end
 
     #Sends a policy in xml-format to opensso server. Requires policy-xml and token.
-    # @param [String, String]policyxml,subjectid
+    # @param policy [String] XML string of a policy
+    # @param subjectid [String]
     # return [Boolean] returns true if policy is created
     def self.create_policy(policy, subjectid)
       begin
@@ -206,7 +216,8 @@ module OpenTox
     end
 
     #Deletes a policy
-    # @param [String, String]policyname,subjectid
+    # @param policy [String] policyname
+    # @param subjectid [String]
     # @return [Boolean,nil]
     def self.delete_policy(policy, subjectid)
       begin
@@ -254,7 +265,8 @@ module OpenTox
     end
 
     #Send default policy with Authorization::Helper class
-    # @param [String, String]URI,subjectid
+    # @param uri [String] URI
+    # @param subjectid [String]
     def self.send_policy(uri, subjectid)
       return true if !AA
       aa  = Authorization::Helper.new(subjectid)
@@ -264,7 +276,8 @@ module OpenTox
     end
 
     #Deletes all policies of an URI
-    # @param [String, String]URI,subjectid
+    # @param uri [String] URI
+    # @param subjectid [String]
     # @return [Boolean]
     def self.delete_policies_from_uri(uri, subjectid)
       policies = list_uri_policies(uri, subjectid)
@@ -308,9 +321,9 @@ module OpenTox
     end
 
     # Check Authorization for a resource (identified via URI) with method and subjectid.
-    # @param [String] uri
-    # @param [String] request_method, should be GET, POST, PUT, DELETE
-    # @param [String] subjectid
+    # @param uri [String] URI
+    # @param request_method [String] GET, POST, PUT, DELETE
+    # @param subjectid [String]
     # @return [Boolean] true if access granted, else otherwise
     def self.authorized?(uri, request_method, subjectid)
       request_method = request_method.to_sym if request_method
@@ -345,7 +358,7 @@ module OpenTox
         define_method "#{method}?".to_sym do |uri, request_method|
           if $aa["#{method}s".to_sym]
             $aa["#{method}s".to_sym].each do |request_methods, uris|
-              if request_methods and uris and request_methods.include?(request_method.to_sym) 
+              if request_methods and uris and request_methods.include?(request_method.to_sym)
                 uris.each do |u|
                   return true if u.match uri
                 end

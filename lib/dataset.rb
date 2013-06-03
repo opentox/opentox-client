@@ -3,7 +3,7 @@ require 'csv'
 module OpenTox
 
   # Ruby wrapper for OpenTox Dataset Webservices (http://opentox.org/dev/apis/api-1.2/dataset).
-  class Dataset 
+  class Dataset
 
     attr_writer :features, :compounds, :data_entries
 
@@ -46,7 +46,7 @@ module OpenTox
       end
       @compounds
     end
-    
+
     def data_entries force_update=false
       if @data_entries.empty? or force_update
         sparql = "SELECT ?cidx ?fidx ?value FROM <#{uri}> WHERE {
@@ -55,7 +55,7 @@ module OpenTox
           ?v          <#{RDF::OT.feature}> ?f;
                       <#{RDF::OT.value}> ?value .
           ?f          <#{RDF::OLO.index}> ?fidx.
-          } ORDER BY ?fidx ?cidx" 
+          } ORDER BY ?fidx ?cidx"
           RestClientWrapper.get(service_uri,{:query => sparql},{:accept => "text/uri-list", :subjectid => @subjectid}).split("\n").each do |row|
             r,c,v = row.split("\t")
             @data_entries[r.to_i] ||= []
@@ -79,9 +79,9 @@ module OpenTox
       @data_entries
     end
 
-    # Find data entry values for a given compound and feature 
-    # @param [OpenTox::Compound] Compound 
-    # @param [OpenTox::Feature] Feature 
+    # Find data entry values for a given compound and feature
+    # @param compound [OpenTox::Compound] OpenTox Compound object
+    # @param feature [OpenTox::Feature] OpenTox Feature object
     # @return [Array] Data entry values
     def values(compound, feature)
       rows = (0 ... compounds.length).select { |r| compounds[r].uri == compound.uri }
@@ -92,14 +92,14 @@ module OpenTox
     # Convenience methods to search by compound/feature URIs
 
     # Search a dataset for a feature given its URI
-    # @param [String] Feature URI
+    # @param uri [String] Feature URI
     # @return [OpenTox::Feature] Feature object, or nil if not present
     def find_feature_uri(uri)
       features.select{|f| f.uri == uri}.first
     end
 
     # Search a dataset for a compound given its URI
-    # @param [String] Compound URI
+    # @param uri [String] Compound URI
     # @return [OpenTox::Compound] Compound object, or nil if not present
     def find_compound_uri(uri)
       compounds.select{|f| f.uri == uri}.first
@@ -133,7 +133,7 @@ module OpenTox
     def upload filename, wait=true
       uri = RestClientWrapper.put(@uri, {:file => File.new(filename)}, {:subjectid => @subjectid})
       wait_for_task uri if URI.task?(uri) and wait
-      metadata true 
+      metadata true
       @uri
     end
 
@@ -173,7 +173,7 @@ module OpenTox
     end
 
     RDF_FORMATS.each do |format|
-      
+
       # redefine rdf parse methods for all formats e.g. parse_rdfxml
       send :define_method, "parse_#{format}".to_sym do |rdf|
         # TODO: parse ordered dataset
@@ -194,13 +194,13 @@ module OpenTox
       end
 
 
-      # redefine rdf serialization methods 
+      # redefine rdf serialization methods
       send :define_method, "to_#{format}".to_sym do
-        @metadata[RDF.type] = RDF::OT.OrderedDataset 
+        @metadata[RDF.type] = RDF::OT.OrderedDataset
         create_rdf
         @features.each_with_index do |feature,i|
-          @rdf << [RDF::URI.new(feature.uri), RDF::URI.new(RDF.type), RDF::URI.new(RDF::OT.Feature)] 
-          @rdf << [RDF::URI.new(feature.uri), RDF::URI.new(RDF::OLO.index), RDF::Literal.new(i)] 
+          @rdf << [RDF::URI.new(feature.uri), RDF::URI.new(RDF.type), RDF::URI.new(RDF::OT.Feature)]
+          @rdf << [RDF::URI.new(feature.uri), RDF::URI.new(RDF::OLO.index), RDF::Literal.new(i)]
         end
         @compounds.each_with_index do |compound,i|
           @rdf << [RDF::URI.new(compound.uri), RDF::URI.new(RDF.type), RDF::URI.new(RDF::OT.Compound)]
@@ -246,8 +246,8 @@ module OpenTox
         parameter.each { |k,v| ntriples <<  "#{p_node} <#{k}> '#{v}' .\n" }
       end
       @features.each_with_index do |feature,i|
-        ntriples <<  "<#{feature.uri}> <#{RDF.type}> <#{RDF::OT.Feature}> .\n" 
-        ntriples <<  "<#{feature.uri}> <#{RDF::OLO.index}> '#{i}' .\n" 
+        ntriples <<  "<#{feature.uri}> <#{RDF.type}> <#{RDF::OT.Feature}> .\n"
+        ntriples <<  "<#{feature.uri}> <#{RDF::OLO.index}> '#{i}' .\n"
       end
       @compounds.each_with_index do |compound,i|
         ntriples <<  "<#{compound.uri}> <#{RDF.type}> <#{RDF::OT.Compound}> .\n"
@@ -276,21 +276,21 @@ module OpenTox
 =end
 
     # Methods for for validation service
-    
+
     def split( compound_indices, feats, metadata, subjectid=nil)
-      
+
       bad_request_error "Dataset.split : Please give compounds as indices" if compound_indices.size==0 or !compound_indices[0].is_a?(Fixnum)
       bad_request_error "Dataset.split : Please give features as feature objects (given: #{feats})" if feats!=nil and feats.size>0 and !feats[0].is_a?(OpenTox::Feature)
       dataset = OpenTox::Dataset.new(nil, subjectid)
       dataset.metadata = metadata
       dataset.features = (feats ? feats : self.features)
       compound_indices.each do |c_idx|
-        dataset << [ self.compounds[c_idx] ] + dataset.features.each_with_index.collect{|f,f_idx| self.data_entries[c_idx][f_idx]} 
+        dataset << [ self.compounds[c_idx] ] + dataset.features.each_with_index.collect{|f,f_idx| self.data_entries[c_idx][f_idx]}
       end
       dataset.put
-      dataset    
+      dataset
     end
-    
+
 
     # maps a compound-index from another dataset to a compound-index from this dataset
     # mapping works as follows:
@@ -299,8 +299,8 @@ module OpenTox
     # * c occurs >1 in this dataset?
     # ** number of occurences is equal in both datasets? assume order is preserved(!) and map accordingly
     # ** number of occurences is not equal in both datasets? cannot map, raise error
-    # @param [OpenTox::Dataset] dataset that should be mapped to this dataset (fully loaded)
-    # @param [Fixnum] compound_index, corresponding to dataset
+    # @param dataset [OpenTox::Dataset] dataset that should be mapped to this dataset (fully loaded)
+    # @param compound_index [Fixnum], corresponding to dataset
     def compound_index( dataset, compound_index )
       unless defined?(@index_map) and @index_map[dataset.uri]
         map = {}
@@ -308,7 +308,7 @@ module OpenTox
           self_indices = compound_indices(compound)
           next unless self_indices
           dataset_indices = dataset.compound_indices(compound)
-          if self_indices.size==1  
+          if self_indices.size==1
             dataset_indices.size.times do |i|
               map[dataset_indices[i]] = self_indices[0]
             end
@@ -321,13 +321,13 @@ module OpenTox
             raise "cannot map compound #{compound} from dataset #{dataset.uri} to dataset #{uri}, "+
               "compound occurs #{dataset_indices.size} times and #{self_indices.size} times"
           end
-        end  
+        end
         @index_map = {} unless defined?(@index_map)
         @index_map[dataset.uri] = map
       end
       @index_map[dataset.uri][compound_index]
-    end    
-    
+    end
+
     def compound_indices( compound )
       unless defined?(@cmp_indices) and @cmp_indices.has_key?(compound)
         @cmp_indices = {}
@@ -337,12 +337,12 @@ module OpenTox
             @cmp_indices[c] = [i]
           else
             @cmp_indices[c] = @cmp_indices[c]+[i]
-          end   
+          end
         end
       end
       @cmp_indices[compound]
     end
-    
+
     def data_entry_value(compound_index, feature_uri)
       data_entries(true) if @data_entries.empty?
       col = @features.collect{|f| f.uri}.index feature_uri
