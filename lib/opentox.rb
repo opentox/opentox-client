@@ -11,8 +11,8 @@ module OpenTox
   # Ruby interface
 
   # Create a new OpenTox object 
-  # @param [optional,String] URI
-  # @param [optional,String] subjectid
+  # @param uri [optional,String] URI
+  # @param subjectid [optional,String] 
   # @return [OpenTox] OpenTox object
   def initialize uri=nil, subjectid=nil
     @rdf = RDF::Graph.new
@@ -34,7 +34,7 @@ module OpenTox
   end
 
   # Metadata values 
-  # @param [String] Predicate URI
+  # @param predicate [String] Predicate URI
   # @return [Array, String] Predicate value(s)
   def [](predicate)
     return nil if metadata[predicate].nil?
@@ -42,8 +42,8 @@ module OpenTox
   end
 
   # Set a metadata entry
-  # @param [String] Predicate URI
-  # @param [Array, String] Predicate value(s)
+  # @param predicate [String] Predicate URI
+  # @param values [Array, String] Predicate value(s)
   def []=(predicate,values)
     @metadata[predicate] = [values].flatten
   end
