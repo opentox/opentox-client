@@ -135,7 +135,9 @@ module OpenTox
     @metadata[RDF.type] ||= eval("RDF::OT."+self.class.to_s.split('::').last)
     @metadata[RDF::DC.date] ||= DateTime.now
     @metadata.each do |predicate,values|
-      [values].flatten.each { |value| @rdf << [RDF::URI.new(@uri), predicate, value] }
+      [values].flatten.each do |value|
+        predicate =~ /#{RDF::DC.date}|#{RDF::DC.title}|#{RDF::DC.description}/ ? @rdf.update([RDF::URI.new(@uri), predicate, value]) : @rdf << [RDF::URI.new(@uri), predicate, value]
+      end
     end
     @parameters.each do |parameter|
       p_node = RDF::Node.new
@@ -160,7 +162,7 @@ module OpenTox
     send :define_method, "to_#{format}".to_sym do
       create_rdf
       RDF::Writer.for(format).buffer(:encoding => Encoding::ASCII) do |writer|
-        @rdf.each{|statement| writer << statement}
+        writer << @rdf
       end
     end
   end
@@ -169,8 +171,8 @@ module OpenTox
     prefixes = {:rdf => "http://www.w3.org/1999/02/22-rdf-syntax-ns#"}
     ['OT', 'DC', 'XSD', 'OLO'].each{|p| prefixes[p.downcase.to_sym] = eval("RDF::#{p}.to_s") }
     create_rdf
-    RDF::Turtle::Writer.for(:turtle).buffer(:prefixes => prefixes)  do |writer|
-      @rdf.each{|statement| writer << statement}
+    RDF::Writer.for(:turtle).buffer(:prefixes => prefixes)  do |writer|
+      writer << @rdf
     end
   end
 
