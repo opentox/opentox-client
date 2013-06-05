@@ -77,11 +77,11 @@ module URI
   end
 
   def self.dataset? uri, subjectid=nil
-    uri =~ /dataset/ and URI.accessible? uri, subjectid=nil
+    uri =~ /dataset/ and URI.accessible? uri, subjectid
   end
 
   def self.model? uri, subjectid=nil
-    uri =~ /model/ and URI.accessible? uri, subjectid=nil
+    uri =~ /model/ and URI.accessible? uri, subjectid
   end
 
   def self.ssl? uri, subjectid=nil
@@ -92,17 +92,13 @@ module URI
   def self.accessible?(uri, subjectid=nil)
     parsed_uri = URI.parse(uri + (subjectid ? "?subjectid=#{CGI.escape subjectid}" : ""))
     http_code = URI.task?(uri) ? 600 : 400
-    unless (URI.ssl? uri) == true
-      http = Net::HTTP.new(parsed_uri.host, parsed_uri.port)
-      request = Net::HTTP::Head.new(parsed_uri.request_uri)
-      http.request(request).code.to_i < http_code
-    else
-      http = Net::HTTP.new(parsed_uri.host, parsed_uri.port)
+    http = Net::HTTP.new(parsed_uri.host, parsed_uri.port)
+    if (URI.ssl? uri) == true
       http.use_ssl = true
       http.verify_mode = OpenSSL::SSL::VERIFY_NONE
-      request = Net::HTTP::Head.new(parsed_uri.request_uri)
-      http.request(request).code.to_i < http_code
     end
+    request = Net::HTTP::Head.new(parsed_uri.request_uri)
+    http.request(request).code.to_i < http_code
   rescue
     false
   end

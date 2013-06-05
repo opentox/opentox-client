@@ -109,7 +109,7 @@ module OpenTox
   def put wait=true, mime_type="text/plain"
     bad_request_error "Mime type #{mime_type} is not supported. Please use 'text/plain' (default) or 'application/rdf+xml'." unless mime_type == "text/plain" or mime_type == "application/rdf+xml"
     @metadata[RDF::OT.created_at] = DateTime.now unless URI.accessible? @uri, @subjectid
-    @metadata[RDF::DC.modified] = DateTime.now
+    #@metadata[RDF::DC.modified] = DateTime.now
     case mime_type
     when 'text/plain'
       body = self.to_ntriples
@@ -131,7 +131,7 @@ module OpenTox
   end
   
   def create_rdf
-    @rdf = RDF::Graph.new if @rdf.empty? or URI.task?(@uri)
+    @rdf = RDF::Graph.new #if @rdf.empty? or URI.task?(@uri)
     @metadata[RDF.type] ||= eval("RDF::OT."+self.class.to_s.split('::').last)
     @metadata[RDF::DC.date] ||= DateTime.now
     @metadata.each do |predicate,values|
