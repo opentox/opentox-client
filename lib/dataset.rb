@@ -15,7 +15,7 @@ module OpenTox
     end
 
     # Get data (lazy loading from dataset service)
-
+    # overrides {OpenTox#metadata} 
     def metadata force_update=false
       if @metadata.empty? or force_update
         uri = File.join(@uri,"metadata")
