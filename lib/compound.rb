@@ -91,14 +91,18 @@ module OpenTox
       RestClientWrapper.get("#{CACTUS_URI}#{inchi}/names").split("\n")
     end
 
+    # @return [String] PubChem Compound Identifier (CID), derieved via restcall to pubchem
     def cid
       pug_uri = "http://pubchem.ncbi.nlm.nih.gov/rest/pug/"
       @cid ||= RestClientWrapper.post(File.join(pug_uri, "compound", "inchi", "cids", "TXT"),{:inchi => inchi}).strip
     end
 
+    # @todo
     def chebi
+      raise_internal_error "not yet implemented"
     end
 
+    # @return [String] ChEMBL database compound id, derieved via restcall to chembl
     def chemblid
       # https://www.ebi.ac.uk/chembldb/ws#individualCompoundByInChiKey
       uri = "http://www.ebi.ac.uk/chemblws/compounds/smiles/#{smiles}.json"
@@ -191,11 +195,11 @@ module OpenTox
     # Keys: matching smarts, values: number of non-unique hits, or 1
     # @param [Array] smarts_array Array with Smarts strings
     # @param use_hits [Boolean] Whether non-unique hits or 1 should be produced
-    # @return [Array] Array with matching Smarts strings
-    # @example {
+    # @return [Hash] Hash with matching Smarts as keys, nr-of-hits/1 as values
+    # @example
     #   compound = Compound.from_name("Benzene")
-    #   compound.match(['cc','cN']) # returns { 'cc' => 12, 'cN' => 0 }
-    # }
+    #   compound.match(['cc','cN'],true) # returns { 'cc' => 12 }, 'cN' is not included because it does not match
+    #   compound.match(['cc','cN'],false) # returns { 'cc' => 1 }
     def match_hits(smarts_array, use_hits=true)
       obconversion = OpenBabel::OBConversion.new
       obmol = OpenBabel::OBMol.new
