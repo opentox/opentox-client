@@ -170,7 +170,7 @@ module OpenTox
     prefixes = {:rdf => "http://www.w3.org/1999/02/22-rdf-syntax-ns#"}
     ['OT', 'DC', 'XSD', 'OLO'].each{|p| prefixes[p.downcase.to_sym] = eval("RDF::#{p}.to_s") }
     create_rdf
-    RDF::Writer.for(:turtle).buffer(:prefixes => prefixes)  do |writer|
+    RDF::Turtle::Writer.for(:turtle).buffer(:prefixes => prefixes)  do |writer|
       writer << @rdf
     end
   end
