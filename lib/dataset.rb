@@ -15,7 +15,8 @@ module OpenTox
     end
 
     # Get data (lazy loading from dataset service)
-
+    # overrides {OpenTox#metadata} to only load the metadata instead of the whole dataset
+    # @return [Hash] the metadata
     def metadata force_update=false
       if @metadata.empty? or force_update
         uri = File.join(@uri,"metadata")
@@ -29,6 +30,7 @@ module OpenTox
       @metadata
     end
 
+    # @return [Array] feature objects (NOT uris)
     def features force_update=false
       if @features.empty? or force_update
         uri = File.join(@uri,"features")
@@ -38,6 +40,7 @@ module OpenTox
       @features
     end
 
+    # @return [Array] compound objects (NOT uris)
     def compounds force_update=false
       if @compounds.empty? or force_update
         uri = File.join(@uri,"compounds")
@@ -47,6 +50,8 @@ module OpenTox
       @compounds
     end
 
+    # @return [Array] with two dimensions, 
+    #   first index: compounds, second index: features, values: compound feature values
     def data_entries force_update=false
       if @data_entries.empty? or force_update
         sparql = "SELECT ?cidx ?fidx ?value FROM <#{uri}> WHERE {
@@ -105,6 +110,9 @@ module OpenTox
       compounds.select{|f| f.uri == uri}.first
     end
 
+    # for prediction result datasets
+    # assumes that there are features with title prediction and confidence
+    # @return [Array] of Hashes with keys { :compound, :value ,:confidence } (compound value is object not uri)
     def predictions
       predictions = []
       prediction_feature = nil
@@ -128,15 +136,23 @@ module OpenTox
       predictions
     end
 
-    # Adding data (@features and @compounds are also writable)
+    # Adding data methods
+    # (Alternatively, you can directly change @features and @compounds)
 
+    # Create a dataset from file (csv,sdf,...)
+    # @param filename [String]
+    # @return [String] dataset uri
     def upload filename, wait=true
       uri = RestClientWrapper.put(@uri, {:file => File.new(filename)}, {:subjectid => @subjectid})
       wait_for_task uri if URI.task?(uri) and wait
       metadata true
       @uri
     end
-
+   
+    # @param compound [OpenTox::Compound]
+    # @param feature [OpenTox::Feature]
+    # @param value [Object] (will be converted to String)
+    # @return [Array] data_entries
     def add_data_entry compound, feature, value
       @compounds << compound unless @compounds.collect{|c| c.uri}.include?(compound.uri)
       row = @compounds.collect{|c| c.uri}.index(compound.uri)
@@ -152,8 +168,15 @@ module OpenTox
     end
 
     # TODO: remove? might be dangerous if feature ordering is incorrect
+    # MG: I would not remove this because add_data_entry is very slow (4 times searching in arrays)
+    # @param row [Array] 
+    # @example
+    #   d = Dataset.new
+    #   d.features << Feature.new(a)
+    #   d.features << Feature.new(b)
+    #   d << [ Compound.new("c1ccccc1"), feature-value-a, feature-value-b ]
     def << row
-      compound = row.shift
+      compound = row.shift # removes the compound from the array
       bad_request_error "Dataset features are empty." unless @features
       bad_request_error "Row size '#{row.size}' does not match features size '#{@features.size}'." unless row.size == @features.size
       bad_request_error "First column is not a OpenTox::Compound" unless compound.class == OpenTox::Compound
@@ -163,6 +186,8 @@ module OpenTox
 
     # Serialisation
 
+    # converts dataset to csv format including compound smiles as first column, other column headers are feature titles
+    # @return [String]
     def to_csv
       CSV.generate do |csv|
         csv << ["SMILES"] + features.collect{|f| f.title}
@@ -277,6 +302,11 @@ module OpenTox
 
     # Methods for for validation service
 
+    # create a new dataset with the specified compounds and features
+    # @param compound_indices [Array] compound indices (integers)
+    # @param feats [Array] features objects
+    # @param metadata [Hash]
+    # @return [OpenTox::Dataset]
     def split( compound_indices, feats, metadata, subjectid=nil)
 
       bad_request_error "Dataset.split : Please give compounds as indices" if compound_indices.size==0 or !compound_indices[0].is_a?(Fixnum)
@@ -328,6 +358,9 @@ module OpenTox
       @index_map[dataset.uri][compound_index]
     end
 
+    # returns the inidices of the compound in the dataset
+    # @param compound [OpenTox::Compound]
+    # @return [Array] compound index (position) of the compound in the dataset, array-size is 1 unless multiple occurences
     def compound_indices( compound )
       unless defined?(@cmp_indices) and @cmp_indices.has_key?(compound)
         @cmp_indices = {}
@@ -343,6 +376,7 @@ module OpenTox
       @cmp_indices[compound]
     end
 
+    # returns compound feature value using the compound-index and the feature_uri
     def data_entry_value(compound_index, feature_uri)
       data_entries(true) if @data_entries.empty?
       col = @features.collect{|f| f.uri}.index feature_uri

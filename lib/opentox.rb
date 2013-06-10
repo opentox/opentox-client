@@ -167,15 +167,17 @@ module OpenTox
     end
   end
 
+  # @return [String] converts object to turtle-string
   def to_turtle # redefined to use prefixes (not supported by RDF::Writer)
     prefixes = {:rdf => "http://www.w3.org/1999/02/22-rdf-syntax-ns#"}
     ['OT', 'DC', 'XSD', 'OLO'].each{|p| prefixes[p.downcase.to_sym] = eval("RDF::#{p}.to_s") }
     create_rdf
-    RDF::Writer.for(:turtle).buffer(:prefixes => prefixes)  do |writer|
+    RDF::Turtle::Writer.for(:turtle).buffer(:prefixes => prefixes)  do |writer|
       writer << @rdf
     end
   end
 
+  # @return [String] converts OpenTox object into html document (by first converting it to a string)
   def to_html
     to_turtle.to_html
   end
