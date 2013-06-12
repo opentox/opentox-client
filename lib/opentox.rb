@@ -119,7 +119,7 @@ module OpenTox
   end
 
   # Delete object at webservice
-  def delete 
+  def delete subjectid=nil
     RestClientWrapper.delete(@uri.to_s,nil,{:subjectid => @subjectid})
     Authorization.delete_policies_from_uri(@uri, @subjectid) if $aa[:uri]
   end
