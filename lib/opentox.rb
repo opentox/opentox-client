@@ -129,13 +129,11 @@ module OpenTox
   end
   
   def create_rdf
-    @rdf = RDF::Graph.new if @rdf.empty? or URI.task?(@uri)
-    @metadata[RDF.type] ||= eval("RDF::OT."+self.class.to_s.split('::').last)
+    @rdf = RDF::Graph.new
+    @metadata[RDF.type] ||= RDF::URI.new(eval("RDF::OT."+self.class.to_s.split('::').last))
     @metadata[RDF::DC.date] ||= DateTime.now
     @metadata.each do |predicate,values|
-      [values].flatten.each do |value|
-        predicate =~ /#{RDF::DC.date}|#{RDF::DC.title}|#{RDF::DC.description}/ ? @rdf.update([RDF::URI.new(@uri), predicate, value]) : @rdf << [RDF::URI.new(@uri), predicate, value]
-      end
+      [values].flatten.each{ |value| @rdf << [RDF::URI.new(@uri), predicate, (value == eval("RDF::OT."+self.class.to_s.split('::').last)) ? RDF::URI.new(value) : value] }
     end
     @parameters.each do |parameter|
       p_node = RDF::Node.new
