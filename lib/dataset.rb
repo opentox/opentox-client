@@ -221,7 +221,7 @@ module OpenTox
 
       # redefine rdf serialization methods
       send :define_method, "to_#{format}".to_sym do
-        @metadata[RDF.type] = RDF::OT.OrderedDataset
+        @metadata[RDF.type] = [RDF::OT.Dataset, RDF::OT.OrderedDataset]
         create_rdf
         @features.each_with_index do |feature,i|
           @rdf << [RDF::URI.new(feature.uri), RDF::URI.new(RDF.type), RDF::URI.new(RDF::OT.Feature)]
