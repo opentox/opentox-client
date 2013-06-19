@@ -1,4 +1,4 @@
-require "openbabel"
+#require "openbabel"
 CACTUS_URI="http://cactus.nci.nih.gov/chemical/structure/"
 
 module OpenTox
@@ -110,6 +110,27 @@ module OpenTox
     end
 
 =begin
+    # Match a smarts string
+    # @example
+    #   compound = OpenTox::Compound.from_name("Benzene")
+    #   compound.match?("cN") # returns false
+    # @param [String] smarts Smarts string
+    def match?(smarts)
+      matcher = Algorithm.new File.join($algorithm[:uri],"descriptor","smarts")
+      matcher.run :compound_uri => @uri, :smarts => smarts, :count => false
+    end
+
+    # Match an array of smarts strings, returns array with matching smarts
+    # @example
+    #   compound = OpenTox::Compound.from_name("Benzene")
+    #   compound.match(['cc','cN']) # returns ['cc']
+    # @param [Array] smarts_array Array with Smarts strings
+    # @return [Array] Array with matching Smarts strings
+    def match(smarts_array)
+      matcher = Algorithm.new File.join($algorithm[:uri],"descriptor","smarts")
+      matcher.run :compound_uri => @uri, :smarts => smarts_array, :count => false
+    end
+
     # Match a smarts string
     # @example
     #   compound = OpenTox::Compound.from_name("Benzene")

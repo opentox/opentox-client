@@ -28,6 +28,14 @@ class String
     downcase
   end
 
+  # convert strings to boolean values
+  # @return [TrueClass,FalseClass] true or false
+  def to_boolean
+    return true if self == true || self =~ (/(true|t|yes|y|1)$/i)
+    return false if self == false || self.nil? || self =~ (/(false|f|no|n|0)$/i)
+    bad_request_error "invalid value for Boolean: \"#{self}\""
+  end
+
   # encloses URI in text with with link tag
   # @return [String] new text with marked links
   def link_urls
