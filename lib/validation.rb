@@ -44,7 +44,7 @@ module OpenTox
         v = v.to_s.gsub(/;/, "%3b") if v.to_s =~ /;/
         filter_string += k.to_s+"="+v.to_s
       end
-      (OpenTox::RestClientWrapper.get($validation[:uri]+filter_string).split("\n"))
+      (OpenTox::RestClientWrapper.get($validation[:uri]+filter_string,nil,{:subjectid => subjectid}).split("\n"))
     end
 
     # creates a training test split validation, waits until it finishes, may take some time
@@ -55,7 +55,7 @@ module OpenTox
     def self.create_training_test_split( params, subjectid=nil, waiting_task=nil )
       params[:subjectid] = subjectid if subjectid
       uri = OpenTox::RestClientWrapper.post( File.join($validation[:uri],"training_test_split"),
-        params,{:content_type => "text/uri-list"},waiting_task )
+        params,{:content_type => "text/uri-list", :subjectid => subjectid},waiting_task )
       Validation.new(wait_for_task(uri))
     end
 
@@ -67,7 +67,7 @@ module OpenTox
     def self.create_training_test_validation( params, subjectid=nil, waiting_task=nil )
       params[:subjectid] = subjectid if subjectid
       uri = OpenTox::RestClientWrapper.post( File.join($validation[:uri],"training_test_validation"),
-        params,{:content_type => "text/uri-list"},waiting_task )
+        params,{:content_type => "text/uri-list", :subjectid => subjectid},waiting_task )
       Validation.new(wait_for_task(uri))
     end
 
@@ -79,7 +79,7 @@ module OpenTox
     def self.create_bootstrapping_validation( params, subjectid=nil, waiting_task=nil )
       params[:subjectid] = subjectid if subjectid
       uri = OpenTox::RestClientWrapper.post( File.join($validation[:uri],"bootstrapping"),
-        params,{:content_type => "text/uri-list"},waiting_task )
+        params,{:content_type => "text/uri-list", :subjectid => subjectid},waiting_task )
       Validation.new(wait_for_task(uri))
     end
 
@@ -103,8 +103,8 @@ module OpenTox
     end
 
     # returns confusion matrix as array, predicted values are in rows
-    # example:
-    # [[nil,"active","moderate","inactive"],["active",1,3,99],["moderate",4,2,8],["inactive",3,8,6]]
+    # @example
+    #  [[nil,"active","moderate","inactive"],["active",1,3,99],["moderate",4,2,8],["inactive",3,8,6]]
     # -> 99 inactive compounds have been predicted as active
     def confusion_matrix
       raise "no classification statistics, probably a regression valdiation" unless @metadata[RDF::OT.classificationStatistics]
@@ -133,17 +133,17 @@ module OpenTox
     # @param prediction [String] predicted value
     # @param subjectid [String,optional]
     # @return [Hash] see example
-    #
-    # Example 1:
+    # @example
+    #  Example 1:
     #   validation.probabilities(0.3,"active")
     #   -> { :min_confidence=>0.32, :num_predictions=>20, :probs=>{"active"=>0.7, "moderate"=>0.25 "inactive"=>0.05 } }
-    # there have been 20 "active" predictions with confidence >= 0.3, 70 percent of them beeing correct
+    #  there have been 20 "active" predictions with confidence >= 0.3, 70 percent of them beeing correct
     #
-    # Example 2:
-    #  validation.probabilities(0.8,"active")
-    #  -> { :min_confidence=>0.45, :num_predictions=>12, :probs=>{"active"=>0.9, "moderate"=>0.1 "inactive"=>0 } }
-    # the given confidence value was to high (i.e. <12 predictions with confidence value >= 0.8)
-    # the top 12 "active" predictions have a min_confidence of 0.45, 90 percent of them beeing correct
+    #  Example 2:
+    #   validation.probabilities(0.8,"active")
+    #   -> { :min_confidence=>0.45, :num_predictions=>12, :probs=>{"active"=>0.9, "moderate"=>0.1 "inactive"=>0 } }
+    #  the given confidence value was to high (i.e. <12 predictions with confidence value >= 0.8)
+    #  the top 12 "active" predictions have a min_confidence of 0.45, 90 percent of them beeing correct
     #
     def probabilities( confidence, prediction, subjectid=nil )
       YAML.load(OpenTox::RestClientWrapper.get(@uri+"/probabilities?prediction="+prediction.to_s+"&confidence="+confidence.to_s,nil,
@@ -187,7 +187,7 @@ module OpenTox
     def self.create( params, subjectid=nil, waiting_task=nil )
       params[:subjectid] = subjectid if subjectid
       uri = OpenTox::RestClientWrapper.post( File.join($validation[:uri],"crossvalidation"),
-        params,{:content_type => "text/uri-list"},waiting_task )
+        params,{:content_type => "text/uri-list", :subjectid => subjectid},waiting_task )
       uri = wait_for_task(uri)
       Crossvalidation.new(uri)
     end
@@ -258,7 +258,7 @@ module OpenTox
       params[:validation_uris] = validation_uri
       params[:subjectid] = subjectid
       uri = RestClientWrapper.post(File.join($validation[:uri],"/report/validation"),
-        params, {}, waiting_task )
+        params, {:subjectid => subjectid}, waiting_task )
       uri = wait_for_task(uri)
       ValidationReport.new(uri)
     end
@@ -351,7 +351,7 @@ module OpenTox
       params[:validation_uris] = validation_uris.join(",")
       params[:identifier] = identifier.join(",")
       params[:subjectid] = subjectid
-      uri = RestClientWrapper.post(File.join($validation[:uri],"/report/algorithm_comparison"), params, {}, waiting_task )
+      uri = RestClientWrapper.post(File.join($validation[:uri],"/report/algorithm_comparison"), params, {:subjectid => subjectid}, waiting_task )
       uri = wait_for_task(uri)
       AlgorithmComparisonReport.new(uri)
     end
