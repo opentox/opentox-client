@@ -1,6 +1,12 @@
 module OpenTox
-  AA = $aa[:uri] if defined? $aa
-  AA ||= "https://opensso.in-silico.ch" #if not set in .opentox/conf/[SERVICE].rb
+  if defined?($aa) and $aa[:uri] 
+    AA = $aa[:uri] 
+    SUBJECTID = OpenTox::Authorization.authenticate($aa[:user],$aa[:password])
+    unauthorized_error "Failed to authenticate user \"#{$aa[:user]}\"." unless OpenTox::Authorization.is_token_valid(SUBJECTID)
+  else
+    AA = "https://opensso.in-silico.ch" #if not set in .opentox/conf/[SERVICE].rb
+    SUBJECTID = nil
+  end
   #Module for Authorization and Authentication
   #@example Authentication
   #  require "opentox-client"

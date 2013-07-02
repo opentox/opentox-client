@@ -190,6 +190,20 @@ module OpenTox
     end
   end
 
+  # define class methods within module
+  def self.included(base)
+    base.extend(ClassMethods)
+  end
+
+  module ClassMethods
+    def service_uri
+      service = self.to_s.split('::')[1].downcase
+      eval("$#{service}[:uri]")
+    rescue
+      bad_request_error "$#{service}[:uri] variable not set. Please set $#{service}[:uri] or use an explicit uri as first constructor argument "
+    end
+  end
+
   # create default OpenTox classes with class methods
   # (defined in opentox-client.rb)
   CLASSES.each do |klass|
@@ -237,14 +251,6 @@ module OpenTox
           self.new uris.first, subjectid
         end
       end
-
-      def self.service_uri
-        service = self.to_s.split('::').last.downcase
-        eval("$#{service}[:uri]")
-      rescue
-        bad_request_error "$#{service}[:uri] variable not set. Please set $#{service}[:uri] or use an explicit uri as first constructor argument "
-      end
-
     end
     OpenTox.const_set klass,c
   end

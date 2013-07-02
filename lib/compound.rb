@@ -6,6 +6,10 @@ module OpenTox
   # Ruby wrapper for OpenTox Compound Webservices (http://opentox.org/dev/apis/api-1.2/structure).
   class Compound
 
+    def ==(c)
+      @uri == c.uri
+    end
+
     # Create a compound from smiles string
     # @example
     #   compound = OpenTox::Compound.from_smiles("c1ccccc1")

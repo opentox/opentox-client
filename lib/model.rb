@@ -1,7 +1,7 @@
 module OpenTox
 
-  class Model
-
+  module Model
+=begin
     # Run a model with parameters
     # @param params [Hash] Parameters for OpenTox model
     # @param wait [optional,OpenTox::Task] waiting_task (can be a OpenTox::Subtask as well), progress is updated accordingly
@@ -10,6 +10,7 @@ module OpenTox
       uri = RestClientWrapper.post @uri, params, { :content_type => "text/uri-list", :subjectid => @subjectid}
       wait_for_task uri if wait
     end
+=end
 
     def feature_type # CH: subjectid is a object variable, no need to pass it as a parameter
       unless @feature_type
@@ -39,6 +40,24 @@ module OpenTox
           @predicted_variable = f unless @predicted_variable
         end 
       end
+    end
+
+    class Generic
+      include OpenTox
+      include OpenTox::Algorithm
+    end
+
+    class Lazar
+      include OpenTox
+      include OpenTox::Algorithm
+      def self.create params
+        Lazar.new(File.join($algorithm[:uri], "lazar")).run params
+      end
+
+      def predict params
+        run params
+      end
+
     end
 
   end

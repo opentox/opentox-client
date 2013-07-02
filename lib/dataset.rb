@@ -64,6 +64,8 @@ module OpenTox
           RestClientWrapper.get(service_uri,{:query => sparql},{:accept => "text/uri-list", :subjectid => @subjectid}).split("\n").each do |row|
             r,c,v = row.split("\t")
             @data_entries[r.to_i] ||= []
+            #v = v.to_f if v.numeric?
+            #v = nil if v.is_a? String and v.empty?
             @data_entries[r.to_i][c.to_i] = v
           end
         # TODO: fallbacks for external and unordered datasets
@@ -169,6 +171,7 @@ module OpenTox
 
     # TODO: remove? might be dangerous if feature ordering is incorrect
     # MG: I would not remove this because add_data_entry is very slow (4 times searching in arrays)
+    # CH: do you have measurements? compound and feature arrays are not that big, I suspect that feature search/creation is the time critical step 
     # @param row [Array] 
     # @example
     #   d = Dataset.new
