@@ -37,7 +37,7 @@ module OpenTox
     # returns a filtered list of validation uris
     # @param params [Hash,optional] validation-params to filter the uris (could be model, training_dataset, ..)
     # @return [Array]
-    def self.list( params={} )
+    def self.list( params={}, subjectid=nil )
       filter_string = ""
       params.each do |k,v|
         filter_string += (filter_string.length==0 ? "?" : "&")
