@@ -22,8 +22,8 @@ module OpenTox
       include OpenTox
       include Algorithm
 
-      [:smarts_match,:smarts_count,:openbabel,:cdk,:joelib,:physchem,:lookup].each do |descriptor|
-        Descriptor.define_singleton_method(descriptor) do |compounds,descriptors|
+      [:smarts_match,:smarts_count,:physchem,:lookup].each do |descriptor|
+        Descriptor.define_singleton_method(descriptor) do |compounds,descriptors=nil|
           descriptors = [descriptors] unless descriptors.is_a? Array
           case compounds.class.to_s
           when "Array"
@@ -34,9 +34,7 @@ module OpenTox
             JSON.parse(Descriptor.new(File.join(self.service_uri, "descriptor", descriptor.to_s), SUBJECTID).run(:compound_uri => compounds.uri, :descriptors => descriptors))
           when "OpenTox::Dataset"
             task_uri = Descriptor.new(File.join(self.service_uri, "descriptor", descriptor.to_s), SUBJECTID).run(:dataset_uri => compounds.uri, :descriptors => descriptors)
-            puts task_uri
-            #task_uri
-            Dataset.new(Task.new(task_uri).wait_for_task)
+            Dataset.new(wait_for_task task_uri)
           else
             bad_request_error "First argument contains objects with a different class than OpenTox::Compound or OpenTox::Dataset" 
           end

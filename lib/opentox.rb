@@ -229,6 +229,7 @@ module OpenTox
       end
 
       def self.find_or_create metadata, subjectid=nil
+        puts metadata.inspect
         sparql = "SELECT DISTINCT ?s WHERE { "
         metadata.each do |predicate,objects|
           unless [RDF::DC.date,RDF::DC.modified,RDF::DC.description].include? predicate # remove dates and description (strange characters in description may lead to SPARQL errors)
