@@ -61,7 +61,7 @@ class String
     html << "<h3>Description</h3><pre><p>"+description.link_urls+"</p></pre>" if description
     html << "<h3>Related links</h3><pre><p>"+related_links.link_urls+"</p></pre>" if related_links
     html << "<h3>Content</h3>" if description || related_links
-    html << "<pre><p style=\"padding:15px; border:10px solid \#DBC87B\">"
+    html << "<pre><p style=\"padding:15px; border:10px solid \#C5C1E4\">"
     html << "<img src=\"data:image/png;base64,#{Base64.encode64(png_image)}\">\n" if png_image
     html << self.link_urls
     html << "</p></pre></body></html>"
@@ -101,18 +101,23 @@ module URI
     parsed_uri = URI.parse(uri + (subjectid ? "?subjectid=#{CGI.escape subjectid}" : ""))
     http_code = URI.task?(uri) ? 600 : 400
     http = Net::HTTP.new(parsed_uri.host, parsed_uri.port)
-    if (URI.ssl? uri) == true
+    unless (URI.ssl? uri) == true
+      http = Net::HTTP.new(parsed_uri.host, parsed_uri.port)
+      request = Net::HTTP::Head.new(parsed_uri.request_uri)
+      http.request(request).code.to_i < http_code
+    else
+      http = Net::HTTP.new(parsed_uri.host, parsed_uri.port)
       http.use_ssl = true
       http.verify_mode = OpenSSL::SSL::VERIFY_NONE
+      request = Net::HTTP::Head.new(parsed_uri.request_uri)
+      http.request(request).code.to_i < http_code
     end
-    request = Net::HTTP::Head.new(parsed_uri.request_uri)
-    http.request(request).code.to_i < http_code
   rescue
     false
   end
 
   def self.valid? uri
-    u = URI::parse(uri)
+    u = URI.parse(uri)
     u.scheme!=nil and u.host!=nil
   rescue URI::InvalidURIError
     false
