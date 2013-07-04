@@ -45,11 +45,13 @@ module OpenTox
     class Generic
       include OpenTox
       include OpenTox::Algorithm
+      include Model
     end
 
     class Lazar
       include OpenTox
       include OpenTox::Algorithm
+      include Model
       def self.create params
         Lazar.new(File.join($algorithm[:uri], "lazar")).run params
       end
