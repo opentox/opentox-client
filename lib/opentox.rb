@@ -133,7 +133,7 @@ module OpenTox
     @metadata[RDF.type] ||= RDF::URI.new(eval("RDF::OT."+self.class.to_s.split('::').last))
     @metadata[RDF::DC.date] ||= DateTime.now
     @metadata.each do |predicate,values|
-      [values].flatten.each{ |value| @rdf << [RDF::URI.new(@uri), predicate, (value == eval("RDF::OT."+self.class.to_s.split('::').last)) ? RDF::URI.new(value) : value] }
+      [values].flatten.each{ |value| @rdf << [RDF::URI.new(@uri), predicate, (value == eval("RDF::OT."+self.class.to_s.split('::').last)) ? RDF::URI.new(value) : value] unless value.nil? }
     end
     @parameters.each do |parameter|
       p_node = RDF::Node.new
@@ -156,7 +156,10 @@ module OpenTox
 
     # rdf serialization methods for all formats e.g. to_rdfxml
     send :define_method, "to_#{format}".to_sym do
+      puts format
+      puts self.inspect
       create_rdf
+      puts @rdf.to_s
       RDF::Writer.for(format).buffer(:encoding => Encoding::ASCII) do |writer|
         writer << @rdf
       end
