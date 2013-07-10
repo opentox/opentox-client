@@ -12,11 +12,9 @@ module OpenTox
 
   # Create a new OpenTox object 
   # @param uri [optional,String] URI
-  # @param subjectid [optional,String] 
   # @return [OpenTox] OpenTox object
-  def initialize uri=nil, subjectid=nil
+  def initialize uri=nil, subjectid=SUBJECTID
     @rdf = RDF::Graph.new
-    @subjectid = subjectid
     @metadata = {}
     @parameters = []
     uri ? @uri = uri.to_s.chomp : @uri = File.join(service_uri, SecureRandom.uuid)
@@ -25,7 +23,7 @@ module OpenTox
   # Object metadata (lazy loading)
   # @return [Hash] Object metadata
   def metadata force_update=false
-    if (@metadata.nil? or @metadata.empty? or force_update) and URI.accessible? @uri, @subjectid
+    if (@metadata.nil? or @metadata.empty? or force_update) and URI.accessible? @uri
       get if @rdf.nil? or @rdf.empty? or force_update 
       # return values as plain strings instead of RDF objects
       @metadata = @rdf.to_hash[RDF::URI.new(@uri)].inject({}) { |h, (predicate, values)| h[predicate] = values.collect{|v| v.to_s}; h }
@@ -52,7 +50,7 @@ module OpenTox
   # {http://opentox.org/dev/apis/api-1.2/interfaces OpenTox API}
   # @return [Hash] Object parameters
   def parameters force_update=false
-    if (@parameters.empty? or force_update) and URI.accessible? @uri, @subjectid
+    if (@parameters.empty? or force_update) and URI.accessible? @uri
       get if @rdf.empty? or force_update
       params = {}
       query = RDF::Query.new({
@@ -81,10 +79,10 @@ module OpenTox
   # @param [String,optional] mime_type
   def get mime_type="text/plain"
     bad_request_error "Mime type #{mime_type} is not supported. Please use 'text/plain' (default) or 'application/rdf+xml'." unless mime_type == "text/plain" or mime_type == "application/rdf+xml"
-    response = RestClientWrapper.get(@uri,{},{:accept => mime_type, :subjectid => @subjectid})
+    response = RestClientWrapper.get(@uri,{},{:accept => mime_type,:subjectid => @subjectid})
     if URI.task?(response)
       uri = wait_for_task response
-      response = RestClientWrapper.get(uri,{},{:accept => mime_type, :subjectid => @subjectid})
+      response = RestClientWrapper.get(uri,{},{:accept => mime_type,:subjectid => @subjectid})
     end
     parse_ntriples response if mime_type == "text/plain"
     parse_rdfxml response if mime_type == "application/rdf+xml"
@@ -100,15 +98,15 @@ module OpenTox
     when 'application/rdf+xml'
       body = self.to_rdfxml
     end
-    Authorization.check_policy(@uri, @subjectid) if $aa[:uri]
-    uri = RestClientWrapper.post @uri.to_s, body, { :content_type => mime_type, :subjectid => @subjectid}
+    Authorization.check_policy(@uri, SUBJECTID) if $aa[:uri]
+    uri = RestClientWrapper.post @uri.to_s, body, { :content_type => mime_type,:subjectid => @subjectid}
     wait ? wait_for_task(uri) : uri
   end
 
   # Save object at webservice (replace or create object)
   def put wait=true, mime_type="text/plain"
     bad_request_error "Mime type #{mime_type} is not supported. Please use 'text/plain' (default) or 'application/rdf+xml'." unless mime_type == "text/plain" or mime_type == "application/rdf+xml"
-    @metadata[RDF::OT.created_at] = DateTime.now unless URI.accessible? @uri, @subjectid
+    @metadata[RDF::OT.created_at] = DateTime.now unless URI.accessible? @uri
     #@metadata[RDF::DC.modified] = DateTime.now
     case mime_type
     when 'text/plain'
@@ -116,14 +114,14 @@ module OpenTox
     when 'application/rdf+xml'
       body = self.to_rdfxml
     end
-    uri = RestClientWrapper.put @uri.to_s, body, { :content_type => mime_type, :subjectid => @subjectid}
+    uri = RestClientWrapper.put @uri.to_s, body, { :content_type => mime_type,:subjectid => @subjectid}
     wait ? wait_for_task(uri) : uri
   end
 
   # Delete object at webservice
-  def delete subjectid=nil
-    RestClientWrapper.delete(@uri.to_s,nil,{:subjectid => @subjectid})
-    Authorization.delete_policies_from_uri(@uri, @subjectid) if $aa[:uri]
+  def delete 
+    RestClientWrapper.delete(@uri.to_s,{},{:subjectid => @subjectid})
+    Authorization.delete_policies_from_uri(@uri, SUBJECTID) if $aa[:uri]
   end
 
   def service_uri
@@ -210,26 +208,25 @@ module OpenTox
     c = Class.new do
       include OpenTox
 
-      def self.all subjectid=nil
-        uris = RestClientWrapper.get(service_uri, {}, :accept => 'text/uri-list', :subjectid => subjectid).split("\n").compact
-        uris.collect{|uri| self.new(uri, subjectid)}
+      def self.all 
+        uris = RestClientWrapper.get(service_uri, {},{:accept => 'text/uri-list',:subjectid=>@subjectid}).split("\n").compact
+        uris.collect{|uri| self.new(uri)}
       end
 
       #@example fetching a model
       #  OpenTox::Model.find(<model-uri>) -> model-object
-      def self.find uri, subjectid=nil
-        URI.accessible?(uri, subjectid) ? self.new(uri, subjectid) : nil
+      def self.find uri, subjectid=SUBJECTID
+        URI.accessible?(uri) ? self.new(uri) : nil
       end
 
-      def self.create metadata, subjectid=nil 
+      def self.create metadata, subjectid=SUBJECTID
         object = self.new nil, subjectid
         object.metadata = metadata
         object.put
         object
       end
 
-      def self.find_or_create metadata, subjectid=nil
-        puts metadata.inspect
+      def self.find_or_create metadata, subjectid=SUBJECTID
         sparql = "SELECT DISTINCT ?s WHERE { "
         metadata.each do |predicate,objects|
           unless [RDF::DC.date,RDF::DC.modified,RDF::DC.description].include? predicate # remove dates and description (strange characters in description may lead to SPARQL errors)
@@ -245,7 +242,7 @@ module OpenTox
           end
         end
         sparql <<  "}"
-        uris = RestClientWrapper.get(service_uri,{:query => sparql},{:accept => "text/uri-list", :subjectid => subjectid}).split("\n")
+        uris = RestClientWrapper.get(service_uri,{:query => sparql},{:accept => "text/uri-list",:subjectid=>subjectid}).split("\n")
         if uris.empty?
           self.create metadata, subjectid
         else

@@ -17,7 +17,7 @@ module OpenTox
 
         # check input
         bad_request_error "Headers are not a hash: #{headers.inspect}", uri unless headers==nil or headers.is_a?(Hash) 
-        @subjectid = headers[:subjectid] ? headers[:subjectid] : nil
+        headers[:subjectid] ||= OpenTox::SUBJECTID
         bad_request_error "Invalid URI: '#{uri}'", uri unless URI.valid? uri
         #resource_not_found_error "URI '#{uri}' not found.", uri unless URI.accessible?(uri, @subjectid) unless URI.ssl?(uri)
         # make sure that no header parameters are set in the payload

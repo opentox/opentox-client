@@ -7,7 +7,7 @@ module OpenTox
 
     attr_writer :features, :compounds, :data_entries
 
-    def initialize uri=nil, subjectid=nil
+    def initialize uri=nil, subjectid=SUBJECTID
       super uri, subjectid
       @features = []
       @compounds = []
@@ -35,7 +35,7 @@ module OpenTox
       if @features.empty? or force_update
         uri = File.join(@uri,"features")
         uris = RestClientWrapper.get(uri,{},{:accept => "text/uri-list", :subjectid => @subjectid}).split("\n") # ordered datasets return ordered features
-        @features = uris.collect{|uri| Feature.new(uri,@subjectid)}
+        @features = uris.collect{|uri| Feature.new(uri)}
       end
       @features
     end
@@ -45,7 +45,7 @@ module OpenTox
       if @compounds.empty? or force_update
         uri = File.join(@uri,"compounds")
         uris = RestClientWrapper.get(uri,{},{:accept => "text/uri-list", :subjectid => @subjectid}).split("\n") # ordered datasets return ordered compounds
-        @compounds = uris.collect{|uri| Compound.new(uri,@subjectid)}
+        @compounds = uris.collect{|uri| Compound.new(uri)}
       end
       @compounds
     end
@@ -120,7 +120,7 @@ module OpenTox
       prediction_feature = nil
       confidence_feature = nil
       metadata[RDF::OT.predictedVariables].each do |uri|
-        feature = OpenTox::Feature.new uri, @subjectid
+        feature = OpenTox::Feature.new uri
         case feature.title
         when /prediction$/
           prediction_feature = feature
@@ -214,7 +214,7 @@ module OpenTox
         query = RDF::Query.new({ :uri => { RDF.type => RDF::OT.Compound } })
         @compounds = query.execute(@rdf).collect { |solution| OpenTox::Compound.new solution.uri }
         query = RDF::Query.new({ :uri => { RDF.type => RDF::OT.Feature } })
-        @features = query.execute(@rdf).collect { |solution| OpenTox::Feature.new solution.uri, @subjectid }
+        @features = query.execute(@rdf).collect { |solution| OpenTox::Feature.new solution.uri }
         @compounds.each_with_index do |c,i|
           @features.each_with_index do |f,j|
           end
@@ -310,11 +310,11 @@ module OpenTox
     # @param feats [Array] features objects
     # @param metadata [Hash]
     # @return [OpenTox::Dataset]
-    def split( compound_indices, feats, metadata, subjectid=nil)
+    def split( compound_indices, feats, metadata)
 
       bad_request_error "Dataset.split : Please give compounds as indices" if compound_indices.size==0 or !compound_indices[0].is_a?(Fixnum)
       bad_request_error "Dataset.split : Please give features as feature objects (given: #{feats})" if feats!=nil and feats.size>0 and !feats[0].is_a?(OpenTox::Feature)
-      dataset = OpenTox::Dataset.new(nil, subjectid)
+      dataset = OpenTox::Dataset.new
       dataset.metadata = metadata
       dataset.features = (feats ? feats : self.features)
       compound_indices.each do |c_idx|

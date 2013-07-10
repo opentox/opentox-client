@@ -1,4 +1,3 @@
-#require "openbabel"
 CACTUS_URI="http://cactus.nci.nih.gov/chemical/structure/"
 
 module OpenTox
@@ -15,22 +14,22 @@ module OpenTox
     #   compound = OpenTox::Compound.from_smiles("c1ccccc1")
     # @param [String] smiles Smiles string
     # @return [OpenTox::Compound] Compound
-    def self.from_smiles smiles, subjectid=nil
-      Compound.new RestClientWrapper.post(service_uri, smiles, {:content_type => 'chemical/x-daylight-smiles', :subjectid => subjectid})
+    def self.from_smiles smiles
+      Compound.new RestClientWrapper.post(service_uri, smiles, {:content_type => 'chemical/x-daylight-smiles'})
     end
 
     # Create a compound from inchi string
     # @param inchi [String] smiles InChI string
     # @return [OpenTox::Compound] Compound
-    def self.from_inchi inchi, subjectid=nil
-      Compound.new RestClientWrapper.post(service_uri, inchi, {:content_type => 'chemical/x-inchi', :subjectid => subjectid})
+    def self.from_inchi inchi
+      Compound.new RestClientWrapper.post(service_uri, inchi, {:content_type => 'chemical/x-inchi'})
     end
 
     # Create a compound from sdf string
     # @param sdf [String] smiles SDF string
     # @return [OpenTox::Compound] Compound
-    def self.from_sdf sdf, subjectid=nil
-      Compound.new RestClientWrapper.post(service_uri, sdf, {:content_type => 'chemical/x-mdl-sdfile', :subjectid => subjectid})
+    def self.from_sdf sdf
+      Compound.new RestClientWrapper.post(service_uri, sdf, {:content_type => 'chemical/x-mdl-sdfile'})
     end
 
     # Create a compound from name. Relies on an external service for name lookups.
@@ -38,9 +37,9 @@ module OpenTox
     #   compound = OpenTox::Compound.from_name("Benzene")
     # @param name [String] can be also an InChI/InChiKey, CAS number, etc
     # @return [OpenTox::Compound] Compound
-    def self.from_name name, subjectid=nil
+    def self.from_name name
       @inchi = RestClientWrapper.get File.join(CACTUS_URI,URI.escape(name),"stdinchi")
-      Compound.new RestClientWrapper.post(service_uri, @inchi, {:content_type => 'chemical/x-inchi', :subjectid => subjectid})
+      Compound.new RestClientWrapper.post(service_uri, @inchi, {:content_type => 'chemical/x-inchi'})
     end
 
     # Get InChI

@@ -26,7 +26,6 @@ RDF::TB  = RDF::Vocabulary.new "http://onto.toxbank.net/api/"
 RDF::ISA = RDF::Vocabulary.new "http://onto.toxbank.net/isa/"
 RDF::OWL = RDF::Vocabulary.new "http://www.w3.org/2002/07/owl#"
 
-#CLASSES = ["Generic", "Compound", "Feature", "Dataset", "Algorithm", "Model", "Validation", "Task", "Investigation"]
 CLASSES = ["Compound", "Feature", "Dataset", "Validation", "Task", "Investigation"]
 RDF_FORMATS = [:rdfxml,:ntriples,:turtle]
 
@@ -50,4 +49,13 @@ FALSE_REGEXP = /^(false|inactive|0|0.0|low tox|deactivating|non-carcinogen|non-m
   "model.rb",
   "validation.rb"
 ].each{ |f| require_relative f }
+
+module OpenTox
+  if defined?($aa) and $aa[:uri] 
+    SUBJECTID = OpenTox::Authorization.authenticate($aa[:user],$aa[:password])
+    unauthorized_error "Failed to authenticate user \"#{$aa[:user]}\"." unless OpenTox::Authorization.is_token_valid(SUBJECTID)
+  else
+    SUBJECTID = nil
+  end
+end
 

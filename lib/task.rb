@@ -10,7 +10,7 @@ module OpenTox
       super true # always update metadata
     end
 
-    def self.run(description, creator=nil, subjectid=nil)
+    def self.run(description, creator=nil, subjectid=SUBJECTID)
 
       task = Task.new nil, subjectid
       task[RDF::OT.created_at] = DateTime.now
@@ -21,21 +21,9 @@ module OpenTox
       pid = fork do
         begin
           task.completed yield
-          #result_uri = yield 
-          #task.completed result_uri
         rescue
-=begin
-          #unless $!.is_a?(RuntimeError) # PENDING: only runtime Errors are logged when raised
-            msg = "\nTask ERROR\n"+
-              "task description: #{task[RDF::DC.description]}\n"+
-              "task uri:         #{$!.class.to_s}\n"+
-              "error msg:        #{$!.message}\n"+
-              "error backtrace:\n#{$!.backtrace[0..cut_index].join("\n")}\n"
-            $logger.error msg
-          #end
-=end
           if $!.respond_to? :to_ntriples
-            RestClientWrapper.put(File.join(task.uri,'Error'),:errorReport => $!.to_ntriples,:content_type => 'text/plain') 
+            RestClientWrapper.put(File.join(task.uri,'Error'),{:errorReport => $!.to_ntriples},{:content_type => 'text/plain', :subjectid => task.subjectid}) 
           else
             cut_index = $!.backtrace.find_index{|line| line.match /gems\/sinatra/}
             cut_index = -1 unless cut_index
@@ -53,7 +41,7 @@ module OpenTox
             nt = RDF::Writer.for(:ntriples).buffer do |writer|
               @rdf.each{|statement| writer << statement}
             end
-            RestClientWrapper.put(File.join(task.uri,'Error'),:errorReport => nt,:content_type => 'text/plain') 
+            RestClientWrapper.put(File.join(task.uri,'Error'),{:errorReport => nt},{:content_type => 'text/plain', :subjectid => task.subjectid}) 
           end
           task.kill
         end
@@ -119,7 +107,7 @@ module OpenTox
   end
 
   def code
-    RestClientWrapper.head(@uri).code.to_i
+    RestClientWrapper.head(@uri,{},:subjectid => @subjectid).code.to_i
   end
 
   # get only header for status requests

@@ -1,12 +1,11 @@
 module OpenTox
+
   if defined?($aa) and $aa[:uri] 
     AA = $aa[:uri] 
-    SUBJECTID = OpenTox::Authorization.authenticate($aa[:user],$aa[:password])
-    unauthorized_error "Failed to authenticate user \"#{$aa[:user]}\"." unless OpenTox::Authorization.is_token_valid(SUBJECTID)
   else
     AA = "https://opensso.in-silico.ch" #if not set in .opentox/conf/[SERVICE].rb
-    SUBJECTID = nil
   end
+
   #Module for Authorization and Authentication
   #@example Authentication
   #  require "opentox-client"
@@ -70,11 +69,11 @@ module OpenTox
     def self.authenticate(user, pw)
       return nil if !AA
       begin
-        out = RestClientWrapper.post("#{AA}/auth/authenticate",{:username=>user, :password => pw}).sub("token.id=","").sub("\n","")
+        out = RestClientWrapper.post("#{AA}/auth/authenticate",{:username=>user, :password => pw},{:subjectid => ""}).sub("token.id=","").sub("\n","")
         return out
       rescue
-        resource_not_found_error "#{out.inspect}"
-        return nil
+        bad_request_error "Authentication failed #{out.inspect}"
+        #return nil # does not return after throwing an error
       end
     end
 

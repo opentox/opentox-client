@@ -1,21 +1,11 @@
 module OpenTox
 
   module Model
-=begin
-    # Run a model with parameters
-    # @param params [Hash] Parameters for OpenTox model
-    # @param wait [optional,OpenTox::Task] waiting_task (can be a OpenTox::Subtask as well), progress is updated accordingly
-    # @return [text/uri-list] Task or resource URI
-    def run params=nil, wait=true
-      uri = RestClientWrapper.post @uri, params, { :content_type => "text/uri-list", :subjectid => @subjectid}
-      wait_for_task uri if wait
-    end
-=end
 
-    def feature_type # CH: subjectid is a object variable, no need to pass it as a parameter
+    def feature_type
       unless @feature_type
         bad_request_error "Cannot determine feature type, dependent variable missing in model #{@uri}" unless metadata[RDF::OT.dependentVariables]
-        @feature_type = OpenTox::Feature.new( metadata[RDF::OT.dependentVariables][0], @subjectid ).feature_type
+        @feature_type = OpenTox::Feature.new( metadata[RDF::OT.dependentVariables][0]).feature_type
       end
       @feature_type
     end
@@ -33,7 +23,7 @@ module OpenTox
     private
     def load_predicted_variables
       metadata[RDF::OT.predictedVariables].each do |f|
-        feat = OpenTox::Feature.new( f, @subjectid )
+        feat = OpenTox::Feature.new( f)
         if feat.title =~ /confidence/
           @predicted_confidence = f
         else

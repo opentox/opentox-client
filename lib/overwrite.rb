@@ -84,20 +84,20 @@ module URI
     uri =~ /task/ and URI.valid? uri
   end
 
-  def self.dataset? uri, subjectid=nil
+  def self.dataset? uri, subjectid=OpenTox::SUBJECTID
     uri =~ /dataset/ and URI.accessible? uri, subjectid
   end
 
-  def self.model? uri, subjectid=nil
+  def self.model? uri, subjectid=OpenTox::SUBJECTID
     uri =~ /model/ and URI.accessible? uri, subjectid
   end
 
-  def self.ssl? uri, subjectid=nil
+  def self.ssl? uri, subjectid=OpenTox::SUBJECTID
     URI.parse(uri).instance_of? URI::HTTPS
   end
 
   # @return [Boolean] checks if resource exists by making a HEAD-request
-  def self.accessible?(uri, subjectid=nil)
+  def self.accessible?(uri, subjectid=OpenTox::SUBJECTID)
     parsed_uri = URI.parse(uri + (subjectid ? "?subjectid=#{CGI.escape subjectid}" : ""))
     http_code = URI.task?(uri) ? 600 : 400
     http = Net::HTTP.new(parsed_uri.host, parsed_uri.port)

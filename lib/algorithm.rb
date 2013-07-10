@@ -9,7 +9,7 @@ module OpenTox
     # @param [optional,Boolean] wait  set to false if method should return a task uri instead of the algorithm result
     # @return [String] URI of new resource (dataset, model, ...)
     def run params=nil, wait=true
-      uri = RestClientWrapper.post @uri, params, { :content_type => "text/uri-list", :subjectid => @subjectid}
+      uri = RestClientWrapper.post @uri, params, { :content_type => "text/uri-list", :subjectid => SUBJECTID}
       wait_for_task uri if wait
     end
 
@@ -29,11 +29,11 @@ module OpenTox
           when "Array"
             klasses = compounds.collect{|c| c.class}.uniq
             bad_request_error "First argument contains objects with a different class than OpenTox::Compound or OpenTox::Dataset #{klasses.inspect}" unless klasses.size == 1 and klasses.first == Compound
-            JSON.parse(Descriptor.new(File.join(self.service_uri, "descriptor", descriptor.to_s), SUBJECTID).run(:compound_uri => compounds.collect{|c| c.uri}, :descriptors => descriptors))
+            JSON.parse(Descriptor.new(File.join(self.service_uri, "descriptor", descriptor.to_s)).run(:compound_uri => compounds.collect{|c| c.uri}, :descriptors => descriptors))
           when "OpenTox::Compound"
-            JSON.parse(Descriptor.new(File.join(self.service_uri, "descriptor", descriptor.to_s), SUBJECTID).run(:compound_uri => compounds.uri, :descriptors => descriptors))
+            JSON.parse(Descriptor.new(File.join(self.service_uri, "descriptor", descriptor.to_s)).run(:compound_uri => compounds.uri, :descriptors => descriptors))
           when "OpenTox::Dataset"
-            task_uri = Descriptor.new(File.join(self.service_uri, "descriptor", descriptor.to_s), SUBJECTID).run(:dataset_uri => compounds.uri, :descriptors => descriptors)
+            task_uri = Descriptor.new(File.join(self.service_uri, "descriptor", descriptor.to_s)).run(:dataset_uri => compounds.uri, :descriptors => descriptors)
             Dataset.new(wait_for_task task_uri)
           else
             bad_request_error "First argument contains objects with a different class than OpenTox::Compound or OpenTox::Dataset" 
