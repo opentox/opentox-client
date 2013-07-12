@@ -64,24 +64,13 @@ module OpenTox
           RestClientWrapper.get(service_uri,{:query => sparql},{:accept => "text/uri-list", :subjectid => @subjectid}).split("\n").each do |row|
             r,c,v = row.split("\t")
             @data_entries[r.to_i] ||= []
-            #v = v.to_f if v.numeric?
-            #v = nil if v.is_a? String and v.empty?
-            @data_entries[r.to_i][c.to_i] = v
+            # adjust value class depending on feature type, StringFeature takes precedence over NumericFeature
+            if features[c.to_i][RDF.type].include? RDF::OT.NumericFeature and ! features[c.to_i][RDF.type].include? RDF::OT.StringFeature
+              v = v.to_f if v
+            end
+            @data_entries[r.to_i][c.to_i] = v if v 
           end
         # TODO: fallbacks for external and unordered datasets
-        features.each_with_index do |feature,i|
-          if feature[RDF.type].include? RDF::OT.NumericFeature
-            if feature[RDF.type].include? RDF::OT.NominalFeature
-              if feature[RDF.type].include? RDF::OT.StringFeature
-                @data_entries.each { |row| row[i] = row[i].to_s if row[i] }
-              else
-                @data_entries.each { |row| row[i] = row[i] if row[i] }
-              end
-            else
-              @data_entries.each { |row| row[i] = row[i].to_f if row[i] }
-            end
-          end
-        end
       end
       @data_entries
     end
@@ -131,7 +120,8 @@ module OpenTox
       if prediction_feature and confidence_feature
         compounds.each do |compound|
           value = values(compound,prediction_feature).first
-          confidence = values(compound,confidence_feature).first
+          value = value.to_f if prediction_feature[RDF.type].include? RDF::OT.NumericFeature and ! prediction_feature[RDF.type].include? RDF::OT.StringFeature
+          confidence = values(compound,confidence_feature).first.to_f
           predictions << {:compound => compound, :value => value, :confidence => confidence} if value and confidence
         end
       end
@@ -147,6 +137,8 @@ module OpenTox
     def upload filename, wait=true
       uri = RestClientWrapper.put(@uri, {:file => File.new(filename)}, {:subjectid => @subjectid})
       wait_for_task uri if URI.task?(uri) and wait
+      compounds true
+      features true
       metadata true
       @uri
     end
@@ -160,13 +152,14 @@ module OpenTox
       row = @compounds.collect{|c| c.uri}.index(compound.uri)
       @features << feature unless @features.collect{|f| f.uri}.include?(feature.uri)
       col = @features.collect{|f| f.uri}.index(feature.uri)
-      @data_entries[row] ||= []
-      if @data_entries[row][col] # duplicated values
-        #row = @compounds.size
+      if @data_entries[row] and @data_entries[row][col] # duplicated values
         @compounds << compound
         row = @compounds.collect{|c| c.uri}.rindex(compound.uri)
       end
-      @data_entries[row][col] = value
+      if value
+        @data_entries[row] ||= []
+        @data_entries[row][col] = value
+      end
     end
 
     # TODO: remove? might be dangerous if feature ordering is incorrect

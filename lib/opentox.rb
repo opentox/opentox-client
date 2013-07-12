@@ -156,10 +156,7 @@ module OpenTox
 
     # rdf serialization methods for all formats e.g. to_rdfxml
     send :define_method, "to_#{format}".to_sym do
-      puts format
-      puts self.inspect
       create_rdf
-      puts @rdf.to_s
       RDF::Writer.for(format).buffer(:encoding => Encoding::ASCII) do |writer|
         writer << @rdf
       end

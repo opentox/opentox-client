@@ -53,7 +53,7 @@ module OpenTox
     # @param [OpenTox::Task,optional] waiting_task (can be a OpenTox::Subtask as well), progress is updated accordingly
     # @return [OpenTox::Validation]
     def self.create_training_test_split( params, subjectid=nil, waiting_task=nil )
-      params[:subjectid] = subjectid if subjectid
+      #params[:subjectid] = subjectid if subjectid
       uri = OpenTox::RestClientWrapper.post( File.join($validation[:uri],"training_test_split"),
         params,{:content_type => "text/uri-list", :subjectid => subjectid},waiting_task )
       Validation.new(wait_for_task(uri))
@@ -185,7 +185,7 @@ module OpenTox
     # @param [OpenTox::Task,optional] waiting_task (can be a OpenTox::Subtask as well), progress is updated accordingly
     # @return [OpenTox::Crossvalidation]
     def self.create( params, subjectid=nil, waiting_task=nil )
-      params[:subjectid] = subjectid if subjectid
+      #params[:subjectid] = subjectid if subjectid
       uri = OpenTox::RestClientWrapper.post( File.join($validation[:uri],"crossvalidation"),
         params,{:content_type => "text/uri-list", :subjectid => subjectid},waiting_task )
       uri = wait_for_task(uri)
