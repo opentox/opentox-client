@@ -35,6 +35,11 @@ OT_CONFIG_DIR="$HOME/.opentox"
 RUBY_DIR="$HOME/.rbenv/versions/$RUBY_NUM_VER"
 
 
+# config
+[ -f $OT_CONFIG_DIR/config/$SELF.rb ] || touch $OT_CONFIG_DIR/config/$SELF.rb
+if ! cat "$OT_CONFIG_DIR/config/$SELF.rb" | grep "default.rb">/dev/null 2>&1; then echo 'require_relative "default.rb"' >> $OT_CONFIG_DIR/config/$SELF.rb; fi
+
+
 # # # Install
 
 check_utils "rbenv find"
