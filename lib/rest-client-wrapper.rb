@@ -4,6 +4,16 @@ module OpenTox
     
     attr_accessor :request, :response
 
+    @@subjectid = nil
+
+    def self.subjectid=(subjectid)
+      @@subjectid = subjectid
+    end
+
+    def self.subjectid
+      @@subjectid
+    end
+
     # REST methods 
     # Raises OpenTox::Error if call fails (rescued in overwrite.rb -> halt 502)
     # Does not wait for task to finish and returns task uri
@@ -17,7 +27,7 @@ module OpenTox
 
         # check input
         bad_request_error "Headers are not a hash: #{headers.inspect}", uri unless headers==nil or headers.is_a?(Hash) 
-        headers[:subjectid] ||= OpenTox::SUBJECTID
+        headers[:subjectid] ||= @@subjectid
         bad_request_error "Invalid URI: '#{uri}'", uri unless URI.valid? uri
         #resource_not_found_error "URI '#{uri}' not found.", uri unless URI.accessible?(uri, @subjectid) unless URI.ssl?(uri)
         # make sure that no header parameters are set in the payload

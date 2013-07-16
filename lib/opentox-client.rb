@@ -50,6 +50,13 @@ FALSE_REGEXP = /^(false|inactive|0|0.0|low tox|deactivating|non-carcinogen|non-m
   "validation.rb"
 ].each{ |f| require_relative f }
 
+if defined?($aa) and $aa[:uri] 
+  OpenTox::RestClientWrapper.subjectid = OpenTox::Authorization.authenticate($aa[:user],$aa[:password])
+  unauthorized_error "Failed to authenticate user \"#{$aa[:user]}\"." unless OpenTox::Authorization.is_token_valid(OpenTox::RestClientWrapper.subjectid)
+#else
+  #@@subjectid = nil
+end
+=begin
 module OpenTox
   if defined?($aa) and $aa[:uri] 
     SUBJECTID = OpenTox::Authorization.authenticate($aa[:user],$aa[:password])
@@ -58,4 +65,5 @@ module OpenTox
     SUBJECTID = nil
   end
 end
+=end
 

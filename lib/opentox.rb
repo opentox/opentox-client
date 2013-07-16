@@ -5,7 +5,7 @@ $logger.level = Logger::DEBUG
 module OpenTox
   #include RDF CH: leads to namespace clashes with URI class
 
-  attr_reader :uri, :subjectid
+  attr_reader :uri
   attr_writer :metadata, :parameters
 
   # Ruby interface
@@ -13,7 +13,7 @@ module OpenTox
   # Create a new OpenTox object 
   # @param uri [optional,String] URI
   # @return [OpenTox] OpenTox object
-  def initialize uri=nil, subjectid=SUBJECTID
+  def initialize uri=nil
     @rdf = RDF::Graph.new
     @metadata = {}
     @parameters = []
@@ -79,10 +79,10 @@ module OpenTox
   # @param [String,optional] mime_type
   def get mime_type="text/plain"
     bad_request_error "Mime type #{mime_type} is not supported. Please use 'text/plain' (default) or 'application/rdf+xml'." unless mime_type == "text/plain" or mime_type == "application/rdf+xml"
-    response = RestClientWrapper.get(@uri,{},{:accept => mime_type,:subjectid => @subjectid})
+    response = RestClientWrapper.get(@uri,{},{:accept => mime_type})
     if URI.task?(response)
       uri = wait_for_task response
-      response = RestClientWrapper.get(uri,{},{:accept => mime_type,:subjectid => @subjectid})
+      response = RestClientWrapper.get(uri,{},{:accept => mime_type})
     end
     parse_ntriples response if mime_type == "text/plain"
     parse_rdfxml response if mime_type == "application/rdf+xml"
@@ -98,8 +98,8 @@ module OpenTox
     when 'application/rdf+xml'
       body = self.to_rdfxml
     end
-    Authorization.check_policy(@uri, SUBJECTID) if $aa[:uri]
-    uri = RestClientWrapper.post @uri.to_s, body, { :content_type => mime_type,:subjectid => @subjectid}
+    Authorization.check_policy(@uri, RestClientWrapper.subjectid) if $aa[:uri]
+    uri = RestClientWrapper.post @uri.to_s, body, { :content_type => mime_type}
     wait ? wait_for_task(uri) : uri
   end
 
@@ -114,14 +114,14 @@ module OpenTox
     when 'application/rdf+xml'
       body = self.to_rdfxml
     end
-    uri = RestClientWrapper.put @uri.to_s, body, { :content_type => mime_type,:subjectid => @subjectid}
+    uri = RestClientWrapper.put @uri, body, { :content_type => mime_type}
     wait ? wait_for_task(uri) : uri
   end
 
   # Delete object at webservice
   def delete 
-    RestClientWrapper.delete(@uri.to_s,{},{:subjectid => @subjectid})
-    Authorization.delete_policies_from_uri(@uri, SUBJECTID) if $aa[:uri]
+    RestClientWrapper.delete(@uri)
+    Authorization.delete_policies_from_uri(@uri, RestClientWrapper.subjectid) if $aa[:uri]
   end
 
   def service_uri
@@ -200,6 +200,12 @@ module OpenTox
     rescue
       bad_request_error "$#{service}[:uri] variable not set. Please set $#{service}[:uri] or use an explicit uri as first constructor argument "
     end
+    def subjectid
+      RestClientWrapper.subjectid
+    end
+    def subjectid=(subjectid)
+      RestClientWrapper.subjectid = subjectid
+    end
   end
 
   # create default OpenTox classes with class methods
@@ -209,24 +215,24 @@ module OpenTox
       include OpenTox
 
       def self.all 
-        uris = RestClientWrapper.get(service_uri, {},{:accept => 'text/uri-list',:subjectid=>@subjectid}).split("\n").compact
+        uris = RestClientWrapper.get(service_uri, {},{:accept => 'text/uri-list'}).split("\n").compact
         uris.collect{|uri| self.new(uri)}
       end
 
       #@example fetching a model
       #  OpenTox::Model.find(<model-uri>) -> model-object
-      def self.find uri, subjectid=SUBJECTID
+      def self.find uri
         URI.accessible?(uri) ? self.new(uri) : nil
       end
 
-      def self.create metadata, subjectid=SUBJECTID
-        object = self.new nil, subjectid
+      def self.create metadata
+        object = self.new 
         object.metadata = metadata
         object.put
         object
       end
 
-      def self.find_or_create metadata, subjectid=SUBJECTID
+      def self.find_or_create metadata
         sparql = "SELECT DISTINCT ?s WHERE { "
         metadata.each do |predicate,objects|
           unless [RDF::DC.date,RDF::DC.modified,RDF::DC.description].include? predicate # remove dates and description (strange characters in description may lead to SPARQL errors)
@@ -242,11 +248,11 @@ module OpenTox
           end
         end
         sparql <<  "}"
-        uris = RestClientWrapper.get(service_uri,{:query => sparql},{:accept => "text/uri-list",:subjectid=>subjectid}).split("\n")
+        uris = RestClientWrapper.get(service_uri,{:query => sparql},{:accept => "text/uri-list"}).split("\n")
         if uris.empty?
-          self.create metadata, subjectid
+          self.create metadata
         else
-          self.new uris.first, subjectid
+          self.new uris.first
         end
       end
     end

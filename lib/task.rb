@@ -10,9 +10,9 @@ module OpenTox
       super true # always update metadata
     end
 
-    def self.run(description, creator=nil, subjectid=SUBJECTID)
+    def self.run(description, creator=nil)
 
-      task = Task.new nil, subjectid
+      task = Task.new nil
       task[RDF::OT.created_at] = DateTime.now
       task[RDF::OT.hasStatus] = "Running"
       task[RDF::DC.description] = description.to_s
@@ -23,7 +23,7 @@ module OpenTox
           task.completed yield
         rescue
           if $!.respond_to? :to_ntriples
-            RestClientWrapper.put(File.join(task.uri,'Error'),{:errorReport => $!.to_ntriples},{:content_type => 'text/plain', :subjectid => task.subjectid}) 
+            RestClientWrapper.put(File.join(task.uri,'Error'),{:errorReport => $!.to_ntriples},{:content_type => 'text/plain'}) 
           else
             cut_index = $!.backtrace.find_index{|line| line.match /gems\/sinatra/}
             cut_index = -1 unless cut_index
@@ -41,7 +41,7 @@ module OpenTox
             nt = RDF::Writer.for(:ntriples).buffer do |writer|
               @rdf.each{|statement| writer << statement}
             end
-            RestClientWrapper.put(File.join(task.uri,'Error'),{:errorReport => nt},{:content_type => 'text/plain', :subjectid => task.subjectid}) 
+            RestClientWrapper.put(File.join(task.uri,'Error'),{:errorReport => nt},{:content_type => 'text/plain'}) 
           end
           task.kill
         end
@@ -107,7 +107,7 @@ module OpenTox
   end
 
   def code
-    RestClientWrapper.head(@uri,{},:subjectid => @subjectid).code.to_i
+    RestClientWrapper.head(@uri).code.to_i
   end
 
   # get only header for status requests

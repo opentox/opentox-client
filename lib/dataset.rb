@@ -7,8 +7,8 @@ module OpenTox
 
     attr_writer :features, :compounds, :data_entries
 
-    def initialize uri=nil, subjectid=SUBJECTID
-      super uri, subjectid
+    def initialize uri=nil
+      super uri
       @features = []
       @compounds = []
       @data_entries = []
@@ -21,9 +21,9 @@ module OpenTox
       if @metadata.empty? or force_update
         uri = File.join(@uri,"metadata")
         begin
-          parse_ntriples RestClientWrapper.get(uri,{},{:accept => "text/plain", :subjectid => @subjectid})
+          parse_ntriples RestClientWrapper.get(uri,{},{:accept => "text/plain"})
         rescue # fall back to rdfxml
-          parse_rdfxml RestClientWrapper.get(uri,{},{:accept => "application/rdf+xml", :subjectid => @subjectid})
+          parse_rdfxml RestClientWrapper.get(uri,{},{:accept => "application/rdf+xml"})
         end
         @metadata = @rdf.to_hash[RDF::URI.new(@uri)].inject({}) { |h, (predicate, values)| h[predicate] = values.collect{|v| v.to_s}; h }
       end
@@ -34,7 +34,7 @@ module OpenTox
     def features force_update=false
       if @features.empty? or force_update
         uri = File.join(@uri,"features")
-        uris = RestClientWrapper.get(uri,{},{:accept => "text/uri-list", :subjectid => @subjectid}).split("\n") # ordered datasets return ordered features
+        uris = RestClientWrapper.get(uri,{},{:accept => "text/uri-list"}).split("\n") # ordered datasets return ordered features
         @features = uris.collect{|uri| Feature.new(uri)}
       end
       @features
@@ -44,7 +44,7 @@ module OpenTox
     def compounds force_update=false
       if @compounds.empty? or force_update
         uri = File.join(@uri,"compounds")
-        uris = RestClientWrapper.get(uri,{},{:accept => "text/uri-list", :subjectid => @subjectid}).split("\n") # ordered datasets return ordered compounds
+        uris = RestClientWrapper.get(uri,{},{:accept => "text/uri-list"}).split("\n") # ordered datasets return ordered compounds
         @compounds = uris.collect{|uri| Compound.new(uri)}
       end
       @compounds
@@ -61,7 +61,7 @@ module OpenTox
                       <#{RDF::OT.value}> ?value .
           ?f          <#{RDF::OLO.index}> ?fidx.
           } ORDER BY ?fidx ?cidx"
-          RestClientWrapper.get(service_uri,{:query => sparql},{:accept => "text/uri-list", :subjectid => @subjectid}).split("\n").each do |row|
+          RestClientWrapper.get(service_uri,{:query => sparql},{:accept => "text/uri-list"}).split("\n").each do |row|
             r,c,v = row.split("\t")
             @data_entries[r.to_i] ||= []
             # adjust value class depending on feature type, StringFeature takes precedence over NumericFeature
@@ -135,7 +135,7 @@ module OpenTox
     # @param filename [String]
     # @return [String] dataset uri
     def upload filename, wait=true
-      uri = RestClientWrapper.put(@uri, {:file => File.new(filename)}, {:subjectid => @subjectid})
+      uri = RestClientWrapper.put(@uri, {:file => File.new(filename)})
       wait_for_task uri if URI.task?(uri) and wait
       compounds true
       features true

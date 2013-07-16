@@ -9,7 +9,7 @@ module OpenTox
     # @param [optional,Boolean] wait  set to false if method should return a task uri instead of the algorithm result
     # @return [String] URI of new resource (dataset, model, ...)
     def run params=nil, wait=true
-      uri = RestClientWrapper.post @uri, params, { :content_type => "text/uri-list", :subjectid => SUBJECTID}
+      uri = RestClientWrapper.post @uri, params, { :content_type => "text/uri-list"}
       wait_for_task uri if wait
     end
 
