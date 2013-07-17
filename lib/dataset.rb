@@ -254,13 +254,15 @@ module OpenTox
 
       ntriples = ""
       @metadata[RDF.type] = [ RDF::OT.Dataset, RDF::OT.OrderedDataset ]
-      @metadata[RDF.type] ||= eval("RDF::OT."+self.class.to_s.split('::').last)
-      @metadata[RDF::DC.date] ||= DateTime.now
+
       @metadata.each do |predicate,values|
-        [values].flatten.each { |value| ntriples << "<#{@uri}> <#{predicate}> '#{value}' .\n" }
+        [values].flatten.each do |value|
+          URI.valid?(value) ? value = "<#{value}>" : value = "'#{value}'"
+          ntriples << "<#{@uri}> <#{predicate}> #{value} .\n" 
+        end
       end
-      @parameters.each do |parameter|
-        p_node = RDF::Node.new.to_s
+      @parameters.each_with_index do |parameter,i|
+        p_node = "_:parameter"+ i.to_s
         ntriples <<  "<#{@uri}> <#{RDF::OT.parameters}> #{p_node} .\n"
         ntriples <<  "#{p_node} <#{RDF.type}> <#{RDF::OT.Parameter}> .\n"
         parameter.each { |k,v| ntriples <<  "#{p_node} <#{k}> '#{v}' .\n" }

@@ -233,6 +233,7 @@ module OpenTox
       end
 
       def self.find_or_create metadata
+        t = Time.now
         sparql = "SELECT DISTINCT ?s WHERE { "
         metadata.each do |predicate,objects|
           unless [RDF::DC.date,RDF::DC.modified,RDF::DC.description].include? predicate # remove dates and description (strange characters in description may lead to SPARQL errors)
@@ -248,11 +249,19 @@ module OpenTox
           end
         end
         sparql <<  "}"
+        puts "Create SPARQL: #{Time.now-t}"
+        t = Time.new
         uris = RestClientWrapper.get(service_uri,{:query => sparql},{:accept => "text/uri-list"}).split("\n")
+        puts "Query: #{Time.now-t}"
+        t = Time.new
         if uris.empty?
-          self.create metadata
+          f=self.create metadata
+          puts "Create: #{Time.now-t}"
+          f
         else
-          self.new uris.first
+          f=self.new uris.first
+          puts "Found: #{Time.now-t}"
+          f
         end
       end
     end
