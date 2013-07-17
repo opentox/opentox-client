@@ -250,7 +250,6 @@ module OpenTox
     end
 
 # TODO: fix bug that affects data_entry positions
-=begin
     def to_ntriples # redefined string version for better performance
 
       ntriples = ""
@@ -268,7 +267,7 @@ module OpenTox
       end
       @features.each_with_index do |feature,i|
         ntriples <<  "<#{feature.uri}> <#{RDF.type}> <#{RDF::OT.Feature}> .\n"
-        ntriples <<  "<#{feature.uri}> <#{RDF::OLO.index}> '#{i}' .\n"
+        ntriples <<  "<#{feature.uri}> <#{RDF::OLO.index}> '#{i}'^^<http://www.w3.org/2001/XMLSchema#integer> .\n" # sorting at dataset service does not work without type information
       end
       @compounds.each_with_index do |compound,i|
         ntriples <<  "<#{compound.uri}> <#{RDF.type}> <#{RDF::OT.Compound}> .\n"
@@ -276,16 +275,14 @@ module OpenTox
           ntriples <<  "<#{compound.uri}> <#{RDF.type}> <#{RDF::OT.Neighbor}> .\n"
         end
 
-        ntriples <<  "<#{compound.uri}> <#{RDF::OLO.index}> '#{i}' .\n"
-        #data_entry_node = RDF::Node.new
+        ntriples <<  "<#{compound.uri}> <#{RDF::OLO.index}> '#{i}'^^<http://www.w3.org/2001/XMLSchema#integer> .\n" # sorting at dataset service does not work without type information
         data_entry_node = "_:dataentry"+ i.to_s
         ntriples <<  "<#{@uri}> <#{RDF::OT.dataEntry}> #{data_entry_node} .\n"
         ntriples <<  "#{data_entry_node} <#{RDF.type}> <#{RDF::OT.DataEntry}> .\n"
-        ntriples <<  "#{data_entry_node} <#{RDF::OLO.index}> '#{i}' .\n"
+        ntriples <<  "#{data_entry_node} <#{RDF::OLO.index}> '#{i}'^^<http://www.w3.org/2001/XMLSchema#integer> .\n" # sorting at dataset service does not work without type information
         ntriples <<  "#{data_entry_node} <#{RDF::OT.compound}> <#{compound.uri}> .\n"
         @data_entries[i].each_with_index do |value,j|
           value_node = data_entry_node+ "_value"+ j.to_s
-          #value_node = RDF::Node.new
           ntriples <<  "#{data_entry_node} <#{RDF::OT.values}> #{value_node} .\n"
           ntriples <<  "#{value_node} <#{RDF::OT.feature}> <#{@features[j].uri}> .\n"
           ntriples <<  "#{value_node} <#{RDF::OT.value}> '#{value}' .\n"
@@ -294,7 +291,6 @@ module OpenTox
       ntriples
 
     end
-=end
 
     # Methods for for validation service
 
