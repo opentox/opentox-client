@@ -50,7 +50,7 @@ module OpenTox
       @compounds
     end
 
-    # @return [Array] with two dimensions, 
+    # @return [Array] with two dimensions,
     #   first index: compounds, second index: features, values: compound feature values
     def data_entries force_update=false
       if @data_entries.empty? or force_update
@@ -68,7 +68,7 @@ module OpenTox
             if features[c.to_i][RDF.type].include? RDF::OT.NumericFeature and ! features[c.to_i][RDF.type].include? RDF::OT.StringFeature
               v = v.to_f if v
             end
-            @data_entries[r.to_i][c.to_i] = v if v 
+            @data_entries[r.to_i][c.to_i] = v if v
           end
         # TODO: fallbacks for external and unordered datasets
       end
@@ -142,7 +142,7 @@ module OpenTox
       metadata true
       @uri
     end
-   
+
     # @param compound [OpenTox::Compound]
     # @param feature [OpenTox::Feature]
     # @param value [Object] (will be converted to String)
@@ -164,8 +164,8 @@ module OpenTox
 
     # TODO: remove? might be dangerous if feature ordering is incorrect
     # MG: I would not remove this because add_data_entry is very slow (4 times searching in arrays)
-    # CH: do you have measurements? compound and feature arrays are not that big, I suspect that feature search/creation is the time critical step 
-    # @param row [Array] 
+    # CH: do you have measurements? compound and feature arrays are not that big, I suspect that feature search/creation is the time critical step
+    # @param row [Array]
     # @example
     #   d = Dataset.new
     #   d.features << Feature.new(a)
@@ -257,19 +257,19 @@ module OpenTox
 
       @metadata.each do |predicate,values|
         [values].flatten.each do |value|
-          URI.valid?(value) ? value = "<#{value}>" : value = "'#{value}'"
-          ntriples << "<#{@uri}> <#{predicate}> #{value} .\n" 
+          URI.valid?(value) ? value = "<#{value}>" : value = "\"#{value}\""
+          ntriples << "<#{@uri}> <#{predicate}> #{value} ." #\n"
         end
       end
       @parameters.each_with_index do |parameter,i|
         p_node = "_:parameter"+ i.to_s
         ntriples <<  "<#{@uri}> <#{RDF::OT.parameters}> #{p_node} .\n"
         ntriples <<  "#{p_node} <#{RDF.type}> <#{RDF::OT.Parameter}> .\n"
-        parameter.each { |k,v| ntriples <<  "#{p_node} <#{k}> '#{v}' .\n" }
+        parameter.each { |k,v| ntriples <<  "#{p_node} <#{k}> \"#{v}\" .\n" }
       end
       @features.each_with_index do |feature,i|
         ntriples <<  "<#{feature.uri}> <#{RDF.type}> <#{RDF::OT.Feature}> .\n"
-        ntriples <<  "<#{feature.uri}> <#{RDF::OLO.index}> '#{i}'^^<http://www.w3.org/2001/XMLSchema#integer> .\n" # sorting at dataset service does not work without type information
+        ntriples <<  "<#{feature.uri}> <#{RDF::OLO.index}> \"#{i}\"^^<http://www.w3.org/2001/XMLSchema#integer> .\n" # sorting at dataset service does not work without type information
       end
       @compounds.each_with_index do |compound,i|
         ntriples <<  "<#{compound.uri}> <#{RDF.type}> <#{RDF::OT.Compound}> .\n"
@@ -277,17 +277,17 @@ module OpenTox
           ntriples <<  "<#{compound.uri}> <#{RDF.type}> <#{RDF::OT.Neighbor}> .\n"
         end
 
-        ntriples <<  "<#{compound.uri}> <#{RDF::OLO.index}> '#{i}'^^<http://www.w3.org/2001/XMLSchema#integer> .\n" # sorting at dataset service does not work without type information
+        ntriples <<  "<#{compound.uri}> <#{RDF::OLO.index}> \"#{i}\"^^<http://www.w3.org/2001/XMLSchema#integer> .\n" # sorting at dataset service does not work without type information
         data_entry_node = "_:dataentry"+ i.to_s
         ntriples <<  "<#{@uri}> <#{RDF::OT.dataEntry}> #{data_entry_node} .\n"
         ntriples <<  "#{data_entry_node} <#{RDF.type}> <#{RDF::OT.DataEntry}> .\n"
-        ntriples <<  "#{data_entry_node} <#{RDF::OLO.index}> '#{i}'^^<http://www.w3.org/2001/XMLSchema#integer> .\n" # sorting at dataset service does not work without type information
+        ntriples <<  "#{data_entry_node} <#{RDF::OLO.index}> \"#{i}\"^^<http://www.w3.org/2001/XMLSchema#integer> .\n" # sorting at dataset service does not work without type information
         ntriples <<  "#{data_entry_node} <#{RDF::OT.compound}> <#{compound.uri}> .\n"
         @data_entries[i].each_with_index do |value,j|
           value_node = data_entry_node+ "_value"+ j.to_s
           ntriples <<  "#{data_entry_node} <#{RDF::OT.values}> #{value_node} .\n"
           ntriples <<  "#{value_node} <#{RDF::OT.feature}> <#{@features[j].uri}> .\n"
-          ntriples <<  "#{value_node} <#{RDF::OT.value}> '#{value}' .\n"
+          ntriples <<  "#{value_node} <#{RDF::OT.value}> \"#{value}\" .\n"
         end
       end
       ntriples
