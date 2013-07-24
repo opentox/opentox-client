@@ -265,7 +265,7 @@ module OpenTox
         p_node = "_:parameter"+ i.to_s
         ntriples <<  "<#{@uri}> <#{RDF::OT.parameters}> #{p_node} .\n"
         ntriples <<  "#{p_node} <#{RDF.type}> <#{RDF::OT.Parameter}> .\n"
-        parameter.each { |k,v| ntriples <<  "#{p_node} <#{k}> \"#{v}\" .\n" }
+        parameter.each { |k,v| ntriples <<  "#{p_node} <#{k}> \"#{v.to_s.tr('"', '\'')}\" .\n" }
       end
       @features.each_with_index do |feature,i|
         ntriples <<  "<#{feature.uri}> <#{RDF.type}> <#{RDF::OT.Feature}> .\n"
