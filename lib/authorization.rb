@@ -83,7 +83,7 @@ module OpenTox
     #Logout on opensso. Make token invalid. Requires token
     # @param [String] subjectid the subjectid
     # @return [Boolean] true if logout is OK
-    def self.logout(subjectid)
+    def self.logout(subjectid=RestClientWrapper.subjectid)
       begin
         out = RestClientWrapper.post("#{AA}/auth/logout", :subjectid => subjectid)
         return true unless is_token_valid(subjectid)
@@ -107,7 +107,7 @@ module OpenTox
     #Checks if a token is a valid token
     # @param [String]subjectid subjectid from openSSO session
     # @return [Boolean] subjectid is valid or not.
-    def self.is_token_valid(subjectid)
+    def self.is_token_valid(subjectid=RestClientWrapper.subjectid)
       return true if !AA
       begin
         return true if RestClientWrapper.post("#{AA}/auth/isTokenValid",:tokenid => subjectid) == "boolean=true\n"
