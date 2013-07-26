@@ -292,7 +292,7 @@ module OpenTox
       if policies
         policies.each do |policy|
           ret = delete_policy(policy)
-          $logger.debug "OpenTox::Authorization delete policy: #{RestClientWrapper.policy} - with result: #{ret}"
+          $logger.debug "OpenTox::Authorization delete policy: #{policy} - with result: #{ret}"
         end
       end
       return true
