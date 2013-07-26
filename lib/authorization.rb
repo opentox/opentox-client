@@ -98,9 +98,9 @@ module OpenTox
     # @param [String] action request method
     # @param [String] subjectid
     # @return [Boolean, nil]  returns true, false or nil (if authorization-request fails).
-    def self.authorize(uri, action)
+    def self.authorize(uri, action, subjectid=RestClientWrapper.subjectid)
       return true if !AA
-      return true if RestClientWrapper.post("#{AA}/auth/authorize",{:uri => uri, :action => action})== "boolean=true\n"
+      return true if RestClientWrapper.post("#{AA}/auth/authorize",{:subjectid => subjectid, :uri => uri, :action => action})== "boolean=true\n"
       return false
     end
 
@@ -253,11 +253,11 @@ module OpenTox
     end
 
     #Returns the owner (user id) of a token
-    # @param [String]subjectid
+    # @param [String]subjectid optional (normally only used for testing)
     # @return [String]user
-    def self.get_user
+    def self.get_user subjectid=RestClientWrapper.subjectid
       begin
-        out = RestClientWrapper.post("#{AA}/opensso/identity/attributes", {:attributes_names => "uid"})
+        out = RestClientWrapper.post("#{AA}/opensso/identity/attributes", {:subjectid => subjectid, :attributes_names => "uid"})
         user = ""; check = false
         out.split("\n").each do |line|
           if check
