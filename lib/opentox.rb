@@ -98,7 +98,7 @@ module OpenTox
     when 'application/rdf+xml'
       body = self.to_rdfxml
     end
-    Authorization.check_policy(@uri) if $aa[:uri]
+    #Authorization.check_policy(@uri) if $aa[:uri]
     uri = RestClientWrapper.post @uri.to_s, body, { :content_type => mime_type}
     wait ? wait_for_task(uri) : uri
   end
@@ -121,7 +121,7 @@ module OpenTox
   # Delete object at webservice
   def delete 
     RestClientWrapper.delete(@uri)
-    Authorization.delete_policies_from_uri(@uri) if $aa[:uri]
+    #Authorization.delete_policies_from_uri(@uri) if $aa[:uri]
   end
 
   def service_uri
