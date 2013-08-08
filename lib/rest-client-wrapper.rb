@@ -53,13 +53,24 @@ module OpenTox
           if [301, 302, 307].include? response.code and request.method == :get
             response.follow_redirection(request, result)
           elsif response.code >= 400 and !URI.task?(uri)
-            message = response.to_s
-            parameters = request.args
-            parameters[:headers][:subjectid] = "REMOVED" if parameters[:headers] and parameters[:headers][:subjectid]
-            parameters[:url] = parameters[:url].gsub(/(http|https|)\:\/\/[a-zA-Z0-9\-]+\:[a-zA-Z0-9]+\@/, "REMOVED@") if parameters[:url]
-            message += "\nREST parameters:\n#{parameters.inspect}" 
+            #TODO add parameters to error-report
+            #parameters = request.args
+            #parameters[:headers][:subjectid] = "REMOVED" if parameters[:headers] and parameters[:headers][:subjectid]
+            #parameters[:url] = parameters[:url].gsub(/(http|https|)\:\/\/[a-zA-Z0-9\-]+\:[a-zA-Z0-9]+\@/, "REMOVED@") if parameters[:url]
+            #message += "\nREST parameters:\n#{parameters.inspect}" 
             error = known_errors.collect{|e| e if e[:code] == response.code}.compact.first
-            Object.method(error[:method]).call message, uri # call error method
+            begin # errors are returned as error reports in turtle, try to parse
+              content = {} 
+              RDF::Reader.for(:turtle).new(response.to_s) do |reader|
+                reader.each_triple{|triple| content[triple[1]] = triple[2]}
+              end
+              msg = content[RDF::OT.message].to_s
+              cause = content[RDF::OT.errorCause].to_s
+            rescue # parsing error failed, use complete content as message
+              msg = response.to_s
+              cause = nil
+            end
+            Object.method(error[:method]).call msg, uri, cause # call error method
           else
             response
           end

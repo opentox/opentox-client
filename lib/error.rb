@@ -2,8 +2,11 @@ require 'open4'
 
 # add additional fields to Exception class to format errors according to OT-API
 module OpenToxError
-  attr_accessor :http_code, :uri
-  def initialize message, uri=nil
+  attr_accessor :http_code, :uri, :error_cause
+  def initialize(message, uri=nil, cause=nil)
+    message.gsub!(/\A"|"\Z/, '') # remove quotes
+    @error_cause = cause ? OpenToxError::cut_backtrace(cause) : short_backtrace
+    
     super message
     #unless self.is_a? Errno::EAGAIN # avoid "Resource temporarily unavailable" errors
       @uri = uri.to_s.sub(%r{//.*:.*@},'//') # remove credentials from uri
@@ -12,21 +15,29 @@ module OpenToxError
       subject = RDF::Node.new
       @rdf << [subject, RDF.type, RDF::OT.ErrorReport]
       @rdf << [subject, RDF::OT.actor, @uri]
-      @rdf << [subject, RDF::OT.message, message.sub(/^"/,'').sub(/"$/,'')]
+      @rdf << [subject, RDF::OT.message, message]
       @rdf << [subject, RDF::OT.statusCode, @http_code]
       @rdf << [subject, RDF::OT.errorCode, self.class.to_s]
-      @rdf << [subject, RDF::OT.errorCause, short_backtrace]
+      @rdf << [subject, RDF::OT.errorCause, @error_cause]
       $logger.error("\n"+self.to_turtle)
     #end
   end
-
+  
+  def self.cut_backtrace(trace)
+    if trace.is_a?(Array)
+      cut_index = trace.find_index{|line| line.match(/sinatra|minitest/)}
+      cut_index ||= trace.size
+      cut_index -= 1
+      cut_index = trace.size-1 if cut_index < 0
+      trace[0..cut_index].join("\n")
+    else
+      trace
+    end
+  end
+  
   def short_backtrace
     backtrace = caller.collect{|line| line unless line =~ /#{File.dirname(__FILE__)}/}.compact
-    cut_index = backtrace.find_index{|line| line.match /sinatra|minitest/}
-    cut_index ||= backtrace.size
-    cut_index -= 1
-    cut_index = backtrace.size-1 if cut_index < 0
-    backtrace[0..cut_index].join("\n")
+    OpenToxError::cut_backtrace(backtrace)
   end
 
   RDF_FORMATS.each do |format|
@@ -63,9 +74,9 @@ module OpenTox
   class Error < RuntimeError
     include OpenToxError
     
-    def initialize code, message, uri=nil
+    def initialize(code, message, uri=nil, cause=nil)
       @http_code = code
-      super message, uri
+      super message, uri, cause
     end
   end
 
@@ -73,15 +84,15 @@ module OpenTox
   RestClientWrapper.known_errors.each do |error|
     # create error classes 
     c = Class.new Error do
-      define_method :initialize do |message, uri=nil|
-        super error[:code], message, uri
+      define_method :initialize do |message, uri=nil, cause=nil|
+        super error[:code], message, uri, cause
       end
     end
     OpenTox.const_set error[:class],c
     
     # define global methods for raising errors, eg. bad_request_error
-    Object.send(:define_method, error[:method]) do |message,uri=nil|
-      raise c.new(message.inspect, uri)
+    Object.send(:define_method, error[:method]) do |message,uri=nil,cause=nil|
+      raise c.new(message.inspect, uri, cause)
     end
   end
   

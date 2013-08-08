@@ -21,28 +21,10 @@ module OpenTox
       pid = fork do
         begin
           task.completed yield
-        rescue
-          if $!.respond_to? :to_ntriples
-            RestClientWrapper.put(File.join(task.uri,'Error'),{:errorReport => $!.to_ntriples},{:content_type => 'text/plain'}) 
-          else
-            cut_index = $!.backtrace.find_index{|line| line.match /gems\/sinatra/}
-            cut_index = -1 unless cut_index
-            @rdf = RDF::Graph.new
-            subject = RDF::Node.new
-            @rdf << [subject, RDF.type, RDF::OT.ErrorReport]
-            @rdf << [subject, RDF::OT.message, $!.message]
-            @rdf << [subject, RDF::OT.errorCode, $!.class.to_s]
-            @rdf << [subject, RDF::OT.errorCause, $!.backtrace[0..cut_index].join("\n")]
-            prefixes = {:rdf => "http://www.w3.org/1999/02/22-rdf-syntax-ns#", :ot => RDF::OT.to_s}
-            turtle = RDF::Turtle::Writer.for(:turtle).buffer(:prefixes => prefixes)  do |writer|
-              @rdf.each{|statement| writer << statement}
-            end
-            $logger.error turtle
-            nt = RDF::Writer.for(:ntriples).buffer do |writer|
-              @rdf.each{|statement| writer << statement}
-            end
-            RestClientWrapper.put(File.join(task.uri,'Error'),{:errorReport => nt},{:content_type => 'text/plain'}) 
-          end
+        rescue => e
+          # wrap non-opentox-errors first
+          e = OpenTox::Error.new(500,e.message,nil,e.backtrace) unless e.is_a?(OpenTox::Error)
+          RestClientWrapper.put(File.join(task.uri,'Error'),{:errorReport => e.to_ntriples},{:content_type => 'text/plain'})
           task.kill
         end
       end

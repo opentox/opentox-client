@@ -155,16 +155,12 @@ module Kernel
       t = OpenTox::Task.new uri
       t.wait
       unless t.completed?
-        begin # handle known (i.e. OpenTox) errors
-          error = OpenTox::RestClientWrapper.known_errors.select{|error| error[:code] == t.code}.first
-          error ? error_method = error[:method] : error_method = :internal_server_error
-          report = t.error_report
-          report ? error_message = report[RDF::OT.message] : error_message = $!.message
-          Object.send(error_method,error_message,t.uri)
-        rescue
-          internal_server_error "#{$!.message}", t.uri
-          #internal_server_error "#{$!.message}\n#{$!.backtrace}", t.uri
-        end
+        error = OpenTox::RestClientWrapper.known_errors.select{|error| error[:code] == t.code}.first
+        error_method = error ? error[:method] : :internal_server_error
+        report = t.error_report
+        error_message = report ? report[RDF::OT.message] : $!.message
+        error_cause = report ? report[RDF::OT.errorCause] : nil 
+        Object.send(error_method,error_message,t.uri,error_cause)
       end
       uri = t.resultURI
     end
