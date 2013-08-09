@@ -3,8 +3,8 @@ require 'open4'
 # add additional fields to Exception class to format errors according to OT-API
 module OpenToxError
   attr_accessor :http_code, :uri, :error_cause
-  def initialize(message, uri=nil, cause=nil)
-    message.gsub!(/\A"|"\Z/, '') # remove quotes
+  def initialize(message=nil, uri=nil, cause=nil)
+    message.gsub!(/\A"|"\Z/, '') if message # remove quotes
     @error_cause = cause ? OpenToxError::cut_backtrace(cause) : short_backtrace
     
     super message
@@ -15,7 +15,7 @@ module OpenToxError
       subject = RDF::Node.new
       @rdf << [subject, RDF.type, RDF::OT.ErrorReport]
       @rdf << [subject, RDF::OT.actor, @uri]
-      @rdf << [subject, RDF::OT.message, message]
+      @rdf << [subject, RDF::OT.message, message.to_s]
       @rdf << [subject, RDF::OT.statusCode, @http_code]
       @rdf << [subject, RDF::OT.errorCode, self.class.to_s]
       @rdf << [subject, RDF::OT.errorCause, @error_cause]
@@ -74,7 +74,7 @@ module OpenTox
   class Error < RuntimeError
     include OpenToxError
     
-    def initialize(code, message, uri=nil, cause=nil)
+    def initialize(code, message=nil, uri=nil, cause=nil)
       @http_code = code
       super message, uri, cause
     end
@@ -84,7 +84,7 @@ module OpenTox
   RestClientWrapper.known_errors.each do |error|
     # create error classes 
     c = Class.new Error do
-      define_method :initialize do |message, uri=nil, cause=nil|
+      define_method :initialize do |message=nil, uri=nil, cause=nil|
         super error[:code], message, uri, cause
       end
     end
