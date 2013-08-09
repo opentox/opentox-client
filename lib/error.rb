@@ -4,7 +4,7 @@ require 'open4'
 module OpenToxError
   attr_accessor :http_code, :uri, :error_cause
   def initialize(message=nil, uri=nil, cause=nil)
-    message.gsub!(/\A"|"\Z/, '') if message # remove quotes
+    message = message.to_s.gsub(/\A"|"\Z/, '') if message # remove quotes
     @error_cause = cause ? OpenToxError::cut_backtrace(cause) : short_backtrace
     
     super message
@@ -92,7 +92,7 @@ module OpenTox
     
     # define global methods for raising errors, eg. bad_request_error
     Object.send(:define_method, error[:method]) do |message,uri=nil,cause=nil|
-      raise c.new(message.inspect, uri, cause)
+      raise c.new(message, uri, cause)
     end
   end
   
