@@ -36,21 +36,21 @@ module OpenTox
       include OpenTox
       include OpenTox::Algorithm
       include Model
-    end
-
-    class Lazar
-      include OpenTox
-      include OpenTox::Algorithm
-      include Model
-      def self.create params
-        Lazar.new(File.join($algorithm[:uri], "lazar")).run params
+      
+      def self.find uri
+          URI.accessible?(uri) ? self.new(uri) : nil
       end
 
       def predict params
         run params
       end
-
     end
 
+    class Lazar < Generic
+
+      def self.create params
+        Lazar.new(File.join($algorithm[:uri], "lazar")).run params
+      end
+    end
   end
 end
