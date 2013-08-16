@@ -61,13 +61,14 @@ module OpenTox
             error = known_errors.collect{|e| e if e[:code] == response.code}.compact.first
             begin # errors are returned as error reports in turtle, try to parse
               content = {} 
-              RDF::Reader.for(:turtle).new(response.to_s) do |reader|
+              RDF::Reader.for(:turtle).new(response) do |reader|
                 reader.each_triple{|triple| content[triple[1]] = triple[2]}
               end
               msg = content[RDF::OT.message].to_s
               cause = content[RDF::OT.errorCause].to_s
+              raise if msg.size==0 && cause.size==0 # parsing failed
             rescue # parsing error failed, use complete content as message
-              msg = response.to_s
+              msg = "Could not parse error response from rest call '#{method}' to '#{uri}':\n#{response}"
               cause = nil
             end
             Object.method(error[:method]).call msg, uri, cause # call error method
