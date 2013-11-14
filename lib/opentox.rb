@@ -129,17 +129,22 @@ module OpenTox
   end
   
   def create_rdf
+    #$logger.debug "#{eval("RDF::OT."+self.class.to_s.split('::').last)}\n"
     @rdf = RDF::Graph.new
-    @metadata[RDF.type] ||= RDF::URI.new(eval("RDF::OT."+self.class.to_s.split('::').last))
+    # DG: since model is no self.class anymore 
+    @metadata[RDF.type] ||= (eval("RDF::OT."+self.class.to_s.split('::').last) =~ /Lazar|Generic/) ? RDF::URI.new(RDF::OT.Model) : RDF::URI.new(eval("RDF::OT."+self.class.to_s.split('::').last))
+    #@metadata[RDF.type] ||= RDF::URI.new(eval("RDF::OT."+self.class.to_s.split('::').last))
     @metadata[RDF::DC.date] ||= DateTime.now
+    # DG: uri in object should be in brackets, otherwise query for uri-list ignores the object.
+    # see: http://www.w3.org/TR/rdf-testcases/#sec-uri-encoding
     @metadata.each do |predicate,values|
-      [values].flatten.each{ |value| @rdf << [RDF::URI.new(@uri), predicate, (value == eval("RDF::OT."+self.class.to_s.split('::').last)) ? RDF::URI.new(value) : value] unless value.nil? }
+      [values].flatten.each{ |value| @rdf << [RDF::URI.new(@uri), predicate, (URI.valid?(value) ? RDF::URI.new(value) : value)] unless value.nil? }
     end
     @parameters.each do |parameter|
       p_node = RDF::Node.new
       @rdf << [RDF::URI.new(@uri), RDF::OT.parameters, p_node]
       @rdf << [p_node, RDF.type, RDF::OT.Parameter]
-      parameter.each { |k,v| @rdf << [p_node, k, v] }
+      parameter.each { |k,v| @rdf << [p_node, k, v] unless v.nil?}
     end
   end
   
@@ -157,12 +162,16 @@ module OpenTox
     # rdf serialization methods for all formats e.g. to_rdfxml
     send :define_method, "to_#{format}".to_sym do
       create_rdf
+      # if encoding is used iteration is necessary
+      # see: http://rubydoc.info/github/ruby-rdf/rdf/RDF/NTriples/Writer
       RDF::Writer.for(format).buffer(:encoding => Encoding::ASCII) do |writer|
-        writer << @rdf
+        @rdf.each_statement do |statement|
+          writer << statement
+        end
       end
     end
   end
-
+  
   # @return [String] converts object to turtle-string
   def to_turtle # redefined to use prefixes (not supported by RDF::Writer)
     prefixes = {:rdf => "http://www.w3.org/1999/02/22-rdf-syntax-ns#"}
