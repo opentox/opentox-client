@@ -243,22 +243,21 @@ module OpenTox
           end
         end
         RDF::Writer.for(format).buffer do |writer|
-          @rdf.each{|statement| writer << statement}
+          writer << @rdf
         end
       end
 
     end
 
-# TODO: fix bug that affects data_entry positions
+# TODO: fix bug that affects data_entry positions # DG: who wrotes this comment ?
     def to_ntriples # redefined string version for better performance
-
       ntriples = ""
       @metadata[RDF.type] = [ RDF::OT.Dataset, RDF::OT.OrderedDataset ]
 
       @metadata.each do |predicate,values|
         [values].flatten.each do |value|
           URI.valid?(value) ? value = "<#{value}>" : value = "\"#{value}\""
-          ntriples << "<#{@uri}> <#{predicate}> #{value} ." #\n"
+          ntriples << "<#{@uri}> <#{predicate}> #{value} .\n" #\n"
         end
       end
       @parameters.each_with_index do |parameter,i|
