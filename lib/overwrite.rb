@@ -128,7 +128,7 @@ end
 class File
   # @return [String] mime_type including charset using linux cmd command
   def mime_type
-    `file -ib #{self.path}`.chomp
+    `file -ib '#{self.path}'`.chomp
   end
 end
 
