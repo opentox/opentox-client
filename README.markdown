@@ -28,10 +28,12 @@ Installation
 
   gem install opentox-client
 
-[API documentation](http://rdoc.info/gems/opentox-client)
--------------------------------------------------------------------
+Documentation
+-------------
+* [API documentation](http://rdoc.info/gems/opentox-client)
+* [RubyDoc Code documentation](http://rubydoc.info/github/opentox/opentox-client/development/frames)
 
 Copyright
 ---------
 
-Copyright (c) 2009-2012 Christoph Helma, Martin Guetlein, Micha Rautenberg, Andreas Maunz, David Vorgrimmler, Denis Gebele. See LICENSE for details.
+Copyright (c) 2009-2014 Christoph Helma, Martin Guetlein, Micha Rautenberg, Andreas Maunz, David Vorgrimmler, Denis Gebele. See LICENSE for details.

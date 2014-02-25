@@ -64,7 +64,7 @@ module OpenTox
     #Authentication against OpenSSO. Returns token. Requires Username and Password.
     # @param user [String] Username
     # @param pw [String] Password
-    # @return [String, nil] gives subjectid or nil
+    # @return [Boolean] true if successful
     def self.authenticate(user, pw)
       return nil if !AA
       begin
