@@ -31,7 +31,7 @@ Installation
 Documentation
 -------------
 * [API documentation](http://rdoc.info/gems/opentox-client)
-* [RubyDoc Code documentation](http://rubydoc.info/github/opentox/opentox-client/development/frames)
+* [RubyDoc.info Code documentation](http://rubydoc.info/github/opentox/opentox-client/development/frames)
 
 Copyright
 ---------
