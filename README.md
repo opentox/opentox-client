@@ -1,7 +1,7 @@
 opentox-client
 ====================
 
-Thin Ruby wrapper for the [OpenTox](http://www.opentox.org) REST API. 
+Thin Ruby wrapper for the [OpenTox](http://www.opentox.org) REST API 
 
 Libraries:
 
