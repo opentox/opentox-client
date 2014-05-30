@@ -42,7 +42,7 @@ module OpenTox
         args={}
         args[:method] = method
         args[:url] = uri
-        args[:timeout] = 600
+        args[:timeout] = 1800
         args[:payload] = payload
         headers.each{ |k,v| headers.delete(k) if v==nil } if headers #remove keys with empty values, as this can cause problems
         args[:headers] = headers 
