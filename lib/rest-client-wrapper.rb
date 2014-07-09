@@ -19,7 +19,7 @@ module OpenTox
     # Does not wait for task to finish and returns task uri
     # @param [String] destination URI
     # @param [optional,Hash|String] Payload data posted to the service
-    # @param [optional,Hash] Headers with params like :accept, :content_type, :subjectid
+    # @param [optional,Hash] Headers with params like :accept, :content_type, :subjectid, :verify_ssl
     # @return [RestClient::Response] REST call response 
     [:head,:get,:post,:put,:delete].each do |method|
 
@@ -42,10 +42,11 @@ module OpenTox
         args={}
         args[:method] = method
         args[:url] = uri
+        args[:verify_ssl] = 0 if headers[:verify_ssl].nil? || headers[:verify_ssl].empty?
         args[:timeout] = 1800
         args[:payload] = payload
         headers.each{ |k,v| headers.delete(k) if v==nil } if headers #remove keys with empty values, as this can cause problems
-        args[:headers] = headers 
+        args[:headers] = headers
         
         @request = RestClient::Request.new(args)
         # ignore error codes from Task services (may return error codes >= 400 according to API, which causes exceptions in RestClient and RDF::Reader)
