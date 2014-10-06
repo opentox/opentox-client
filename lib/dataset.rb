@@ -308,7 +308,11 @@ module OpenTox
       dataset.metadata = metadata
       dataset.features = (feats ? feats : self.features)
       compound_indices.each do |c_idx|
-        dataset << [ self.compounds[c_idx] ] + dataset.features.each_with_index.collect{|f,f_idx| self.data_entries[c_idx][f_idx]}
+        d = [ self.compounds[c_idx] ]
+        dataset.features.each_with_index.each do |f,f_idx|
+          d << (self.data_entries[c_idx] ? self.data_entries[c_idx][f_idx] : nil)
+        end
+        dataset << d
       end
       dataset.put
       dataset
