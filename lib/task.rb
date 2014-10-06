@@ -24,6 +24,7 @@ module OpenTox
         rescue => e
           # wrap non-opentox-errors first
           e = OpenTox::Error.new(500,e.message,nil,e.backtrace) unless e.is_a?(OpenTox::Error)
+          $logger.error "error in task #{task.uri} created by #{creator}" # creator is not logged because error is logged when thrown
           RestClientWrapper.put(File.join(task.uri,'Error'),{:errorReport => e.to_ntriples},{:content_type => 'text/plain'})
           task.kill
         end
@@ -89,7 +90,7 @@ module OpenTox
   end
 
   def code
-    RestClientWrapper.head(@uri).code.to_i
+    RestClientWrapper.get(@uri).code.to_i
   end
 
   # get only header for status requests
