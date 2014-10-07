@@ -42,6 +42,11 @@ module OpenTox
         end
       end
 
+      # returns a hash, keys: physchem descriptors, values: their description
+      def self.physchem_descriptors
+        Hash[ RestClientWrapper.get(File.join(service_uri, "descriptor", "physchem", "list")).to_s.split("\n").collect{|l| l.split("\t")} ]
+      end
+
     end
 
     class Fminer 
