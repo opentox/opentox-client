@@ -184,11 +184,11 @@ module OpenTox
 
     # converts dataset to csv format including compound smiles as first column, other column headers are feature titles
     # @return [String]
-    def to_csv
-      CSV.generate do |csv|
-        csv << ["SMILES"] + features.collect{|f| f.title}
+    def to_csv(inchi=false)
+      CSV.generate({:force_quotes=>true}) do |csv|
+        csv << [inchi ? "InChI" : "SMILES"] + features.collect{|f| f.title}
         compounds.each_with_index do |c,i|
-          csv << [c.smiles] + data_entries[i]
+          csv << [inchi ? c.inchi : c.smiles] + data_entries[i]
         end
       end
     end
@@ -329,37 +329,29 @@ module OpenTox
     # @param dataset [OpenTox::Dataset] dataset that should be mapped to this dataset (fully loaded)
     # @param compound_index [Fixnum], corresponding to dataset
     def compound_index( dataset, compound_index )
-      unless defined?(@index_map) and @index_map[dataset.uri]
-        map = {}
-        dataset.compounds.collect{|c| c.uri}.uniq.each do |compound|
-          self_indices = compound_indices(compound)
-          next unless self_indices
-          dataset_indices = dataset.compound_indices(compound)
-          if self_indices.size==1
-            dataset_indices.size.times do |i|
-              map[dataset_indices[i]] = self_indices[0]
-            end
-          elsif self_indices.size==dataset_indices.size
-            # we do assume that the order is preseverd!
-            dataset_indices.size.times do |i|
-              map[dataset_indices[i]] = self_indices[i]
-            end
-          else
-            raise "cannot map compound #{compound} from dataset #{dataset.uri} to dataset #{uri}, "+
-              "compound occurs #{dataset_indices.size} times and #{self_indices.size} times"
-          end
+      compound_uri = dataset.compounds[compound_index].uri
+      self_indices = compound_indices(compound_uri)
+      if self_indices==nil
+        nil
+      else
+        dataset_indices = dataset.compound_indices(compound_uri)
+        if self_indices.size==1
+          self_indices.first
+        elsif self_indices.size==dataset_indices.size
+          # we do assume that the order is preseverd (i.e., the nth occurences in both datasets are mapped to each other)!
+          self_indices[dataset_indices.index(compound_index)]
+        else
+          raise "cannot map compound #{compound} from dataset #{dataset.uri} to dataset #{uri}, "+
+            "compound occurs #{dataset_indices.size} times and #{self_indices.size} times"
         end
-        @index_map = {} unless defined?(@index_map)
-        @index_map[dataset.uri] = map
       end
-      @index_map[dataset.uri][compound_index]
     end
 
     # returns the inidices of the compound in the dataset
-    # @param compound [OpenTox::Compound]
+    # @param compound_uri [String]
     # @return [Array] compound index (position) of the compound in the dataset, array-size is 1 unless multiple occurences
-    def compound_indices( compound )
-      unless defined?(@cmp_indices) and @cmp_indices.has_key?(compound)
+    def compound_indices( compound_uri )
+      unless defined?(@cmp_indices) and @cmp_indices.has_key?(compound_uri)
         @cmp_indices = {}
         @compounds.size.times do |i|
           c = @compounds[i].uri
@@ -370,7 +362,7 @@ module OpenTox
           end
         end
       end
-      @cmp_indices[compound]
+      @cmp_indices[compound_uri]
     end
 
     # returns compound feature value using the compound-index and the feature_uri
