@@ -19,8 +19,15 @@ module OpenToxError
       @rdf << [subject, RDF::OT.statusCode, @http_code]
       @rdf << [subject, RDF::OT.errorCode, self.class.to_s]
       @rdf << [subject, RDF::OT.errorCause, @error_cause]
-      $logger.error("\n"+self.to_turtle)
+      $logger.error("\n"+self.to_yaml) 
     #end
+  end
+
+  # this method defines what is used for to_yaml (override to skip large @rdf graph)
+  def encode_with coder
+    @rdf.each do |statement|
+      coder[statement.predicate.fragment.to_s] = statement.object.to_s
+    end
   end
   
   def self.cut_backtrace(trace)
