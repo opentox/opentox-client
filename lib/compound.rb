@@ -102,7 +102,7 @@ module OpenTox
 
     # @todo
     def chebi
-      raise_internal_error "not yet implemented"
+      internal_server_error "not yet implemented"
     end
 
     # @return [String] ChEMBL database compound id, derieved via restcall to chembl
