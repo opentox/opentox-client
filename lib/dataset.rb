@@ -353,7 +353,7 @@ module OpenTox
     def compound_indices( compound_uri )
       unless defined?(@cmp_indices) and @cmp_indices.has_key?(compound_uri)
         @cmp_indices = {}
-        @compounds.size.times do |i|
+        compounds().size.times do |i|
           c = @compounds[i].uri
           if @cmp_indices[c]==nil
             @cmp_indices[c] = [i]
