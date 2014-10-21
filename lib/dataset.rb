@@ -185,7 +185,7 @@ module OpenTox
     # converts dataset to csv format including compound smiles as first column, other column headers are feature titles
     # @return [String]
     def to_csv(inchi=false)
-      CSV.generate({:force_quotes=>true}) do |csv|
+      CSV.generate() do |csv| #{:force_quotes=>true}
         csv << [inchi ? "InChI" : "SMILES"] + features.collect{|f| f.title}
         compounds.each_with_index do |c,i|
           csv << [inchi ? c.inchi : c.smiles] + data_entries[i]
