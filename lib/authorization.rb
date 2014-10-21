@@ -1,6 +1,6 @@
 module OpenTox
 
-  if defined?($aa) and $aa[:uri] 
+  if defined?($aa) and $aa.has_key?(:uri)
     AA = $aa[:uri] 
   else
     AA = "https://opensso.in-silico.ch" #if not set in .opentox/conf/[SERVICE].rb
@@ -334,6 +334,7 @@ module OpenTox
     # @param subjectid [String]
     # @return [Boolean] true if access granted, else otherwise
     def self.authorized?(uri, request_method)
+      return true if !AA
       request_method = request_method.to_sym if request_method
       if $aa[:free_request].include?(request_method)
         true
