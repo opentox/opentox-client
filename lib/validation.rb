@@ -116,6 +116,18 @@ module OpenTox
       table
     end
 
+    # filters the validation-predictions and returns validation-metadata with filtered statistics
+    # @param min_confidence [Float] predictions with confidence < min_confidence are filtered out
+    # @param min_num_predictions [Integer] optional, additional param to min_confidence, the top min_num_predictions are selected, even if confidence to low
+    # @param max_num_predictions [Integer] returns the top max_num_predictions (with the highest confidence), not compatible to min_confidence
+    # return [Hash] metadata
+    def filter_metadata( min_confidence, min_num_predictions=nil, max_num_predictions=nil )
+      conf = min_confidence ? "min_confidence=#{min_confidence}" : nil
+      min = min_num_predictions ? "min_num_predictions=#{min_num_predictions}" : nil
+      max = max_num_predictions ? "max_num_predictions=#{max_num_predictions}" : nil
+      YAML.load(OpenTox::RestClientWrapper.get("#{@uri}?#{[conf,min,max].compact.join("&")}",nil,{:accept => "application/x-yaml"}))
+    end
+
     # returns probability-distribution for a given prediction
     # it takes all predictions into account that have a confidence value that is >= confidence and that have the same predicted value
     # (minimum 12 predictions with the hightest confidence are selected (even if the confidence is lower than the given param)
