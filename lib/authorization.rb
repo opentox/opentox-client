@@ -1,6 +1,6 @@
 module OpenTox
 
-  if defined?($aa) and $aa.has_key?(:uri)
+  if defined?($aa) and $aa.has_key?(:uri) and !$aa[:uri].nil?
     AA = $aa[:uri] 
   else
     AA = "https://opensso.in-silico.ch" #if not set in .opentox/conf/[SERVICE].rb
