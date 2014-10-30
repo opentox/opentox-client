@@ -47,6 +47,11 @@ module OpenTox
         Hash[ RestClientWrapper.get(File.join(service_uri, "descriptor", "physchem", "list")).to_s.split("\n").collect{|l| l.split("\t")} ]
       end
 
+      # returns array of "descriptor-values", as CDK descriptors calculate serveral values, e.g., ALOGP produces ALOGP.ALogP, ALOGP.ALogp2, ALOGP.AMR
+      def self.physchem_descriptor_values
+        RestClientWrapper.get(File.join(service_uri, "descriptor", "physchem", "list_values")).to_s.split("\n")
+      end
+
     end
 
     class Fminer 
