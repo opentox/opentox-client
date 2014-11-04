@@ -18,21 +18,21 @@ module OpenTox
 
     #Helper Class to create and send default policies out of xml templates
     #@example Creating a default policy to a URI
-    #  aa=OpenTox::Authorization::Helper.new(tok)
+    #  aa=OpenTox::Authorization::Helper.new
     #  xml=aa.get_xml('http://uri....')
-    #  OpenTox::Authorization.create_policy(xml,tok)
+    #  OpenTox::Authorization.create_policy(xml)
 
     class Helper
       attr_accessor :user, :policy
 
-      #Generates AA object - requires subjectid
+      #Generates an AuthorizationHelper object - requires subjectid
       # @param [String] subjectid
       def initialize
         @user = Authorization.get_user
         @policy = Policies.new()
       end
 
-      #Cleans AA Policies and loads default xml file into policy attribute
+      #Cleans Policies of AuthorizationHelper object and loads default xml file into policy attribute
       #set uri and user, returns Policyfile(XML) for open-sso
       # @param uri [String] URI to create a policy for
       def get_xml(uri)
@@ -66,7 +66,6 @@ module OpenTox
     # @param pw [String] Password
     # @return [Boolean] true if successful
     def self.authenticate(user, pw)
-      return nil if !AA
       begin
         res = RestClientWrapper.post("#{AA}/auth/authenticate",{:username=>user, :password => pw},{:subjectid => ""}).sub("token.id=","").sub("\n","")
         if is_token_valid(res)
@@ -99,7 +98,6 @@ module OpenTox
     # @param [String] subjectid
     # @return [Boolean, nil]  returns true, false or nil (if authorization-request fails).
     def self.authorize(uri, action, subjectid=RestClientWrapper.subjectid)
-      return true if !AA
       return true if RestClientWrapper.post("#{AA}/auth/authorize",{:subjectid => subjectid, :uri => uri, :action => action})== "boolean=true\n"
       return false
     end
@@ -108,7 +106,6 @@ module OpenTox
     # @param [String]subjectid subjectid from openSSO session
     # @return [Boolean] subjectid is valid or not.
     def self.is_token_valid(subjectid=RestClientWrapper.subjectid)
-      return true if !AA
       begin
         return true if RestClientWrapper.post("#{AA}/auth/isTokenValid",:tokenid => subjectid) == "boolean=true\n"
       rescue #do rescue because openSSO throws 401
@@ -276,7 +273,6 @@ module OpenTox
     # @param uri [String] URI
     # @param subjectid [String]
     def self.send_policy(uri)
-      return true if !AA
       aa  = Authorization::Helper.new
       ret = aa.send(uri)
       $logger.debug "OpenTox::Authorization send policy for URI: #{uri} | subjectid: #{RestClientWrapper.subjectid} - policy created: #{ret}"
@@ -334,7 +330,7 @@ module OpenTox
     # @param subjectid [String]
     # @return [Boolean] true if access granted, else otherwise
     def self.authorized?(uri, request_method)
-      return true if !AA
+      return true unless $aa[:uri]
       request_method = request_method.to_sym if request_method
       if $aa[:free_request].include?(request_method)
         true
