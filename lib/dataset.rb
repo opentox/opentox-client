@@ -34,7 +34,11 @@ module OpenTox
     def features force_update=false
       if @features.empty? or force_update
         uri = File.join(@uri,"features")
-        uris = RestClientWrapper.get(uri,{},{:accept => "text/uri-list"}).split("\n") # ordered datasets return ordered features
+        begin
+          uris = RestClientWrapper.get(uri,{},{:accept => "text/uri-list"}).split("\n") # ordered datasets return ordered features
+        rescue
+          uris = []
+        end
         @features = uris.collect{|uri| Feature.new(uri)}
       end
       @features
@@ -44,7 +48,11 @@ module OpenTox
     def compounds force_update=false
       if @compounds.empty? or force_update
         uri = File.join(@uri,"compounds")
-        uris = RestClientWrapper.get(uri,{},{:accept => "text/uri-list"}).split("\n") # ordered datasets return ordered compounds
+        begin
+          uris = RestClientWrapper.get(uri,{},{:accept => "text/uri-list"}).split("\n") # ordered datasets return ordered compounds
+        rescue
+          uris = []
+        end
         @compounds = uris.collect{|uri| Compound.new(uri)}
       end
       @compounds
