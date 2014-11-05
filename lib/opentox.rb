@@ -244,14 +244,18 @@ module OpenTox
       def self.find_or_create metadata
         t = Time.now
         sparql = "SELECT DISTINCT ?s WHERE { "
+        # flatten 3.level arrays in objects
+        metadata.each{|p,o| o.flatten! if o.is_a? Array}
         metadata.each do |predicate,objects|
           unless [RDF::DC.date,RDF::DC.modified,RDF::DC.description].include? predicate # remove dates and description (strange characters in description may lead to SPARQL errors)
             if objects.is_a? String
-              URI.valid?(objects) ? o = "<#{objects}>" : o = "'''#{objects}'''" 
+              #URI.valid?(objects) ? o = "<#{objects}>" : o = "'''#{objects}'''" #DG: do not understand this quotation
+              URI.valid?(objects) ? o = "<#{objects}>" : o = "\"#{objects}\""
               sparql << "?s <#{predicate}> #{o}. " 
             elsif objects.is_a? Array
               objects.each do |object|
-                URI.valid?(object) ? o = "<#{object}>" : o = "'#{object}'" 
+                #URI.valid?(object) ? o = "<#{object}>" : o = "'#{object}'" #DG: do not understand this quotation
+                URI.valid?(object) ? o = "<#{object}>" : o = "\"#{object}\"" 
                 sparql << "?s <#{predicate}> #{o}. " 
               end
             end
