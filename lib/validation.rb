@@ -338,7 +338,7 @@ module OpenTox
       raise OpenTox::BadRequestError.new "params is no hash" unless params.is_a?(Hash)
       params[:validation_uris] = validation_uris.join(",")
       params[:identifier] = identifier.join(",")
-      uri = RestClientWrapper.post(File.join($validation[:uri],"/report/algorithm_comparison"), params, waiting_task )
+      uri = RestClientWrapper.post(File.join($validation[:uri],"/report/algorithm_comparison"), params, {}, waiting_task )
       uri = wait_for_task(uri)
       AlgorithmComparisonReport.new(uri)
     end
