@@ -54,7 +54,7 @@ class String
 
     # TODO add title as parameter
     title = nil #$sinatra.to($sinatra.request.env['PATH_INFO'], :full) if $sinatra
-    html = "<html>"
+    html = "<html><body>"
     html << "<title>"+title+"</title>" if title
     #html += "<img src=\""+OT_LOGO+"\"><\/img><body>"
 
