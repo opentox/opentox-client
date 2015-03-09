@@ -10,13 +10,18 @@ module OpenTox
       super true # always update metadata
     end
 
-    def self.run(description, creator=nil)
+    def self.task_uri
+      Task.new.uri
+    end
 
-      task = Task.new nil
+    def self.run(description, creator=nil, uri=nil)
+
+      task = Task.new uri
       task[RDF::OT.created_at] = DateTime.now
       task[RDF::OT.hasStatus] = "Running"
       task[RDF::DC.description] = description.to_s
       task[RDF::DC.creator] = creator.to_s
+      task[RDF::OT.percentageCompleted] = "0"
       task.put
       pid = fork do
         begin
@@ -72,6 +77,7 @@ module OpenTox
       self.[]=(RDF::OT.resultURI, uri)
       self.[]=(RDF::OT.hasStatus, "Completed")
       self.[]=(RDF::OT.finished_at, DateTime.now)
+      self.[]=(RDF::OT.percentageCompleted, "100")
       put
     end
 
@@ -110,7 +116,7 @@ module OpenTox
     code >= 400 and code != 503
   end
 
-  [:hasStatus, :resultURI, :created_at, :finished_at].each do |method|
+  [:hasStatus, :resultURI, :created_at, :finished_at, :percentageCompleted].each do |method|
     define_method method do
       response = self.[](RDF::OT[method])
       response = self.[](RDF::OT1[method]) unless response  # API 1.1 compatibility
@@ -139,7 +145,7 @@ module OpenTox
     report
   end
 
-  #TODO: subtasks (only for progress)
+  #TODO: subtasks (only for progress in validation)
   class SubTask
     
     def initialize(task, min, max)
