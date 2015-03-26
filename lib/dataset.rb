@@ -261,7 +261,6 @@ module OpenTox
     def to_ntriples # redefined string version for better performance
       ntriples = ""
       @metadata[RDF.type] = [ RDF::OT.Dataset, RDF::OT.OrderedDataset ]
-
       @metadata.each do |predicate,values|
         [values].flatten.each do |value|
           URI.valid?(value) ? value = "<#{value}>" : value = "\"#{value}\""
@@ -295,7 +294,7 @@ module OpenTox
           ntriples <<  "#{data_entry_node} <#{RDF::OT.values}> #{value_node} .\n"
           ntriples <<  "#{value_node} <#{RDF::OT.feature}> <#{@features[j].uri}> .\n"
           ntriples <<  "#{value_node} <#{RDF::OT.value}> \"#{value}\" .\n"
-        end
+        end unless @data_entries[i].nil?
       end
       ntriples
 
