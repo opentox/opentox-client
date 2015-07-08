@@ -158,8 +158,8 @@ module Kernel
         error = OpenTox::RestClientWrapper.known_errors.select{|error| error[:code] == t.code}.first
         error_method = error ? error[:method] : :internal_server_error
         report = t.error_report
-        error_message = report ? report[RDF::OT.message] : $!.message
-        error_cause = report ? report[RDF::OT.errorCause] : nil 
+        error_message = report ? report[:message] : $!.message
+        error_cause = report ? report[:errorCause] : nil 
         Object.send(error_method,error_message,t.uri,error_cause)
       end
       uri = t.resultURI

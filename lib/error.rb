@@ -8,27 +8,27 @@ module OpenToxError
     @error_cause = cause ? OpenToxError::cut_backtrace(cause) : short_backtrace
     
     super message
-    #unless self.is_a? Errno::EAGAIN # avoid "Resource temporarily unavailable" errors
       @uri = uri.to_s.sub(%r{//.*:.*@},'//') # remove credentials from uri
       @http_code ||= 500
-      @rdf = RDF::Graph.new
-      subject = RDF::Node.new
-      @rdf << [subject, RDF.type, RDF::OT.ErrorReport]
-      @rdf << [subject, RDF::OT.actor, @uri]
-      @rdf << [subject, RDF::OT.message, message.to_s]
-      @rdf << [subject, RDF::OT.statusCode, @http_code]
-      @rdf << [subject, RDF::OT.errorCode, self.class.to_s]
-      @rdf << [subject, RDF::OT.errorCause, @error_cause]
-      $logger.error("\n"+self.to_yaml) 
-    #end
+      @metadata = {
+        :type => "ErrorReport",
+        :actor => @uri,
+        :message => message.to_s,
+        :statusCode => @http_code,
+        :errorCode => self.class.to_s,
+        :errorCause => @error_cause,
+      }
+      $logger.error("\n"+JSON.pretty_generate(@metadata)) 
   end
 
+=begin
   # this method defines what is used for to_yaml (override to skip large @rdf graph)
   def encode_with coder
     @rdf.each do |statement|
       coder[statement.predicate.fragment.to_s] = statement.object.to_s
     end
   end
+=end
   
   def self.cut_backtrace(trace)
     if trace.is_a?(Array)
@@ -36,7 +36,7 @@ module OpenToxError
       cut_index ||= trace.size
       cut_index -= 1
       cut_index = trace.size-1 if cut_index < 0
-      trace[0..cut_index].join("\n")
+      trace[0..cut_index]
     else
       trace
     end
@@ -47,6 +47,7 @@ module OpenToxError
     OpenToxError::cut_backtrace(backtrace)
   end
 
+=begin
   RDF_FORMATS.each do |format|
     # rdf serialization methods for all formats e.g. to_rdfxml
     send :define_method, "to_#{format}".to_sym do
@@ -63,11 +64,15 @@ module OpenToxError
       @rdf.each{|statement| writer << statement} if @rdf
     end
   end
+=end
+  
+  def to_json
+    @metadata.to_json
+  end
 
 end
 
 class RuntimeError
-#class StandardError
   include OpenToxError
 end
 

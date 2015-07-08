@@ -62,13 +62,11 @@ module OpenTox
             #parameters[:url] = parameters[:url].gsub(/(http|https|)\:\/\/[a-zA-Z0-9\-]+\:[a-zA-Z0-9]+\@/, "REMOVED@") if parameters[:url]
             #message += "\nREST parameters:\n#{parameters.inspect}" 
             error = known_errors.collect{|e| e if e[:code] == response.code}.compact.first
-            begin # errors are returned as error reports in turtle, try to parse
-              content = {} 
-              RDF::Reader.for(:turtle).new(response) do |reader|
-                reader.each_triple{|triple| content[triple[1]] = triple[2]}
-              end
-              msg = content[RDF::OT.message].to_s
-              cause = content[RDF::OT.errorCause].to_s
+            begin # errors are returned as error reports in json, try to parse
+              # TODO: may be the reason for failure of task.rb -n test_11_wait_for_error_task
+              content = JSON.parse(response)
+              msg = content["message"].to_s
+              cause = content["errorCause"].to_s
               raise if msg.size==0 && cause.size==0 # parsing failed
             rescue # parsing error failed, use complete content as message
               msg = "Could not parse error response from rest call '#{method}' to '#{uri}':\n#{response}"

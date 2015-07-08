@@ -17,11 +17,11 @@ module OpenTox
     def self.run(description, creator=nil, uri=nil)
 
       task = Task.new uri
-      task[RDF::OT.created_at] = DateTime.now
-      task[RDF::OT.hasStatus] = "Running"
-      task[RDF::DC.description] = description.to_s
-      task[RDF::DC.creator] = creator.to_s
-      task[RDF::OT.percentageCompleted] = "0"
+      task[:created_at] = DateTime.now
+      task[:hasStatus] = "Running"
+      task[:description] = description.to_s
+      task[:creator] = creator.to_s
+      task[:percentageCompleted] = "0"
       task.put
       pid = fork do
         begin
@@ -30,7 +30,7 @@ module OpenTox
           # wrap non-opentox-errors first
           e = OpenTox::Error.new(500,e.message,nil,e.backtrace) unless e.is_a?(OpenTox::Error)
           $logger.error "error in task #{task.uri} created by #{creator}" # creator is not logged because error is logged when thrown
-          RestClientWrapper.put(File.join(task.uri,'Error'),{:errorReport => e.to_ntriples},{:content_type => 'text/plain'})
+          RestClientWrapper.put(File.join(task.uri,'Error'),{:errorReport => e.to_json},{:content_type => 'application/json'})
           task.kill
         end
       end
@@ -59,25 +59,25 @@ module OpenTox
     end
 
     def description
-      self.[](RDF::DC.description)
+      self.[](:description)
     end
 
     def creator
-      self.[](RDF::DC.creator)
+      self.[](:creator)
     end
     
     def cancel
       kill
-      self.[]=(RDF::OT.hasStatus, "Cancelled")
-      self.[]=(RDF::OT.finished_at, DateTime.now)
+      self.[]=(:hasStatus, "Cancelled")
+      self.[]=(:finished_at, DateTime.now.to_s)
       put
     end
 
     def completed(uri)
-      self.[]=(RDF::OT.resultURI, uri)
-      self.[]=(RDF::OT.hasStatus, "Completed")
-      self.[]=(RDF::OT.finished_at, DateTime.now)
-      self.[]=(RDF::OT.percentageCompleted, "100")
+      self.[]=(:resultURI, uri)
+      self.[]=(:hasStatus, "Completed")
+      self.[]=(:finished_at, DateTime.now.to_s)
+      self.[]=(:percentageCompleted, "100")
       put
     end
 
@@ -118,31 +118,19 @@ module OpenTox
 
   [:hasStatus, :resultURI, :created_at, :finished_at, :percentageCompleted].each do |method|
     define_method method do
-      response = self.[](RDF::OT[method])
-      response = self.[](RDF::OT1[method]) unless response  # API 1.1 compatibility
-      response
+      self.[](method)
     end
   end
 
   # Check status of a task
   # @return [String] Status
   def status
-    self[RDF::OT.hasStatus]
+    self[:hasStatus]
   end
 
   def error_report
-    get
-    report = {}
-    query = RDF::Query.new({
-      :report => {
-        RDF.type  => RDF::OT.ErrorReport,
-        :property => :value,
-      }
-    })
-    query.execute(@rdf).each do |solution|
-      report[solution.property] = solution.value.to_s
-    end
-    report
+    #get
+    self[:errorReport]
   end
 
   #TODO: subtasks (only for progress in validation)

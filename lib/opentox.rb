@@ -3,7 +3,6 @@ $logger = OTLogger.new(STDERR)
 $logger.level = Logger::DEBUG
 
 module OpenTox
-  #include RDF CH: leads to namespace clashes with URI class
 
   attr_reader :uri
   attr_writer :metadata, :parameters
@@ -14,20 +13,16 @@ module OpenTox
   # @param uri [optional,String] URI
   # @return [OpenTox] OpenTox object
   def initialize uri=nil
-    @rdf = RDF::Graph.new
     @metadata = {}
-    @parameters = []
+    @metadata[:type] = self.class.to_s.split(/::/).last
+    #@parameters = []
     uri ? @uri = uri.to_s.chomp : @uri = File.join(service_uri, SecureRandom.uuid)
   end
 
   # Object metadata (lazy loading)
   # @return [Hash] Object metadata
   def metadata force_update=false
-    if (@metadata.nil? or @metadata.empty? or force_update) and URI.accessible? @uri
-      get if @rdf.nil? or @rdf.empty? or force_update 
-      # return values as plain strings instead of RDF objects
-      @metadata = @rdf.to_hash[RDF::URI.new(@uri)].inject({}) { |h, (predicate, values)| h[predicate] = values.collect{|v| v.to_s}; h }
-    end
+    get #if (@metadata.nil? or @metadata.empty? or force_update) and URI.accessible? @uri
     @metadata
   end
 
@@ -35,6 +30,7 @@ module OpenTox
   # @param predicate [String] Predicate URI
   # @return [Array, String] Predicate value(s)
   def [](predicate)
+    predicate = predicate.to_s
     return nil if metadata[predicate].nil?
     metadata[predicate].size == 1 ? metadata[predicate].first : metadata[predicate]
   end
@@ -43,15 +39,17 @@ module OpenTox
   # @param predicate [String] Predicate URI
   # @param values [Array, String] Predicate value(s)
   def []=(predicate,values)
+    predicate = predicate.to_s
     @metadata[predicate] = [values].flatten
   end
 
+=begin
   # Object parameters (lazy loading)
   # {http://opentox.org/dev/apis/api-1.2/interfaces OpenTox API}
   # @return [Hash] Object parameters
   def parameters force_update=false
     if (@parameters.empty? or force_update) and URI.accessible? @uri
-      get if @rdf.empty? or force_update
+      get #if @rdf.empty? or force_update
       params = {}
       query = RDF::Query.new({
         :parameter => {
@@ -74,20 +72,28 @@ module OpenTox
   def parameter_value title
     @parameters.collect{|p| p[RDF::OT.paramValue] if p[RDF::DC.title] == title}.compact.first
   end
+=end
 
   # Get object from webservice
   # @param [String,optional] mime_type
-  def get mime_type="text/plain"
-    bad_request_error "Mime type #{mime_type} is not supported. Please use 'text/plain' (default) or 'application/rdf+xml'." unless mime_type == "text/plain" or mime_type == "application/rdf+xml"
+  def get mime_type="application/json"
+    bad_request_error "Mime type #{mime_type} is not supported. Please use 'application/json' (default), 'text/plain' (ntriples) or mime_type == 'application/rdf+xml'."  unless mime_type == "application/json" or mime_type == "text/plain" or mime_type == "application/rdf+xml"
     response = RestClientWrapper.get(@uri,{},{:accept => mime_type})
     if URI.task?(response)
       uri = wait_for_task response
       response = RestClientWrapper.get(uri,{},{:accept => mime_type})
     end
-    parse_ntriples response if mime_type == "text/plain"
-    parse_rdfxml response if mime_type == "application/rdf+xml"
+    case mime_type
+    when 'application/json'
+      @metadata = JSON.parse(response) 
+    when "text/plain"
+      parse_ntriples response 
+    when "application/rdf+xml"
+      parse_rdfxml response
+    end
   end
 
+=begin
   # Post object to webservice (append to object), rarely useful and deprecated 
   # @deprecated
   def post wait=true, mime_type="text/plain"
@@ -102,17 +108,20 @@ module OpenTox
     uri = RestClientWrapper.post @uri.to_s, body, { :content_type => mime_type}
     wait ? wait_for_task(uri) : uri
   end
+=end
 
   # Save object at webservice (replace or create object)
-  def put wait=true, mime_type="text/plain"
-    bad_request_error "Mime type #{mime_type} is not supported. Please use 'text/plain' (default) or 'application/rdf+xml'." unless mime_type == "text/plain" or mime_type == "application/rdf+xml"
-    @metadata[RDF::OT.created_at] = DateTime.now unless URI.accessible? @uri
+  def put wait=true, mime_type="application/json"
+    bad_request_error "Mime type #{mime_type} is not supported. Please use 'application/json' (default)."  unless mime_type == "application/json" or mime_type == "text/plain" or mime_type == "application/rdf+xml"
+    @metadata[:created_at] = DateTime.now unless URI.accessible? @uri
     #@metadata[RDF::DC.modified] = DateTime.now
     case mime_type
     when 'text/plain'
       body = self.to_ntriples
     when 'application/rdf+xml'
       body = self.to_rdfxml
+    when 'application/json'
+      body = self.to_json
     end
     uri = RestClientWrapper.put @uri, body, { :content_type => mime_type}
     wait ? wait_for_task(uri) : uri
@@ -157,8 +166,11 @@ module OpenTox
       RDF::Reader.for(format).new(rdf) do |reader|
         reader.each_statement{ |statement| @rdf << statement }
       end
+      # return values as plain strings instead of RDF objects
+      @metadata = @rdf.to_hash[RDF::URI.new(@uri)].inject({}) { |h, (predicate, values)| h[predicate] = values.collect{|v| v.to_s}; h }
     end
 
+=begin
     # rdf serialization methods for all formats e.g. to_rdfxml
     send :define_method, "to_#{format}".to_sym do
       create_rdf
@@ -170,6 +182,7 @@ module OpenTox
         end
       end
     end
+=end
   end
   
   # @return [String] converts object to turtle-string
@@ -182,20 +195,28 @@ module OpenTox
     end
   end
 
+  def to_json
+    @metadata[:uri] = @uri
+    @metadata.to_json
+  end
+
   # @return [String] converts OpenTox object into html document (by first converting it to a string)
   def to_html
     to_turtle.to_html
   end
 
+=begin
   # short access for metadata keys title, description and type
-  { :title => RDF::DC.title, :description => RDF::DC.description, :type => RDF.type }.each do |method,predicate|
+  #{ :title => RDF::DC.title, :description => RDF::DC.description, :type => RDF.type }.each do |method,predicate|
+  [ :title , :description, :type ].each do |method|
     send :define_method, method do 
-      self.[](predicate) 
+      self.[](method)
     end
     send :define_method, "#{method}=" do |value|
-      self.[]=(predicate,value) 
+      self.[]=(method,value) 
     end
   end
+=end
 
   # define class methods within module
   def self.included(base)
@@ -242,40 +263,8 @@ module OpenTox
       end
 
       def self.find_or_create metadata
-        t = Time.now
-        sparql = "SELECT DISTINCT ?s WHERE { "
-        # flatten 3.level arrays in objects
-        metadata.each{|p,o| o.flatten! if o.is_a? Array}
-        metadata.each do |predicate,objects|
-          unless [RDF::DC.date,RDF::DC.modified,RDF::DC.description].include? predicate # remove dates and description (strange characters in description may lead to SPARQL errors)
-            if objects.is_a? String
-              #URI.valid?(objects) ? o = "<#{objects}>" : o = "'''#{objects}'''" #DG: do not understand this quotation
-              URI.valid?(objects) ? o = "<#{objects}>" : o = "\"#{objects}\""
-              sparql << "?s <#{predicate}> #{o}. " 
-            elsif objects.is_a? Array
-              objects.each do |object|
-                #URI.valid?(object) ? o = "<#{object}>" : o = "'#{object}'" #DG: do not understand this quotation
-                URI.valid?(object) ? o = "<#{object}>" : o = "\"#{object}\"" 
-                sparql << "?s <#{predicate}> #{o}. " 
-              end
-            end
-          end
-        end
-        sparql <<  "}"
-        puts "Create SPARQL: #{Time.now-t}"
-        t = Time.new
-        uris = RestClientWrapper.get(service_uri,{:query => sparql},{:accept => "text/uri-list"}).split("\n")
-        puts "Query: #{Time.now-t}"
-        t = Time.new
-        if uris.empty?
-          f=self.create metadata
-          puts "Create: #{Time.now-t}"
-          f
-        else
-          f=self.new uris.first
-          puts "Found: #{Time.now-t}"
-          f
-        end
+        uris = RestClientWrapper.get(service_uri,{:query => metadata},{:accept => "text/uri-list"}).split("\n")
+        uris.empty? ? self.create(metadata) : self.new(uris.first)
       end
     end
     OpenTox.const_set klass,c
