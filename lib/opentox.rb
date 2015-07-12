@@ -4,26 +4,29 @@ $logger.level = Logger::DEBUG
 
 module OpenTox
 
-  attr_reader :uri
-  attr_writer :metadata, :parameters
-
   # Ruby interface
 
   # Create a new OpenTox object 
   # @param uri [optional,String] URI
   # @return [OpenTox] OpenTox object
   def initialize uri=nil
-    @metadata = {}
-    @metadata[:type] = self.class.to_s.split(/::/).last
-    #@parameters = []
-    uri ? @uri = uri.to_s.chomp : @uri = File.join(service_uri, SecureRandom.uuid)
+    @data = {}
+    if uri
+      @data["uri"] = uri.to_s.chomp
+      get
+    else
+      @data["uuid"] = SecureRandom.uuid
+      @data["uri"] = File.join(service_uri, @data["uuid"])
+      @data["created_at"] = DateTime.now.to_s
+      @data["type"] = self.class.to_s.split('::').last
+    end
   end
 
   # Object metadata (lazy loading)
   # @return [Hash] Object metadata
   def metadata force_update=false
-    get #if (@metadata.nil? or @metadata.empty? or force_update) and URI.accessible? @uri
-    @metadata
+    get if force_update and URI.accessible? @data["uri"]
+    @data
   end
 
   # Metadata values 
@@ -31,8 +34,8 @@ module OpenTox
   # @return [Array, String] Predicate value(s)
   def [](predicate)
     predicate = predicate.to_s
-    return nil if metadata[predicate].nil?
-    metadata[predicate].size == 1 ? metadata[predicate].first : metadata[predicate]
+    return nil if @data[predicate].nil?
+    @data[predicate].size == 1 ? @data[predicate].first : @data[predicate]
   end
 
   # Set a metadata entry
@@ -40,7 +43,7 @@ module OpenTox
   # @param values [Array, String] Predicate value(s)
   def []=(predicate,values)
     predicate = predicate.to_s
-    @metadata[predicate] = [values].flatten
+    @data[predicate] = [values].flatten
   end
 
 =begin
@@ -78,14 +81,14 @@ module OpenTox
   # @param [String,optional] mime_type
   def get mime_type="application/json"
     bad_request_error "Mime type #{mime_type} is not supported. Please use 'application/json' (default), 'text/plain' (ntriples) or mime_type == 'application/rdf+xml'."  unless mime_type == "application/json" or mime_type == "text/plain" or mime_type == "application/rdf+xml"
-    response = RestClientWrapper.get(@uri,{},{:accept => mime_type})
+    response = RestClientWrapper.get(@data["uri"],{},{:accept => mime_type})
     if URI.task?(response)
       uri = wait_for_task response
       response = RestClientWrapper.get(uri,{},{:accept => mime_type})
     end
     case mime_type
     when 'application/json'
-      @metadata = JSON.parse(response) 
+      @data = JSON.parse(response) if response
     when "text/plain"
       parse_ntriples response 
     when "application/rdf+xml"
@@ -112,25 +115,20 @@ module OpenTox
 
   # Save object at webservice (replace or create object)
   def put wait=true, mime_type="application/json"
-    bad_request_error "Mime type #{mime_type} is not supported. Please use 'application/json' (default)."  unless mime_type == "application/json" or mime_type == "text/plain" or mime_type == "application/rdf+xml"
-    @metadata[:created_at] = DateTime.now unless URI.accessible? @uri
-    #@metadata[RDF::DC.modified] = DateTime.now
     case mime_type
-    when 'text/plain'
-      body = self.to_ntriples
-    when 'application/rdf+xml'
-      body = self.to_rdfxml
     when 'application/json'
-      body = self.to_json
+      body = @data.to_json
+    else
+      bad_request_error "Mime type #{mime_type} is not supported. Please use 'application/json' (default)."
     end
-    uri = RestClientWrapper.put @uri, body, { :content_type => mime_type}
+    uri = RestClientWrapper.put @data["uri"], body, { :content_type => mime_type}
     wait ? wait_for_task(uri) : uri
   end
 
   # Delete object at webservice
   def delete 
-    RestClientWrapper.delete(@uri)
-    #Authorization.delete_policies_from_uri(@uri) if $aa[:uri]
+    RestClientWrapper.delete(@data["uri"])
+    #Authorization.delete_policies_from_uri(@data["uri"]) if $aa[:uri]
   end
 
   def service_uri
@@ -147,11 +145,11 @@ module OpenTox
     # DG: uri in object should be in brackets, otherwise query for uri-list ignores the object.
     # see: http://www.w3.org/TR/rdf-testcases/#sec-uri-encoding
     @metadata.each do |predicate,values|
-      [values].flatten.each{ |value| @rdf << [RDF::URI.new(@uri), predicate, (URI.valid?(value) ? RDF::URI.new(value) : value)] unless value.nil? }
+      [values].flatten.each{ |value| @rdf << [RDF::URI.new(@data["uri"]), predicate, (URI.valid?(value) ? RDF::URI.new(value) : value)] unless value.nil? }
     end
     @parameters.each do |parameter|
       p_node = RDF::Node.new
-      @rdf << [RDF::URI.new(@uri), RDF::OT.parameters, p_node]
+      @rdf << [RDF::URI.new(@data["uri"]), RDF::OT.parameters, p_node]
       @rdf << [p_node, RDF.type, RDF::OT.Parameter]
       parameter.each { |k,v| @rdf << [p_node, k, v] unless v.nil?}
     end
@@ -167,7 +165,7 @@ module OpenTox
         reader.each_statement{ |statement| @rdf << statement }
       end
       # return values as plain strings instead of RDF objects
-      @metadata = @rdf.to_hash[RDF::URI.new(@uri)].inject({}) { |h, (predicate, values)| h[predicate] = values.collect{|v| v.to_s}; h }
+      @metadata = @rdf.to_hash[RDF::URI.new(@data["uri"])].inject({}) { |h, (predicate, values)| h[predicate] = values.collect{|v| v.to_s}; h }
     end
 
 =begin
@@ -196,27 +194,23 @@ module OpenTox
   end
 
   def to_json
-    @metadata[:uri] = @uri
-    @metadata.to_json
+    @data.to_json
   end
 
   # @return [String] converts OpenTox object into html document (by first converting it to a string)
   def to_html
-    to_turtle.to_html
+    to_json.to_html
   end
 
-=begin
   # short access for metadata keys title, description and type
-  #{ :title => RDF::DC.title, :description => RDF::DC.description, :type => RDF.type }.each do |method,predicate|
-  [ :title , :description, :type ].each do |method|
+  [ :title , :description , :type , :uri, :uuid ].each do |method|
     send :define_method, method do 
-      self.[](method)
+      self[method]
     end
     send :define_method, "#{method}=" do |value|
-      self.[]=(method,value) 
+      self[method] = value
     end
   end
-=end
 
   # define class methods within module
   def self.included(base)
@@ -257,13 +251,17 @@ module OpenTox
 
       def self.create metadata
         object = self.new 
-        object.metadata = metadata
+        metadata.each{|k,v| object[k] = v}
         object.put
         object
       end
 
       def self.find_or_create metadata
-        uris = RestClientWrapper.get(service_uri,{:query => metadata},{:accept => "text/uri-list"}).split("\n")
+        search = metadata
+        search.delete("_id")
+        search.delete("uri")
+        search.delete("uuid")
+        uris = RestClientWrapper.get(service_uri,{:query => search},{:accept => "text/uri-list"}).split("\n")
         uris.empty? ? self.create(metadata) : self.new(uris.first)
       end
     end

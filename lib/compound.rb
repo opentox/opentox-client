@@ -5,8 +5,13 @@ module OpenTox
   # Ruby wrapper for OpenTox Compound Webservices (http://opentox.org/dev/apis/api-1.2/structure).
   class Compound
 
+    def initialize uri
+      @data = {}
+      @data["uri"] = uri
+    end
+
     def ==(c)
-      @uri == c.uri
+      @data["uri"] == c.uri
     end
 
     # Create a compound from smiles string
@@ -45,25 +50,25 @@ module OpenTox
     # Get InChI
     # @return [String] InChI string
     def inchi
-      @inchi ||= RestClientWrapper.get(@uri,{},{:accept => 'chemical/x-inchi'}).chomp
+      @inchi ||= RestClientWrapper.get(@data["uri"],{},{:accept => 'chemical/x-inchi'}).chomp
     end
 
     # Get InChIKey
     # @return [String] InChI string
     def inchikey
-      @inchikey ||= RestClientWrapper.get(@uri,{},{:accept => 'chemical/x-inchikey'}).chomp
+      @inchikey ||= RestClientWrapper.get(@data["uri"],{},{:accept => 'chemical/x-inchikey'}).chomp
     end
 
     # Get (canonical) smiles
     # @return [String] Smiles string
     def smiles
-      @smiles ||= RestClientWrapper.get(@uri,{},{:accept => 'chemical/x-daylight-smiles'}).chomp
+      @smiles ||= RestClientWrapper.get(@data["uri"],{},{:accept => 'chemical/x-daylight-smiles'}).chomp
     end
 
     # Get sdf
     # @return [String] SDF string
     def sdf
-      RestClientWrapper.get(@uri,{},{:accept => 'chemical/x-mdl-sdfile'}).chomp
+      RestClientWrapper.get(@data["uri"],{},{:accept => 'chemical/x-mdl-sdfile'}).chomp
     end
 
     # Get gif image
@@ -77,13 +82,13 @@ module OpenTox
     #   image = compound.png
     # @return [image/png] Image data
     def png
-      RestClientWrapper.get(File.join @uri, "image")
+      RestClientWrapper.get(File.join @data["uri"], "image")
     end
 
     # Get URI of compound image
     # @return [String] Compound image URI
     def image_uri
-      File.join @uri, "image"
+      File.join @data["uri"], "image"
     end
 
     # Get all known compound names. Relies on an external service for name lookups.

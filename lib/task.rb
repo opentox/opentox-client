@@ -17,7 +17,7 @@ module OpenTox
     def self.run(description, creator=nil, uri=nil)
 
       task = Task.new uri
-      task[:created_at] = DateTime.now
+      task[:created_at] = DateTime.now.to_s
       task[:hasStatus] = "Running"
       task[:description] = description.to_s
       task[:creator] = creator.to_s
@@ -89,14 +89,14 @@ module OpenTox
       while running? 
         sleep dur
         dur = [[(Time.new - start_time)/20.0,0.3].max,300.0].min
-        request_timeout_error "max wait time exceeded ("+DEFAULT_TASK_MAX_DURATION.to_s+"sec), task: '"+@uri.to_s+"'" if (Time.new > due_to_time)
+        request_timeout_error "max wait time exceeded ("+DEFAULT_TASK_MAX_DURATION.to_s+"sec), task: '"+uri.to_s+"'" if (Time.new > due_to_time)
       end
     end
 
   end
 
   def code
-    RestClientWrapper.get(@uri).code.to_i
+    RestClientWrapper.get(uri).code.to_i
   end
 
   # get only header for status requests
@@ -118,6 +118,7 @@ module OpenTox
 
   [:hasStatus, :resultURI, :created_at, :finished_at, :percentageCompleted].each do |method|
     define_method method do
+      get
       self.[](method)
     end
   end
@@ -125,11 +126,12 @@ module OpenTox
   # Check status of a task
   # @return [String] Status
   def status
+    get
     self[:hasStatus]
   end
 
   def error_report
-    #get
+    get
     self[:errorReport]
   end
 
