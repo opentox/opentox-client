@@ -12,10 +12,11 @@ module OpenTox
       @data["data_entries"] ||= []
     end
 
+    def data_entries
+      @data["data_entries"]
+    end
+
     [:features, :compounds, :data_entries].each do |method|
-      send :define_method, method do 
-        @data[method.to_s]
-      end
       send :define_method, "#{method}=" do |value|
         @data[method.to_s] = value.collect{|v| v.uri}
       end
@@ -31,7 +32,6 @@ module OpenTox
       if @data.empty? or force_update
         uri = File.join(@data["uri"],"metadata")
         #begin
-          RestClientWrapper.get(uri,{},{:accept => "application/json"})
           @data = JSON.parse RestClientWrapper.get(uri,{},{:accept => "application/json"})
           #parse_ntriples RestClientWrapper.get(uri,{},{:accept => "text/plain"})
         #rescue # fall back to rdfxml
@@ -47,13 +47,13 @@ module OpenTox
       if @data["features"].empty? or force_update
         uri = File.join(@data["uri"],"features")
         begin
-          uris = RestClientWrapper.get(uri,{},{:accept => "text/uri-list"}).split("\n") # ordered datasets return ordered features
+          uris = JSON.parse RestClientWrapper.get(uri,{},{:accept => "application/json"}) # ordered datasets return ordered features
         rescue
           uris = []
         end
-        @data["features"] = uris.collect{|uri| Feature.new(uri)}
+        @data["features"] = uris#.collect{|uri| Feature.new(uri)}
       end
-      @data["features"]
+      @data["features"].collect{|uri| Feature.new uri}
     end
 
     # @return [Array] compound objects (NOT uris)
@@ -61,13 +61,13 @@ module OpenTox
       if @data["compounds"].empty? or force_update
         uri = File.join(@data["uri"],"compounds")
         begin
-          uris = RestClientWrapper.get(uri,{},{:accept => "text/uri-list"}).split("\n") # ordered datasets return ordered compounds
+          uris = JSON.parse RestClientWrapper.get(uri,{},{:accept => "application/json"}) # ordered datasets return ordered compounds
         rescue
           uris = []
         end
-        @data["compounds"] = uris.collect{|uri| Compound.new(uri)}
+        @data["compounds"] = uris
       end
-      @data["compounds"]
+      @data["compounds"].collect{|uri| Compound.new(uri)}
     end
 
     # @return [Array] with two dimensions,
@@ -348,7 +348,7 @@ module OpenTox
     # @param dataset [OpenTox::Dataset] dataset that should be mapped to this dataset (fully loaded)
     # @param compound_index [Fixnum], corresponding to dataset
     def compound_index( dataset, compound_index )
-      compound_uri = dataset.compounds[compound_index].uri
+      compound_uri = dataset.compounds[compound_index]#.uri
       self_indices = compound_indices(compound_uri)
       if self_indices==nil
         nil
@@ -360,7 +360,7 @@ module OpenTox
           # we do assume that the order is preseverd (i.e., the nth occurences in both datasets are mapped to each other)!
           self_indices[dataset_indices.index(compound_index)]
         else
-          raise "cannot map compound #{compound} from dataset #{dataset.uri} to dataset #{uri}, "+
+          raise "cannot map compound #{compound_uri} from dataset #{dataset.uri} to dataset #{uri}, "+
             "compound occurs #{dataset_indices.size} times and #{self_indices.size} times"
         end
       end
@@ -373,7 +373,7 @@ module OpenTox
       unless defined?(@cmp_indices) and @cmp_indices.has_key?(compound_uri)
         @cmp_indices = {}
         compounds().size.times do |i|
-          c = @data["compounds"][i].uri
+          c = @data["compounds"][i]#.uri
           if @cmp_indices[c]==nil
             @cmp_indices[c] = [i]
           else
