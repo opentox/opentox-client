@@ -213,6 +213,7 @@ module OpenTox
       end
     end
 
+=begin
     RDF_FORMATS.each do |format|
 
       # redefine rdf parse methods for all formats e.g. parse_rdfxml
@@ -268,6 +269,7 @@ module OpenTox
       end
 
     end
+=end
 
 # TODO: fix bug that affects data_entry positions # DG: who wrotes this comment ?
     def to_ntriples # redefined string version for better performance

@@ -21,11 +21,13 @@ Gem::Specification.new do |s|
   # specify any dependencies here; for example:
   s.add_runtime_dependency "bundler"
   s.add_runtime_dependency "rest-client"
-  s.add_runtime_dependency "rdf"
-  s.add_runtime_dependency "rdf-raptor"
-  s.add_runtime_dependency 'rdf-turtle'
+  #s.add_runtime_dependency "rdf"
+  #s.add_runtime_dependency "rdf-raptor"
+  #s.add_runtime_dependency 'rdf-turtle'
   s.add_runtime_dependency "open4"
   s.add_runtime_dependency "openbabel"
+  s.add_runtime_dependency "mongo"
+  s.add_runtime_dependency "bson"
   
   # external requirements
   ["libraptor-dev"].each{|r| s.requirements << r}
