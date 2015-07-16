@@ -19,7 +19,7 @@ module OpenTox
   end
 
   def created_at
-    # TODO from BSON::ObjectId
+    @data["_id"].generation_time
   end
 
   # Object metadata (lazy loading)
@@ -64,6 +64,11 @@ module OpenTox
 
   def save
     @data["_id"] = $mongo[collection].insert_one(@data).inserted_id
+  end
+
+  # partial update 
+  def update metadata
+    $mongo[collection].find(:_id => @data["_id"]).find_one_and_replace('$set' => metadata)
   end
 
   # Save object at webservice (replace or create object)

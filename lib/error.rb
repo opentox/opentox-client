@@ -2,7 +2,7 @@ require 'open4'
 
 # add additional fields to Exception class to format errors according to OT-API
 module OpenToxError
-  attr_accessor :http_code, :uri, :error_cause
+  attr_accessor :http_code, :uri, :error_cause, :metadata
   def initialize(message=nil, uri=nil, cause=nil)
     message = message.to_s.gsub(/\A"|"\Z/, '') if message # remove quotes
     @error_cause = cause ? OpenToxError::cut_backtrace(cause) : short_backtrace
