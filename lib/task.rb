@@ -1,8 +1,20 @@
 DEFAULT_TASK_MAX_DURATION = 36000
 module OpenTox
+  # TODO: fix error reports
+  # TODO: fix field names and overwrite accessors
 
   # Class for handling asynchronous tasks
   class Task 
+
+    field :creator, type: String
+    field :percentageCompleted, type: Float
+    field :error_code, type: Integer # workaround name, cannot overwrite accessors in current mongoid version
+    field :finished, type: Time # workaround name, cannot overwrite accessors in current mongoid version
+    # TODO
+    field :result_object, type: String
+    field :report, type: String
+    field :pid, type: Integer
+    field :observer_pid, type: Integer
 
     def self.run(description, creator=nil)
 
@@ -10,8 +22,9 @@ module OpenTox
       task[:description] = description.to_s
       task[:creator] = creator.to_s
       task[:percentageCompleted] = 0
-      task[:code] = 202 
+      task[:error_code] = 202 
       task.save
+
       pid = fork do
         begin
           task.completed yield
@@ -19,8 +32,7 @@ module OpenTox
           # wrap non-opentox-errors first
           e = OpenTox::Error.new(500,e.message,nil,e.backtrace) unless e.is_a?(OpenTox::Error)
           $logger.error "error in task #{task.id} created by #{creator}" # creator is not logged because error is logged when thrown
-          task.update(:errorReport => e.metadata, :code => e.http_code, :finished_at => Time.now)
-          task.get
+          task.update(:report => e.metadata, :error_code => e.http_code, :finished => Time.now)
           task.kill
         end
       end
@@ -50,13 +62,11 @@ module OpenTox
 
     def cancel
       kill
-      update(:code => 503, :finished_at => Time.now)
-      get
+      update_attributes(:error_code => 503, :finished => Time.now)
     end
 
     def completed(result)
-      update(:code => 200, :finished_at => Time.now, :percentageCompleted => 100, :result => result)
-      get
+      update_attributes(:error_code => 200, :finished => Time.now, :percentageCompleted => 100, :result_object => result)
     end
 
     # waits for a task, unless time exceeds or state is no longer running
@@ -71,6 +81,22 @@ module OpenTox
       end
     end
 
+  end
+
+  def error_report
+    OpenTox::Task.find(id).report
+  end
+
+  def code
+    OpenTox::Task.find(id).error_code
+  end
+
+  def result
+    OpenTox::Task.find(id).result_object
+  end
+
+  def finished_at
+    OpenTox::Task.find(id).finished
   end
 
   def running?
@@ -102,16 +128,6 @@ module OpenTox
     else
       "Error"
     end
-  end
-
-  [:code, :description, :creator, :finished_at, :percentageCompleted, :result, :errorReport].each do |method|
-    define_method method do
-      $mongo[:task].find(:_id => self.id).distinct(method).first
-    end
-  end
-
-  def error_report
-    self.errorReport
   end
 
 end

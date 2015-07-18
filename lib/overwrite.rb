@@ -134,6 +134,7 @@ end
 
 module Kernel
 
+=begin
   # overwrite backtick operator to catch system errors
   # Override raises an error if _cmd_ returns a non-zero exit status. CH: I do not understand this comment
   # Returns stdout if _cmd_ succeeds.  Note that these are simply concatenated; STDERR is not inline. CH: I do not understand this comment
@@ -148,6 +149,7 @@ module Kernel
   rescue
     internal_server_error $!.message
   end
+=end
 
   # @return [String] uri of task result, if task fails, an error according to task is raised
   def wait_for_task uri

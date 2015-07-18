@@ -4,95 +4,48 @@ module OpenTox
 
   # Ruby wrapper for OpenTox Dataset Webservices (http://opentox.org/dev/apis/api-1.2/dataset).
   class Dataset
+      include Mongoid::Document
 
-    def initialize uri=nil
-      super uri
-      @data["features"] ||= []
-      @data["compounds"] ||= []
-      @data["data_entries"] ||= []
+    field :feature_ids, type: Array
+    field :inchis, type: Array
+    field :data_entries, type: Array
+    field :warnings, type: Array
+    field :source, type: String
+
+    def initialize
+      super
+      self.feature_ids = []
+      self.inchis = []
+      self.data_entries = []
+      self.warnings = []
     end
 
-    def data_entries
-      @data["data_entries"]
+    # Readers
+
+    def compounds
+      inchis.collect{|i| OpenTox::Compound.new i}
     end
 
-    [:features, :compounds, :data_entries].each do |method|
-      send :define_method, "#{method}=" do |value|
-        @data[method.to_s] = value.collect{|v| v.uri}
-      end
-      send :define_method, "#{method}<<" do |value|
-        @data[method.to_s] << value.uri
-      end
+    def features
+      self.feature_ids.collect{|id| OpenTox::Feature.find(id)}
     end
 
-    # Get data (lazy loading from dataset service)
-    # overrides {OpenTox#metadata} to only load the metadata instead of the whole dataset
-    # @return [Hash] the metadata
-    def metadata force_update=false
-      if @data.empty? or force_update
-        uri = File.join(@data["uri"],"metadata")
-        #begin
-          @data = JSON.parse RestClientWrapper.get(uri,{},{:accept => "application/json"})
-          #parse_ntriples RestClientWrapper.get(uri,{},{:accept => "text/plain"})
-        #rescue # fall back to rdfxml
-          #parse_rdfxml RestClientWrapper.get(uri,{},{:accept => "application/rdf+xml"})
-        #end
-        #@data = @rdf.to_hash[RDF::URI.new(@data["uri"])].inject({}) { |h, (predicate, values)| h[predicate] = values.collect{|v| v.to_s}; h }
-      end
-      @data
+    # Writers
+
+    def compounds=(compounds)
+      self.inchis = compounds.collect{|c| c.inchi}
     end
 
-    # @return [Array] feature objects (NOT uris)
-    def features force_update=false
-      if @data["features"].empty? or force_update
-        uri = File.join(@data["uri"],"features")
-        begin
-          uris = JSON.parse RestClientWrapper.get(uri,{},{:accept => "application/json"}) # ordered datasets return ordered features
-        rescue
-          uris = []
-        end
-        @data["features"] = uris#.collect{|uri| Feature.new(uri)}
-      end
-      @data["features"].collect{|uri| Feature.new uri}
+    def add_compound(compound)
+      self.inchis << compound.id
     end
 
-    # @return [Array] compound objects (NOT uris)
-    def compounds force_update=false
-      if @data["compounds"].empty? or force_update
-        uri = File.join(@data["uri"],"compounds")
-        begin
-          uris = JSON.parse RestClientWrapper.get(uri,{},{:accept => "application/json"}) # ordered datasets return ordered compounds
-        rescue
-          uris = []
-        end
-        @data["compounds"] = uris
-      end
-      @data["compounds"].collect{|uri| Compound.new(uri)}
+    def features=(features)
+      self.feature_ids = features.collect{|f| f.id}
     end
 
-    # @return [Array] with two dimensions,
-    #   first index: compounds, second index: features, values: compound feature values
-    def data_entries force_update=false
-      if @data["data_entries"].empty? or force_update
-        sparql = "SELECT ?cidx ?fidx ?value FROM <#{uri}> WHERE {
-          ?data_entry <#{RDF::OLO.index}> ?cidx ;
-                      <#{RDF::OT.values}> ?v .
-          ?v          <#{RDF::OT.feature}> ?f;
-                      <#{RDF::OT.value}> ?value .
-          ?f          <#{RDF::OLO.index}> ?fidx.
-          } ORDER BY ?fidx ?cidx"
-          RestClientWrapper.get(service_uri,{:query => sparql},{:accept => "text/uri-list"}).split("\n").each do |row|
-            r,c,v = row.split("\t")
-            @data["data_entries"][r.to_i] ||= []
-            # adjust value class depending on feature type, StringFeature takes precedence over NumericFeature
-            if features[c.to_i][RDF.type].include? RDF::OT.NumericFeature and ! features[c.to_i][RDF.type].include? RDF::OT.StringFeature
-              v = v.to_f if v
-            end
-            @data["data_entries"][r.to_i][c.to_i] = v if v
-          end
-        # TODO: fallbacks for external and unordered datasets
-      end
-      @data["data_entries"]
+    def add_feature(feature)
+      self.feature_ids << feature.id
     end
 
     # Find data entry values for a given compound and feature
@@ -100,8 +53,8 @@ module OpenTox
     # @param feature [OpenTox::Feature] OpenTox Feature object
     # @return [Array] Data entry values
     def values(compound, feature)
-      rows = (0 ... compounds.length).select { |r| compounds[r].uri == compound.uri }
-      col = features.collect{|f| f.uri}.index feature.uri
+      rows = (0 ... inchis.length).select { |r| inchis[r].uri == compound.uri }
+      col = feature_ids.collect{|f| f.uri}.index feature.uri
       rows.collect{|row| data_entries[row][col]}
     end
 
@@ -122,7 +75,7 @@ module OpenTox
     end
 
     # for prediction result datasets
-    # assumes that there are features with title prediction and confidence
+    # assumes that there are feature_ids with title prediction and confidence
     # @return [Array] of Hashes with keys { :compound, :value ,:confidence } (compound value is object not uri)
     def predictions
       predictions = []
@@ -149,18 +102,17 @@ module OpenTox
     end
 
     # Adding data methods
-    # (Alternatively, you can directly change @data["features"] and @data["compounds"])
+    # (Alternatively, you can directly change @data["feature_ids"] and @data["compounds"])
 
     # Create a dataset from file (csv,sdf,...)
     # @param filename [String]
     # @return [String] dataset uri
     def upload filename, wait=true
-      uri = RestClientWrapper.put(@data["uri"], {:file => File.new(filename)})
-      wait_for_task uri if URI.task?(uri) and wait
-      compounds true
-      features true
-      metadata true
-      @data["uri"]
+      self.title = File.basename(filename)
+      self.source = filename
+      table = CSV.read filename, :skip_blanks => true
+      from_table table
+      save
     end
 
     # @param compound [OpenTox::Compound]
@@ -182,6 +134,7 @@ module OpenTox
       end
     end
 
+
     # TODO: remove? might be dangerous if feature ordering is incorrect
     # MG: I would not remove this because add_data_entry is very slow (4 times searching in arrays)
     # CH: do you have measurements? compound and feature arrays are not that big, I suspect that feature search/creation is the time critical step
@@ -193,11 +146,11 @@ module OpenTox
     #   d << [ Compound.new("c1ccccc1"), feature-value-a, feature-value-b ]
     def << row
       compound = row.shift # removes the compound from the array
-      bad_request_error "Dataset features are empty." unless @data["features"]
-      bad_request_error "Row size '#{row.size}' does not match features size '#{@data["features"].size}'." unless row.size == @data["features"].size
+      bad_request_error "Dataset features are empty." unless feature_ids
+      bad_request_error "Row size '#{row.size}' does not match features size '#{feature_ids.size}'." unless row.size == feature_ids.size
       bad_request_error "First column is not a OpenTox::Compound" unless compound.class == OpenTox::Compound
-      @data["compounds"] << compound.uri
-      @data["data_entries"] << row
+      self.inchis << compound.inchi
+      self.data_entries << row
     end
 
     # Serialisation
@@ -211,107 +164,6 @@ module OpenTox
           csv << [inchi ? c.inchi : c.smiles] + data_entries[i]
         end
       end
-    end
-
-=begin
-    RDF_FORMATS.each do |format|
-
-      # redefine rdf parse methods for all formats e.g. parse_rdfxml
-      send :define_method, "parse_#{format}".to_sym do |rdf|
-        # TODO: parse ordered dataset
-        # TODO: parse data entries
-        # TODO: parse metadata
-        @rdf = RDF::Graph.new
-        RDF::Reader.for(format).new(rdf) do |reader|
-          reader.each_statement{ |statement| @rdf << statement }
-        end
-        query = RDF::Query.new({ :uri => { RDF.type => RDF::OT.Compound } })
-        @data["compounds"] = query.execute(@rdf).collect { |solution| OpenTox::Compound.new solution.uri }
-        query = RDF::Query.new({ :uri => { RDF.type => RDF::OT.Feature } })
-        @data["features"] = query.execute(@rdf).collect { |solution| OpenTox::Feature.new solution.uri }
-        @data["compounds"].each_with_index do |c,i|
-          @data["features"].each_with_index do |f,j|
-          end
-        end
-      end
-
-
-      # redefine rdf serialization methods
-      send :define_method, "to_#{format}".to_sym do
-        @data[RDF.type] = [RDF::OT.Dataset, RDF::OT.OrderedDataset]
-        create_rdf
-        @data["features"].each_with_index do |feature,i|
-          @rdf << [RDF::URI.new(feature.uri), RDF::URI.new(RDF.type), RDF::URI.new(RDF::OT.Feature)]
-          @rdf << [RDF::URI.new(feature.uri), RDF::URI.new(RDF::OLO.index), RDF::Literal.new(i)]
-        end
-        @data["compounds"].each_with_index do |compound,i|
-          @rdf << [RDF::URI.new(compound.uri), RDF::URI.new(RDF.type), RDF::URI.new(RDF::OT.Compound)]
-          if defined? @neighbors and neighbors.include? compound
-            @rdf << [RDF::URI.new(compound.uri), RDF::URI.new(RDF.type), RDF::URI.new(RDF::OT.Neighbor)]
-          end
-
-          @rdf << [RDF::URI.new(compound.uri), RDF::URI.new(RDF::OLO.index), RDF::Literal.new(i)]
-          data_entry_node = RDF::Node.new
-          @rdf << [RDF::URI.new(@data["uri"]), RDF::URI.new(RDF::OT.dataEntry), data_entry_node]
-          @rdf << [data_entry_node, RDF::URI.new(RDF.type), RDF::URI.new(RDF::OT.DataEntry)]
-          @rdf << [data_entry_node, RDF::URI.new(RDF::OLO.index), RDF::Literal.new(i)]
-          @rdf << [data_entry_node, RDF::URI.new(RDF::OT.compound), RDF::URI.new(compound.uri)]
-          @data["data_entries"][i].each_with_index do |value,j|
-            value_node = RDF::Node.new
-            @rdf << [data_entry_node, RDF::URI.new(RDF::OT.values), value_node]
-            @rdf << [value_node, RDF::URI.new(RDF::OT.feature), RDF::URI.new(@data["features"][j].uri)]
-            @rdf << [value_node, RDF::URI.new(RDF::OT.value), RDF::Literal.new(value)]
-          end
-        end
-        RDF::Writer.for(format).buffer do |writer|
-          writer << @rdf
-        end
-      end
-
-    end
-=end
-
-# TODO: fix bug that affects data_entry positions # DG: who wrotes this comment ?
-    def to_ntriples # redefined string version for better performance
-      ntriples = ""
-      @data[RDF.type] = [ RDF::OT.Dataset, RDF::OT.OrderedDataset ]
-      @data.each do |predicate,values|
-        [values].flatten.each do |value|
-          URI.valid?(value) ? value = "<#{value}>" : value = "\"#{value}\""
-          ntriples << "<#{@data["uri"]}> <#{predicate}> #{value} .\n" #\n"
-        end
-      end
-      @parameters.each_with_index do |parameter,i|
-        p_node = "_:parameter"+ i.to_s
-        ntriples <<  "<#{@data["uri"]}> <#{RDF::OT.parameters}> #{p_node} .\n"
-        ntriples <<  "#{p_node} <#{RDF.type}> <#{RDF::OT.Parameter}> .\n"
-        parameter.each { |k,v| ntriples <<  "#{p_node} <#{k}> \"#{v.to_s.tr('"', '\'')}\" .\n" }
-      end
-      @data["features"].each_with_index do |feature,i|
-        ntriples <<  "<#{feature.uri}> <#{RDF.type}> <#{RDF::OT.Feature}> .\n"
-        ntriples <<  "<#{feature.uri}> <#{RDF::OLO.index}> \"#{i}\"^^<http://www.w3.org/2001/XMLSchema#integer> .\n" # sorting at dataset service does not work without type information
-      end
-      @data["compounds"].each_with_index do |compound,i|
-        ntriples <<  "<#{compound.uri}> <#{RDF.type}> <#{RDF::OT.Compound}> .\n"
-        if defined? @neighbors and neighbors.include? compound
-          ntriples <<  "<#{compound.uri}> <#{RDF.type}> <#{RDF::OT.Neighbor}> .\n"
-        end
-
-        ntriples <<  "<#{compound.uri}> <#{RDF::OLO.index}> \"#{i}\"^^<http://www.w3.org/2001/XMLSchema#integer> .\n" # sorting at dataset service does not work without type information
-        data_entry_node = "_:dataentry"+ i.to_s
-        ntriples <<  "<#{@data["uri"]}> <#{RDF::OT.dataEntry}> #{data_entry_node} .\n"
-        ntriples <<  "#{data_entry_node} <#{RDF.type}> <#{RDF::OT.DataEntry}> .\n"
-        ntriples <<  "#{data_entry_node} <#{RDF::OLO.index}> \"#{i}\"^^<http://www.w3.org/2001/XMLSchema#integer> .\n" # sorting at dataset service does not work without type information
-        ntriples <<  "#{data_entry_node} <#{RDF::OT.compound}> <#{compound.uri}> .\n"
-        @data["data_entries"][i].each_with_index do |value,j|
-          value_node = data_entry_node+ "_value"+ j.to_s
-          ntriples <<  "#{data_entry_node} <#{RDF::OT.values}> #{value_node} .\n"
-          ntriples <<  "#{value_node} <#{RDF::OT.feature}> <#{@data["features"][j].uri}> .\n"
-          ntriples <<  "#{value_node} <#{RDF::OT.value}> \"#{value}\" .\n"
-        end unless @data["data_entries"][i].nil?
-      end
-      ntriples
-
     end
 
     # Methods for for validation service
@@ -350,32 +202,32 @@ module OpenTox
     # @param dataset [OpenTox::Dataset] dataset that should be mapped to this dataset (fully loaded)
     # @param compound_index [Fixnum], corresponding to dataset
     def compound_index( dataset, compound_index )
-      compound_uri = dataset.compounds[compound_index]#.uri
-      self_indices = compound_indices(compound_uri)
+      compound_inchi = dataset.compounds[compound_index].inchi
+      self_indices = compound_indices(compound_inchi)
       if self_indices==nil
         nil
       else
-        dataset_indices = dataset.compound_indices(compound_uri)
+        dataset_indices = dataset.compound_indices(compound_inchi)
         if self_indices.size==1
           self_indices.first
         elsif self_indices.size==dataset_indices.size
           # we do assume that the order is preseverd (i.e., the nth occurences in both datasets are mapped to each other)!
           self_indices[dataset_indices.index(compound_index)]
         else
-          raise "cannot map compound #{compound_uri} from dataset #{dataset.uri} to dataset #{uri}, "+
+          raise "cannot map compound #{compound_inchi} from dataset #{dataset.id} to dataset #{self.id}, "+
             "compound occurs #{dataset_indices.size} times and #{self_indices.size} times"
         end
       end
     end
 
     # returns the inidices of the compound in the dataset
-    # @param compound_uri [String]
+    # @param compound_inchi [String]
     # @return [Array] compound index (position) of the compound in the dataset, array-size is 1 unless multiple occurences
-    def compound_indices( compound_uri )
-      unless defined?(@cmp_indices) and @cmp_indices.has_key?(compound_uri)
+    def compound_indices( compound_inchi )
+      unless defined?(@cmp_indices) and @cmp_indices.has_key?(compound_inchi)
         @cmp_indices = {}
         compounds().size.times do |i|
-          c = @data["compounds"][i]#.uri
+          c = self.compounds[i].inchi
           if @cmp_indices[c]==nil
             @cmp_indices[c] = [i]
           else
@@ -383,7 +235,7 @@ module OpenTox
           end
         end
       end
-      @cmp_indices[compound_uri]
+      @cmp_indices[compound_inchi]
     end
 
     # returns compound feature value using the compound-index and the feature_uri
@@ -392,6 +244,84 @@ module OpenTox
       col = @data["features"].collect{|f| f.uri}.index feature_uri
       @data["data_entries"][compound_index] ?  @data["data_entries"][compound_index][col] : nil
     end
-  end
 
+    def from_table table
+
+      # features
+      feature_names = table.shift.collect{|f| f.strip}
+      self.warnings << "Duplicate features in table header." unless feature_names.size == feature_names.uniq.size
+      compound_format = feature_names.shift.strip
+      bad_request_error "#{compound_format} is not a supported compound format. Accepted formats: SMILES, InChI." unless compound_format =~ /SMILES|InChI/i
+      ignored_feature_indices = []
+      numeric = []
+      feature_names.each_with_index do |f,i|
+        values = table.collect{|row| val=row[i+1].to_s.strip; val.blank? ? nil : val }.uniq.compact
+        types = values.collect{|v| v.numeric? ? true : false}.uniq
+        metadata = {"title" => f}
+        if values.size == 0 # empty feature
+        elsif  values.size > 5 and types.size == 1 and types.first == true # 5 max classes
+          metadata["numeric"] = true
+          numeric[i] = true
+        else
+          metadata["nominal"] = true
+          metadata["string"] = true
+          metadata["accept_values"] = values
+          numeric[i] = false
+        end
+        feature = OpenTox::Feature.find_or_create_by metadata
+        self.feature_ids << feature.id unless feature.nil?
+      end
+
+      # compounds and values
+      r = -1
+      table.each_with_index do |values,j|
+        compound = values.shift
+        begin
+          case compound_format
+          when /SMILES/i
+            c = OpenTox::Compound.from_smiles(compound)
+            if c.inchi.empty?
+              self.warnings << "Cannot parse #{compound_format} compound '#{compound.strip}' at position #{j+2}, all entries are ignored."
+              next
+            else
+              inchi = c.inchi
+            end
+          when /InChI/i
+            # TODO validate inchi
+            inchi = compound
+          else
+            raise "wrong compound format" #should be checked above
+          end
+        rescue
+          self.warnings << "Cannot parse #{compound_format} compound '#{compound}' at position #{j+2}, all entries are ignored."
+          next
+        end
+        
+        r += 1
+        self.inchis << inchi
+        unless values.size == self.feature_ids.size
+          self.warnings << "Number of values at position #{j+2} (#{values.size}) is different than header size (#{self.feature_ids.size}), all entries are ignored."
+          next
+        end
+
+        self.data_entries << []
+        values.each_with_index do |v,i|
+          if v.blank?
+            self.data_entries.last << nil
+            self.warnings << "Empty value for compound '#{compound}' (row #{r+2}) and feature '#{feature_names[i]}' (column #{i+2})."
+            next
+          elsif numeric[i]
+            self.data_entries.last << v.to_f
+          else
+            self.data_entries.last << v.strip
+          end
+        end
+      end
+      self.inchis.duplicates.each do |inchi|
+        positions = []
+        self.inchis.each_with_index{|c,i| positions << i+1 if !c.blank? and c == inchi}
+        self.warnings << "Duplicate compound #{inchi} at rows #{positions.join(', ')}. Entries are accepted, assuming that measurements come from independent experiments." 
+      end
+    end
+  end
 end

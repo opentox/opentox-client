@@ -9,8 +9,7 @@ require 'yaml'
 require 'json'
 require 'logger'
 require "securerandom"
-require 'mongo'
-require 'bson'
+require 'mongoid'
 
 default_config = File.join(ENV["HOME"],".opentox","config","default.rb")
 client_config = File.join(ENV["HOME"],".opentox","config","opentox-client.rb")
@@ -18,6 +17,9 @@ client_config = File.join(ENV["HOME"],".opentox","config","opentox-client.rb")
 puts "Could not find configuration files #{default_config} or #{client_config}" unless File.exist? default_config or File.exist? client_config
 require default_config if File.exist? default_config
 require client_config if File.exist? client_config
+# TODO switch to production
+ENV["MONGOID_ENV"] = "development"
+Mongoid.load!("#{ENV['HOME']}/.opentox/config/mongoid.yml")
 
 # define constants and global variables
 #RDF::OT =  RDF::Vocabulary.new 'http://www.opentox.org/api/1.2#'
@@ -28,7 +30,8 @@ require client_config if File.exist? client_config
 #RDF::ISA = RDF::Vocabulary.new "http://onto.toxbank.net/isa/"
 #RDF::OWL = RDF::Vocabulary.new "http://www.w3.org/2002/07/owl#"
 
-CLASSES = ["Compound", "Feature", "Dataset", "Validation", "Task", "Investigation"]
+#CLASSES = ["Compound", "Feature", "Dataset", "Validation", "Task", "Investigation"]
+CLASSES = ["Feature", "Dataset", "Validation", "Task", "Investigation"]
 #RDF_FORMATS = [:rdfxml,:ntriples,:turtle]
 
 # Regular expressions for parsing classification data
@@ -57,3 +60,12 @@ FALSE_REGEXP = /^(false|inactive|0|0.0|low tox|deactivating|non-carcinogen|non-m
 #  unauthorized_error "Failed to authenticate user \"#{$aa[:user]}\"." unless OpenTox::Authorization.is_token_valid(OpenTox::RestClientWrapper.subjectid)
 #end
 
+# defaults to stderr, may be changed to file output (e.g in opentox-service)
+$logger = OTLogger.new(STDERR) 
+$logger.level = Logger::DEBUG
+#Mongo::Logger.logger = $logger
+Mongo::Logger.level = Logger::WARN 
+#$mongo = Mongo::Client.new($mongodb[:uri])
+Mongoid.logger.level = Logger::WARN
+Mongoid.logger = $logger
+#Moped.logger = $logger

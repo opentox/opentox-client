@@ -1,17 +1,15 @@
 CACTUS_URI="http://cactus.nci.nih.gov/chemical/structure/"
+require 'openbabel'
 
 module OpenTox
 
   # Ruby wrapper for OpenTox Compound Webservices (http://opentox.org/dev/apis/api-1.2/structure).
   class Compound
 
-    def initialize uri
-      @data = {}
-      @data["uri"] = uri
-    end
+    attr_reader :inchi
 
-    def ==(c)
-      @data["uri"] == c.uri
+    def initialize inchi
+      @inchi = inchi
     end
 
     # Create a compound from smiles string
@@ -20,21 +18,21 @@ module OpenTox
     # @param [String] smiles Smiles string
     # @return [OpenTox::Compound] Compound
     def self.from_smiles smiles
-      Compound.new RestClientWrapper.post(service_uri, smiles, {:content_type => 'chemical/x-daylight-smiles'})
+      OpenTox::Compound.new obconversion(smiles,"smi","inchi")
     end
 
     # Create a compound from inchi string
     # @param inchi [String] smiles InChI string
     # @return [OpenTox::Compound] Compound
     def self.from_inchi inchi
-      Compound.new RestClientWrapper.post(service_uri, inchi, {:content_type => 'chemical/x-inchi'})
+      OpenTox::Compound.new inchi
     end
 
     # Create a compound from sdf string
     # @param sdf [String] smiles SDF string
     # @return [OpenTox::Compound] Compound
     def self.from_sdf sdf
-      Compound.new RestClientWrapper.post(service_uri, sdf, {:content_type => 'chemical/x-mdl-sdfile'})
+      OpenTox::Compound.new obconversion(sdf,"sdf","inchi")
     end
 
     # Create a compound from name. Relies on an external service for name lookups.
@@ -43,32 +41,25 @@ module OpenTox
     # @param name [String] can be also an InChI/InChiKey, CAS number, etc
     # @return [OpenTox::Compound] Compound
     def self.from_name name
-      @inchi = RestClientWrapper.get File.join(CACTUS_URI,URI.escape(name),"stdinchi")
-      Compound.new RestClientWrapper.post(service_uri, @inchi, {:content_type => 'chemical/x-inchi'})
-    end
-
-    # Get InChI
-    # @return [String] InChI string
-    def inchi
-      @inchi ||= RestClientWrapper.get(@data["uri"],{},{:accept => 'chemical/x-inchi'}).chomp
+      OpenTox::Compound.new RestClientWrapper.get File.join(CACTUS_URI,URI.escape(name),"stdinchi")
     end
 
     # Get InChIKey
     # @return [String] InChI string
     def inchikey
-      @inchikey ||= RestClientWrapper.get(@data["uri"],{},{:accept => 'chemical/x-inchikey'}).chomp
+      obconversion(@inchi,"inchi","inchikey")
     end
 
     # Get (canonical) smiles
     # @return [String] Smiles string
     def smiles
-      @smiles ||= RestClientWrapper.get(@data["uri"],{},{:accept => 'chemical/x-daylight-smiles'}).chomp
+      obconversion(@inchi,"inchi","smi") # "can" gives nonn-canonical smiles??
     end
 
     # Get sdf
     # @return [String] SDF string
     def sdf
-      RestClientWrapper.get(@data["uri"],{},{:accept => 'chemical/x-mdl-sdfile'}).chomp
+      obconversion(@inchi,"inchi","sdf")
     end
 
     # Get gif image
@@ -82,14 +73,16 @@ module OpenTox
     #   image = compound.png
     # @return [image/png] Image data
     def png
-      RestClientWrapper.get(File.join @data["uri"], "image")
+      obconversion(@inchi,"inchi","_png2")
     end
 
+=begin
     # Get URI of compound image
     # @return [String] Compound image URI
     def image_uri
       File.join @data["uri"], "image"
     end
+=end
 
     # Get all known compound names. Relies on an external service for name lookups.
     # @example
@@ -115,6 +108,26 @@ module OpenTox
       # https://www.ebi.ac.uk/chembldb/ws#individualCompoundByInChiKey
       uri = "http://www.ebi.ac.uk/chemblws/compounds/smiles/#{smiles}.json"
       @chemblid = JSON.parse(RestClientWrapper.get(uri))["compounds"].first["chemblId"]
+    end
+
+    private
+
+    def self.obconversion(identifier,input_format,output_format,option=nil)
+      obconversion = OpenBabel::OBConversion.new
+      obconversion.set_options(option, OpenBabel::OBConversion::OUTOPTIONS) if option
+      obmol = OpenBabel::OBMol.new
+      obconversion.set_in_and_out_formats input_format, output_format
+      obconversion.read_string obmol, identifier
+      case output_format
+      when /smi|can|inchi/
+        obconversion.write_string(obmol).gsub(/\s/,'').chomp
+      else
+        obconversion.write_string(obmol)
+      end
+    end
+
+    def obconversion(identifier,input_format,output_format,option=nil)
+      self.class.obconversion(identifier,input_format,output_format,option=nil)
     end
   end
 end

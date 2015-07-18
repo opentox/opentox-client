@@ -2,13 +2,18 @@ module OpenTox
 
   class Feature
 
+    field :string, type: Boolean, default: false
+    field :nominal, type: Boolean, default: false
+    field :numeric, type: Boolean, default: false
+    field :accept_values, type: Array
+    
     # Find out feature type
     # Classification takes precedence
     # @return [String] Feature type
     def feature_type
-      if self[RDF.type].include?(RDF::OT.NominalFeature)
+      if nominal
         "classification"
-      elsif self[RDF.type].include?(RDF::OT.NumericFeature)
+      elsif numeric
         "regression"
       else
         "unknown"
@@ -18,9 +23,9 @@ module OpenTox
     # Get accept values
     # 
     # @return[Array] Accept values
-    def accept_values
-      self[RDF::OT.acceptValue] ? self[RDF::OT.acceptValue].sort : nil
-    end
+    #def accept_values
+      #self[RDF::OT.acceptValue] ? self[RDF::OT.acceptValue].sort : nil
+    #end
 
     # Create value map
     # @param [OpenTox::Feature] Feature

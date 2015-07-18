@@ -26,10 +26,9 @@ Gem::Specification.new do |s|
   #s.add_runtime_dependency 'rdf-turtle'
   s.add_runtime_dependency "open4"
   s.add_runtime_dependency "openbabel"
-  s.add_runtime_dependency "mongo"
-  s.add_runtime_dependency "bson"
-  
+  s.add_runtime_dependency "mongoid", '~> 5.0beta'  
+
   # external requirements
-  ["libraptor-dev"].each{|r| s.requirements << r}
-  s.post_install_message = "Please check the version of your libraptor library, if installation of rdf.rb fails"
+  #["libraptor-dev"].each{|r| s.requirements << r}
+  #s.post_install_message = "Please check the version of your libraptor library, if installation of rdf.rb fails"
 end
