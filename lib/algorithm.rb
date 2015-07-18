@@ -16,11 +16,17 @@ module OpenTox
     class Generic
       include OpenTox
       include Algorithm
+      include Mongoid::Document
+      include Mongoid::Timestamps
+      field :parameters, type: Array
     end
 
     class Descriptor 
       include OpenTox
       include Algorithm
+      include Mongoid::Document
+      include Mongoid::Timestamps
+      field :parameters, type: Array
 
       [:smarts_match,:smarts_count,:physchem,:lookup].each do |descriptor|
         Descriptor.define_singleton_method(descriptor) do |compounds,descriptors=nil|
@@ -31,7 +37,9 @@ module OpenTox
             bad_request_error "First argument contains objects with a different class than OpenTox::Compound or OpenTox::Dataset #{klasses.inspect}" unless klasses.size == 1 and klasses.first == Compound
             JSON.parse(Descriptor.new(File.join(self.service_uri, "descriptor", descriptor.to_s)).run(:compound_uri => compounds.collect{|c| c.uri}, :descriptors => descriptors))
           when "OpenTox::Compound"
-            JSON.parse(Descriptor.new(File.join(self.service_uri, "descriptor", descriptor.to_s)).run(:compound_uri => compounds.uri, :descriptors => descriptors))
+            p descriptor.to_s
+            send descriptor.to_sym, compounds
+            #JSON.parse(Descriptor.new(File.join(self.service_uri, "descriptor", descriptor.to_s)).run(:compound_uri => compounds.uri, :descriptors => descriptors))
           when "OpenTox::Dataset"
             task_uri = Descriptor.new(File.join(self.service_uri, "descriptor", descriptor.to_s)).run(:dataset_uri => compounds.uri, :descriptors => descriptors)
             Dataset.new(wait_for_task task_uri)

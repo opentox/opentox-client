@@ -15,6 +15,7 @@ module OpenTox
 
       field :title, type: String
       field :description, type: String
+      field :parameters, type: Array
 
       # TODO check if needed
       def self.subjectid
