@@ -12,6 +12,10 @@ module OpenTox
       @inchi = inchi
     end
 
+    def  == compound
+      self.inchi == compound.inchi
+    end
+
     # Create a compound from smiles string
     # @example
     #   compound = OpenTox::Compound.from_smiles("c1ccccc1")

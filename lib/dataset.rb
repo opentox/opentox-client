@@ -4,21 +4,17 @@ module OpenTox
 
   # Ruby wrapper for OpenTox Dataset Webservices (http://opentox.org/dev/apis/api-1.2/dataset).
   class Dataset
-      include Mongoid::Document
+    include Mongoid::Document
 
-    field :feature_ids, type: Array
-    field :inchis, type: Array
-    field :data_entries, type: Array
-    field :warnings, type: Array
+    field :feature_ids, type: Array, default: []
+    field :inchis, type: Array, default: []
+    field :data_entries, type: Array, default: []
+    field :warnings, type: Array, default: []
     field :source, type: String
 
-    def initialize
-      super
-      self.feature_ids = []
-      self.inchis = []
-      self.data_entries = []
-      self.warnings = []
-    end
+    # TODO subclass Datasets
+    field :dependent_variables, type: BSON::ObjectId
+    field :predicted_variables, type: Array
 
     # Readers
 
@@ -53,8 +49,8 @@ module OpenTox
     # @param feature [OpenTox::Feature] OpenTox Feature object
     # @return [Array] Data entry values
     def values(compound, feature)
-      rows = (0 ... inchis.length).select { |r| inchis[r].uri == compound.uri }
-      col = feature_ids.collect{|f| f.uri}.index feature.uri
+      rows = (0 ... inchis.length).select { |r| inchis[r] == compound.inchi }
+      col = feature_ids.index feature.id
       rows.collect{|row| data_entries[row][col]}
     end
 
@@ -63,9 +59,9 @@ module OpenTox
     # Search a dataset for a feature given its URI
     # @param uri [String] Feature URI
     # @return [OpenTox::Feature] Feature object, or nil if not present
-    def find_feature_uri(uri)
-      features.select{|f| f.uri == uri}.first
-    end
+    #def find_feature_uri(uri)
+      #features.select{|f| f.uri == uri}.first
+    #end
 
     # Search a dataset for a compound given its URI
     # @param uri [String] Compound URI
@@ -120,17 +116,18 @@ module OpenTox
     # @param value [Object] (will be converted to String)
     # @return [Array] data_entries
     def add_data_entry compound, feature, value
-      @data["compounds"] << compound unless @data["compounds"].collect{|c| c.uri}.include?(compound.uri)
-      row = @data["compounds"].collect{|c| c.uri}.index(compound.uri)
-      @data["features"] << feature unless @data["features"].collect{|f| f.uri}.include?(feature.uri)
-      col = @data["features"].collect{|f| f.uri}.index(feature.uri)
-      if @data["data_entries"][row] and @data["data_entries"][row][col] # duplicated values
-        @data["compounds"] << compound
-        row = @data["compounds"].collect{|c| c.uri}.rindex(compound.uri)
+      # TODO: optimize
+      add_compound compound unless self.compounds.include?(compound)
+      row = self.compounds.index(compound)
+      add_feature feature unless self.features.include?(feature)
+      col = self.features.index(feature)
+      if self.data_entries[row] and self.data_entries[row][col] # duplicated values
+        add_compound compound
+        row = self.compounds.rindex(compound)
       end
       if value
-        @data["data_entries"][row] ||= []
-        @data["data_entries"][row][col] = value
+        self.data_entries[row] ||= []
+        self.data_entries[row][col] = value
       end
     end
 

@@ -1,3 +1,5 @@
+# TODO: task seems to run twice, see fminser tests
+# TODO: do we need tasks for internal use
 DEFAULT_TASK_MAX_DURATION = 36000
 module OpenTox
   # TODO: fix error reports
@@ -5,13 +7,16 @@ module OpenTox
 
   # Class for handling asynchronous tasks
   class Task 
+    include Mongoid::Document
+    include Mongoid::Timestamps
 
     field :creator, type: String
     field :percentageCompleted, type: Float
     field :error_code, type: Integer # workaround name, cannot overwrite accessors in current mongoid version
     field :finished, type: Time # workaround name, cannot overwrite accessors in current mongoid version
     # TODO
-    field :result_object, type: String
+    field :result_type, type: String
+    field :result_id, type: BSON::ObjectId
     field :report, type: String
     field :pid, type: Integer
     field :observer_pid, type: Integer
@@ -66,7 +71,7 @@ module OpenTox
     end
 
     def completed(result)
-      update_attributes(:error_code => 200, :finished => Time.now, :percentageCompleted => 100, :result_object => result)
+      update_attributes(:error_code => 200, :finished => Time.now, :percentageCompleted => 100, :result_type => result.type, :result_id => result.id)
     end
 
     # waits for a task, unless time exceeds or state is no longer running
@@ -92,7 +97,11 @@ module OpenTox
   end
 
   def result
-    OpenTox::Task.find(id).result_object
+    c = OpenTox::Task.find(id).result_type.downcase.to_sym
+    rid = OpenTox::Task.find(id).result_id
+    p c, rid
+    p $mongo[collection].all
+    $mongo[collection].find(rid).first
   end
 
   def finished_at

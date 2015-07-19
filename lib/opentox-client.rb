@@ -4,11 +4,11 @@ require "bundler/setup"
 #require 'rdf/raptor'
 #require 'rdf/turtle'
 require "rest-client"
-require 'uri'
+#require 'uri'
 require 'yaml'
 require 'json'
 require 'logger'
-require "securerandom"
+#require "securerandom"
 require 'mongoid'
 
 default_config = File.join(ENV["HOME"],".opentox","config","default.rb")
@@ -50,8 +50,8 @@ FALSE_REGEXP = /^(false|inactive|0|0.0|low tox|deactivating|non-carcinogen|non-m
   "compound.rb",
   "feature.rb",
   "dataset.rb",
-  "algorithm.rb",
-  "model.rb",
+  #"algorithm.rb",
+  #"model.rb",
   "validation.rb"
 ].each{ |f| require_relative f }
 
@@ -61,7 +61,7 @@ FALSE_REGEXP = /^(false|inactive|0|0.0|low tox|deactivating|non-carcinogen|non-m
 #end
 
 # defaults to stderr, may be changed to file output (e.g in opentox-service)
-$logger = OTLogger.new(STDERR) 
+$logger = OTLogger.new(STDOUT) # STDERR did not work on my development machine (CH)
 $logger.level = Logger::DEBUG
 #Mongo::Logger.logger = $logger
 Mongo::Logger.level = Logger::WARN 

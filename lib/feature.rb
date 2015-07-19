@@ -1,10 +1,16 @@
 module OpenTox
 
+  # TODO subclass features
   class Feature
 
     field :string, type: Boolean, default: false
     field :nominal, type: Boolean, default: false
     field :numeric, type: Boolean, default: false
+    field :substructure, type: Boolean, default: false
+    field :prediction, type: Boolean
+    field :smarts, type: String
+    field :pValue, type: Float
+    field :effect, type: String
     field :accept_values, type: Array
     
     # Find out feature type
