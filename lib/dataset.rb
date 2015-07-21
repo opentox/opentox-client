@@ -2,19 +2,28 @@ require 'csv'
 
 module OpenTox
 
-  # Ruby wrapper for OpenTox Dataset Webservices (http://opentox.org/dev/apis/api-1.2/dataset).
+  class MeasuredDataset < Dataset
+  end
+
+  class CalculatedDataset < Dataset
+    field :creator, type: String
+  end
+
+  class LazarPredictionDataset < CalculatedDataset
+    field :dependent_variables, type: BSON::ObjectId
+    field :predicted_variables, type: Array
+  end
+
+  # provides a basic datastructure similar to R dataframes
+  # descriptor/feature c
   class Dataset
     include Mongoid::Document
 
     field :feature_ids, type: Array, default: []
     field :inchis, type: Array, default: []
     field :data_entries, type: Array, default: []
-    field :warnings, type: Array, default: []
     field :source, type: String
-
-    # TODO subclass Datasets
-    field :dependent_variables, type: BSON::ObjectId
-    field :predicted_variables, type: Array
+    field :warnings, type: Array, default: []
 
     # Readers
 
@@ -33,7 +42,7 @@ module OpenTox
     end
 
     def add_compound(compound)
-      self.inchis << compound.id
+      self.inchis << compound.inchi
     end
 
     def features=(features)
@@ -109,6 +118,12 @@ module OpenTox
       table = CSV.read filename, :skip_blanks => true
       from_table table
       save
+    end
+
+    def self.from_csv_file file
+      dataset = self.new
+      dataset.upload file
+      dataset
     end
 
     # @param compound [OpenTox::Compound]
