@@ -1,38 +1,17 @@
 require 'rubygems'
 require "bundler/setup"
-#require 'rdf'
-#require 'rdf/raptor'
-#require 'rdf/turtle'
 require "rest-client"
-#require 'uri'
 require 'yaml'
 require 'json'
 require 'logger'
-#require "securerandom"
 require 'mongoid'
 
-default_config = File.join(ENV["HOME"],".opentox","config","default.rb")
-client_config = File.join(ENV["HOME"],".opentox","config","opentox-client.rb")
-
-puts "Could not find configuration files #{default_config} or #{client_config}" unless File.exist? default_config or File.exist? client_config
-require default_config if File.exist? default_config
-require client_config if File.exist? client_config
-# TODO switch to production
+# TODO store development/test, validation, production in separate databases
 ENV["MONGOID_ENV"] = "development"
 Mongoid.load!("#{ENV['HOME']}/.opentox/config/mongoid.yml")
 
-# define constants and global variables
-#RDF::OT =  RDF::Vocabulary.new 'http://www.opentox.org/api/1.2#'
-#RDF::OT1 =  RDF::Vocabulary.new 'http://www.opentox.org/api/1.1#'
-#RDF::OTA =  RDF::Vocabulary.new 'http://www.opentox.org/algorithmTypes.owl#'
-#RDF::OLO =  RDF::Vocabulary.new 'http://purl.org/ontology/olo/core#'
-#RDF::TB  = RDF::Vocabulary.new "http://onto.toxbank.net/api/"
-#RDF::ISA = RDF::Vocabulary.new "http://onto.toxbank.net/isa/"
-#RDF::OWL = RDF::Vocabulary.new "http://www.w3.org/2002/07/owl#"
-
-#CLASSES = ["Compound", "Feature", "Dataset", "Validation", "Task", "Investigation"]
-CLASSES = ["Feature", "Dataset", "Validation", "Task", "Investigation"]
-#RDF_FORMATS = [:rdfxml,:ntriples,:turtle]
+CLASSES = ["Compound", "Feature", "DataEntry","Dataset"]#, "Validation", "Task", "Investigation"]
+#CLASSES = ["Feature", "Dataset", "Validation", "Task", "Investigation"]
 
 # Regular expressions for parsing classification data
 TRUE_REGEXP = /^(true|active|1|1.0|tox|activating|carcinogen|mutagenic)$/i
@@ -41,14 +20,15 @@ FALSE_REGEXP = /^(false|inactive|0|0.0|low tox|deactivating|non-carcinogen|non-m
 [
   "overwrite.rb",
   "rest-client-wrapper.rb", 
-  "error.rb",
-  "authorization.rb", 
-  "policy.rb", 
-  "otlogger.rb", 
+  #"error.rb",
+  #"authorization.rb", 
+  #"policy.rb", 
+  #"otlogger.rb", 
   "opentox.rb",
-  "task.rb",
+  #"task.rb",
   "compound.rb",
   "feature.rb",
+  "data_entry.rb",
   "dataset.rb",
   #"algorithm.rb",
   #"model.rb",
@@ -61,11 +41,11 @@ FALSE_REGEXP = /^(false|inactive|0|0.0|low tox|deactivating|non-carcinogen|non-m
 #end
 
 # defaults to stderr, may be changed to file output (e.g in opentox-service)
-$logger = OTLogger.new(STDOUT) # STDERR did not work on my development machine (CH)
+$logger = Logger.new STDOUT #OTLogger.new(STDOUT) # STDERR did not work on my development machine (CH)
 $logger.level = Logger::DEBUG
 #Mongo::Logger.logger = $logger
 Mongo::Logger.level = Logger::WARN 
-#$mongo = Mongo::Client.new($mongodb[:uri])
+$mongo = Mongo::Client.new('mongodb://127.0.0.1:27017/opentox')
+$gridfs = $mongo.database.fs
 Mongoid.logger.level = Logger::WARN
 Mongoid.logger = $logger
-#Moped.logger = $logger

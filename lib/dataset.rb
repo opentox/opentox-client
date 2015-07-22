@@ -1,34 +1,20 @@
 require 'csv'
+require 'tempfile'
 
 module OpenTox
 
-  class MeasuredDataset < Dataset
-  end
-
-  class CalculatedDataset < Dataset
-    field :creator, type: String
-  end
-
-  class LazarPredictionDataset < CalculatedDataset
-    field :dependent_variables, type: BSON::ObjectId
-    field :predicted_variables, type: Array
-  end
-
-  # provides a basic datastructure similar to R dataframes
-  # descriptor/feature c
   class Dataset
     include Mongoid::Document
 
     field :feature_ids, type: Array, default: []
-    field :inchis, type: Array, default: []
-    field :data_entries, type: Array, default: []
+    field :compound_ids, type: Array, default: []
     field :source, type: String
     field :warnings, type: Array, default: []
 
     # Readers
 
     def compounds
-      inchis.collect{|i| OpenTox::Compound.new i}
+      self.compound_ids.collect{|id| OpenTox::Compound.find id}
     end
 
     def features
@@ -38,132 +24,34 @@ module OpenTox
     # Writers
 
     def compounds=(compounds)
-      self.inchis = compounds.collect{|c| c.inchi}
+      self.compound_ids = compounds.collect{|c| c.id}
     end
 
-    def add_compound(compound)
-      self.inchis << compound.inchi
+    def add_compound compound
+        self.compound_ids << compound.id
     end
 
     def features=(features)
       self.feature_ids = features.collect{|f| f.id}
     end
 
-    def add_feature(feature)
+    def add_feature feature
       self.feature_ids << feature.id
     end
 
-    # Find data entry values for a given compound and feature
-    # @param compound [OpenTox::Compound] OpenTox Compound object
-    # @param feature [OpenTox::Feature] OpenTox Feature object
-    # @return [Array] Data entry values
-    def values(compound, feature)
-      rows = (0 ... inchis.length).select { |r| inchis[r] == compound.inchi }
-      col = feature_ids.index feature.id
-      rows.collect{|row| data_entries[row][col]}
-    end
-
-    # Convenience methods to search by compound/feature URIs
-
-    # Search a dataset for a feature given its URI
-    # @param uri [String] Feature URI
-    # @return [OpenTox::Feature] Feature object, or nil if not present
-    #def find_feature_uri(uri)
-      #features.select{|f| f.uri == uri}.first
-    #end
-
-    # Search a dataset for a compound given its URI
-    # @param uri [String] Compound URI
-    # @return [OpenTox::Compound] Compound object, or nil if not present
-    def find_compound_uri(uri)
-      compounds.select{|f| f.uri == uri}.first
+    def self.create compounds, features, warnings=[], source=nil
+      dataset = Dataset.new(:warnings => warnings)
+      dataset.compounds = compounds
+      dataset.features = features
+      dataset
     end
 
     # for prediction result datasets
     # assumes that there are feature_ids with title prediction and confidence
     # @return [Array] of Hashes with keys { :compound, :value ,:confidence } (compound value is object not uri)
-    def predictions
-      predictions = []
-      prediction_feature = nil
-      confidence_feature = nil
-      metadata[RDF::OT.predictedVariables].each do |uri|
-        feature = OpenTox::Feature.new uri
-        case feature.title
-        when /prediction$/
-          prediction_feature = feature
-        when /confidence$/
-          confidence_feature = feature
-        end
-      end
-      if prediction_feature and confidence_feature
-        compounds.each do |compound|
-          value = values(compound,prediction_feature).first
-          value = value.to_f if prediction_feature[RDF.type].include? RDF::OT.NumericFeature and ! prediction_feature[RDF.type].include? RDF::OT.StringFeature
-          confidence = values(compound,confidence_feature).first.to_f
-          predictions << {:compound => compound, :value => value, :confidence => confidence} if value and confidence
-        end
-      end
-      predictions
-    end
-
-    # Adding data methods
-    # (Alternatively, you can directly change @data["feature_ids"] and @data["compounds"])
-
-    # Create a dataset from file (csv,sdf,...)
-    # @param filename [String]
-    # @return [String] dataset uri
-    def upload filename, wait=true
-      self.title = File.basename(filename)
-      self.source = filename
-      table = CSV.read filename, :skip_blanks => true
-      from_table table
-      save
-    end
-
-    def self.from_csv_file file
-      dataset = self.new
-      dataset.upload file
-      dataset
-    end
-
-    # @param compound [OpenTox::Compound]
-    # @param feature [OpenTox::Feature]
-    # @param value [Object] (will be converted to String)
-    # @return [Array] data_entries
-    def add_data_entry compound, feature, value
-      # TODO: optimize
-      add_compound compound unless self.compounds.include?(compound)
-      row = self.compounds.index(compound)
-      add_feature feature unless self.features.include?(feature)
-      col = self.features.index(feature)
-      if self.data_entries[row] and self.data_entries[row][col] # duplicated values
-        add_compound compound
-        row = self.compounds.rindex(compound)
-      end
-      if value
-        self.data_entries[row] ||= []
-        self.data_entries[row][col] = value
-      end
-    end
-
-
-    # TODO: remove? might be dangerous if feature ordering is incorrect
-    # MG: I would not remove this because add_data_entry is very slow (4 times searching in arrays)
-    # CH: do you have measurements? compound and feature arrays are not that big, I suspect that feature search/creation is the time critical step
-    # @param row [Array]
-    # @example
-    #   d = Dataset.new
-    #   d.features << Feature.new(a)
-    #   d.features << Feature.new(b)
-    #   d << [ Compound.new("c1ccccc1"), feature-value-a, feature-value-b ]
-    def << row
-      compound = row.shift # removes the compound from the array
-      bad_request_error "Dataset features are empty." unless feature_ids
-      bad_request_error "Row size '#{row.size}' does not match features size '#{feature_ids.size}'." unless row.size == feature_ids.size
-      bad_request_error "First column is not a OpenTox::Compound" unless compound.class == OpenTox::Compound
-      self.inchis << compound.inchi
-      self.data_entries << row
-    end
+    # TODO
+    #def predictions
+    #end
 
     # Serialisation
     
@@ -185,6 +73,7 @@ module OpenTox
     # @param feats [Array] features objects
     # @param metadata [Hash]
     # @return [OpenTox::Dataset]
+    # TODO
     def split( compound_indices, feats, metadata)
 
       bad_request_error "Dataset.split : Please give compounds as indices" if compound_indices.size==0 or !compound_indices[0].is_a?(Fixnum)
@@ -213,6 +102,7 @@ module OpenTox
     # ** number of occurences is not equal in both datasets? cannot map, raise error
     # @param dataset [OpenTox::Dataset] dataset that should be mapped to this dataset (fully loaded)
     # @param compound_index [Fixnum], corresponding to dataset
+    # TODO
     def compound_index( dataset, compound_index )
       compound_inchi = dataset.compounds[compound_index].inchi
       self_indices = compound_indices(compound_inchi)
@@ -235,6 +125,7 @@ module OpenTox
     # returns the inidices of the compound in the dataset
     # @param compound_inchi [String]
     # @return [Array] compound index (position) of the compound in the dataset, array-size is 1 unless multiple occurences
+    # TODO
     def compound_indices( compound_inchi )
       unless defined?(@cmp_indices) and @cmp_indices.has_key?(compound_inchi)
         @cmp_indices = {}
@@ -250,90 +141,142 @@ module OpenTox
       @cmp_indices[compound_inchi]
     end
 
-    # returns compound feature value using the compound-index and the feature_uri
-    def data_entry_value(compound_index, feature_uri)
-      data_entries(true) if @data["data_entries"].empty?
-      col = @data["features"].collect{|f| f.uri}.index feature_uri
-      @data["data_entries"][compound_index] ?  @data["data_entries"][compound_index][col] : nil
+    # Adding data methods
+    # (Alternatively, you can directly change @data["feature_ids"] and @data["compounds"])
+
+    # Create a dataset from file (csv,sdf,...)
+    # @param filename [String]
+    # @return [String] dataset uri
+    # TODO
+    #def self.from_sdf_file
+    #end
+
+    def self.from_csv_file file, source=nil, bioassay=true
+      source ||= file
+      table = CSV.read file, :skip_blanks => true
+      from_table table, source, bioassay
     end
 
-    def from_table table
+    # parse data in tabular format (e.g. from csv)
+    # does a lot of guesswork in order to determine feature types
+    def self.from_table table, source, bioassay=true
+
+      time = Time.now
 
       # features
       feature_names = table.shift.collect{|f| f.strip}
-      self.warnings << "Duplicate features in table header." unless feature_names.size == feature_names.uniq.size
+      dataset = Dataset.new(:source => source)
+      dataset.warnings << "Duplicate features in table header." unless feature_names.size == feature_names.uniq.size
       compound_format = feature_names.shift.strip
       bad_request_error "#{compound_format} is not a supported compound format. Accepted formats: SMILES, InChI." unless compound_format =~ /SMILES|InChI/i
-      ignored_feature_indices = []
+
       numeric = []
+      # guess feature types
       feature_names.each_with_index do |f,i|
         values = table.collect{|row| val=row[i+1].to_s.strip; val.blank? ? nil : val }.uniq.compact
         types = values.collect{|v| v.numeric? ? true : false}.uniq
-        metadata = {"title" => f}
+        metadata = {"name" => f, "source" => source}
         if values.size == 0 # empty feature
         elsif  values.size > 5 and types.size == 1 and types.first == true # 5 max classes
           metadata["numeric"] = true
           numeric[i] = true
         else
           metadata["nominal"] = true
-          metadata["string"] = true
           metadata["accept_values"] = values
           numeric[i] = false
         end
-        feature = OpenTox::Feature.find_or_create_by metadata
-        self.feature_ids << feature.id unless feature.nil?
+        if bioassay
+          if metadata["numeric"]
+            feature = NumericBioAssay.find_or_create_by(metadata)
+          elsif metadata["nominal"]
+            feature = NominalBioAssay.find_or_create_by(metadata)
+          end
+        else
+          metadata.merge({:measured => false, :calculated => true})
+          if metadata["numeric"]
+            feature = NumericFeature.find_or_create_by(metadata)
+          elsif metadata["nominal"]
+            feature = NominalFeature.find_or_create_by(metadata)
+          end
+        end
+        dataset.feature_ids << OpenTox::Feature.find_or_create_by(metadata).id
       end
+      feature_ids = dataset.features.collect{|f| f.id.to_s}
+      
+      $logger.debug "Feature values: #{Time.now-time}"
+      time = Time.now
 
       # compounds and values
       r = -1
-      table.each_with_index do |values,j|
-        compound = values.shift
+      csv = ["compound_id,feature_id,value"]
+
+      compound_time = 0
+      value_time = 0
+
+      table.each_with_index do |vals,j|
+        ct = Time.now
+        identifier = vals.shift
         begin
           case compound_format
           when /SMILES/i
-            c = OpenTox::Compound.from_smiles(compound)
-            if c.inchi.empty?
-              self.warnings << "Cannot parse #{compound_format} compound '#{compound.strip}' at position #{j+2}, all entries are ignored."
+            compound = OpenTox::Compound.from_smiles(identifier)
+            if compound.inchi.empty?
+              dataset.warnings << "Cannot parse #{compound_format} compound '#{compound.strip}' at position #{j+2}, all entries are ignored."
               next
-            else
-              inchi = c.inchi
             end
           when /InChI/i
-            # TODO validate inchi
-            inchi = compound
-          else
-            raise "wrong compound format" #should be checked above
+            compound = OpenTox::Compound.from_inchi(identifier)
           end
         rescue
-          self.warnings << "Cannot parse #{compound_format} compound '#{compound}' at position #{j+2}, all entries are ignored."
+          dataset.warnings << "Cannot parse #{compound_format} compound '#{compound}' at position #{j+2}, all entries are ignored."
           next
         end
-        
+        compound_time += Time.now-ct
+        dataset.compound_ids << compound.id
+          
         r += 1
-        self.inchis << inchi
-        unless values.size == self.feature_ids.size
-          self.warnings << "Number of values at position #{j+2} (#{values.size}) is different than header size (#{self.feature_ids.size}), all entries are ignored."
+        unless vals.size == feature_ids.size # way cheaper than accessing dataset.features
+          dataset.warnings << "Number of values at position #{j+2} is different than header size (#{vals.size} vs. #{features.size}), all entries are ignored."
           next
         end
 
-        self.data_entries << []
-        values.each_with_index do |v,i|
+        cid = compound.id.to_s
+        vals.each_with_index do |v,i|
           if v.blank?
-            self.data_entries.last << nil
-            self.warnings << "Empty value for compound '#{compound}' (row #{r+2}) and feature '#{feature_names[i]}' (column #{i+2})."
+            dataset.warnings << "Empty value for compound '#{identifier}' (row #{r+2}) and feature '#{feature_names[i]}' (column #{i+2})."
             next
           elsif numeric[i]
-            self.data_entries.last << v.to_f
+            csv << "#{cid},#{feature_ids[i]},#{v.to_f}" # retrieving ids from dataset.{compounds|features} kills performance
           else
-            self.data_entries.last << v.strip
+            csv << "#{cid},#{feature_ids[i]},#{v.strip}" # retrieving ids from dataset.{compounds|features} kills performance
           end
         end
       end
-      self.inchis.duplicates.each do |inchi|
+      dataset.compounds.duplicates.each do |duplicates|
+        # TODO fix and check
         positions = []
-        self.inchis.each_with_index{|c,i| positions << i+1 if !c.blank? and c == inchi}
-        self.warnings << "Duplicate compound #{inchi} at rows #{positions.join(', ')}. Entries are accepted, assuming that measurements come from independent experiments." 
+        compounds.each_with_index{|c,i| positions << i+1 if !c.blank? and c == compound}
+        dataset.warnings << "Duplicate compound #{compound.inchi} at rows #{positions.join(', ')}. Entries are accepted, assuming that measurements come from independent experiments." 
       end
+      
+      $logger.debug "Value parsing: #{Time.now-time} (Compound creation: #{compound_time})"
+      time = Time.now
+
+      # Workaround for mongo bulk insertions (insertion of single data_entries is far too slow)
+      # Skip ruby JSON serialisation:
+      #   - to_json is too slow to write to file
+      #   - json (or bson) serialisation is probably causing very long parse times of Mongo::BulkWrite, or any other ruby insert operation
+      f = Tempfile.new("#{dataset.id.to_s}.csv","/tmp")
+      f.puts csv.join("\n")
+      f.close
+      $logger.debug "Write file: #{Time.now-time}"
+      time = Time.now
+      # TODO DB name from config
+      `mongoimport --db opentox --collection data_entries --type csv --headerline --file #{f.path}`
+      $logger.debug "Bulk insert: #{Time.now-time}"
+      time = Time.now
+      
+      dataset
     end
   end
 end

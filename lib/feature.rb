@@ -1,48 +1,62 @@
 module OpenTox
 
-  # TODO subclass features
   class Feature
+    field :name, as: :title, type: String
+    field :nominal, type: Boolean
+    field :numeric, type: Boolean
+    field :measured, type: Boolean
+    field :calculated, type: Boolean
+    field :supervised, type: Boolean
+    field :source, as: :title, type: String
+  end
 
-    field :string, type: Boolean, default: false
-    field :nominal, type: Boolean, default: false
-    field :numeric, type: Boolean, default: false
-    field :substructure, type: Boolean, default: false
-    field :prediction, type: Boolean
-    field :smarts, type: String
-    field :pValue, type: Float
-    field :effect, type: String
+  class NominalFeature < Feature
     field :accept_values, type: Array
-    
-    # Find out feature type
-    # Classification takes precedence
-    # @return [String] Feature type
-    def feature_type
-      if nominal
-        "classification"
-      elsif numeric
-        "regression"
-      else
-        "unknown"
-      end
+    def initialize params
+      super params
+      nominal = true
     end
+  end
 
-    # Get accept values
-    # 
-    # @return[Array] Accept values
-    #def accept_values
-      #self[RDF::OT.acceptValue] ? self[RDF::OT.acceptValue].sort : nil
-    #end
-
-    # Create value map
-    # @param [OpenTox::Feature] Feature
-    # @return [Hash] A hash with keys 1...feature.training_classes.size and values training classes
-    def value_map
-      unless defined? @value_map
-        accept_values ? @value_map = accept_values.each_index.inject({}) { |h,idx| h[idx+1]=accept_values[idx]; h } : @value_map = nil
-      end
-      @value_map
+  class NumericFeature < Feature
+    def initialize params
+      super params
+      numeric = true
     end
+  end
 
+  class Smarts < NominalFeature
+    field :name, as: :smarts, type: String # causes warnings
+    field :algorithm, type: String, default: "OpenTox::Algorithm::Descriptors.smarts_match"
+    field :parameters, type: Hash, default: {:count => false}
+    def initialize params
+      super params
+      nominal = true
+    end
+  end
+
+  class FminerSmarts < Smarts
+    field :training_algorithm, type: String
+    field :training_compound_ids, type: Array
+    field :training_feature_id, type: BSON::ObjectId
+    field :training_parameters, type: Hash
+    def initialize params
+      super params
+      supervised = true
+    end
+  end
+
+  class NominalBioAssay < NominalFeature
+    field :description, type: String
+  end
+
+  class NumericBioAssay < NumericFeature
+    field :description, type: String
+  end
+
+  class PhysChemDescriptor < NumericFeature
+    field :algorithm, type: String
+    field :parameters, type: Hash
   end
 
 end
