@@ -15,10 +15,12 @@ module OpenTox
     field :chemblid, type: String
     field :image_id, type: BSON::ObjectId
     field :sdf_id, type: BSON::ObjectId
+    #belongs_to :dataset
+    #belongs_to :data_entry
 
-    def  == compound
-      self.inchi == compound.inchi
-    end
+    #def  == compound
+      #self.inchi == compound.inchi
+    #end
 
     # Create a compound from smiles string
     # @example

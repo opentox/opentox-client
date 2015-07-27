@@ -1,15 +1,18 @@
 module OpenTox
 
   class DataEntry
-    #field :feature_id, type: BSON::ObjectId
-    #field :compound_id, type: BSON::ObjectId
+    field :feature_id, type: BSON::ObjectId
+    field :compound_id, type: BSON::ObjectId
     # Kludge because csv import removes type information
-    field :feature_id, type: String
-    field :compound_id, type: String
+    #field :feature_id, type: String
+    #field :compound_id, type: String
     field :value
     field :warnings, type: String
     field :unit, type: String
     store_in collection: "data_entries"
+    belongs_to :dataset
+    has_one :compound
+    has_one :feature
 
     # preferred method for the insertion of data entries
     # @example DataEntry.find_or_create compound,feature,value
@@ -32,5 +35,6 @@ module OpenTox
     def self.[](compound,feature)
       self.where(:compound_id => compound.id.to_s, :feature_id => feature.id.to_s).distinct(:value).first
     end
+
   end
 end

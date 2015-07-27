@@ -8,6 +8,8 @@ module OpenTox
     field :calculated, type: Boolean
     field :supervised, type: Boolean
     field :source, as: :title, type: String
+    #belongs_to :dataset
+    #belongs_to :data_entry
   end
 
   class NominalFeature < Feature
@@ -36,10 +38,9 @@ module OpenTox
   end
 
   class FminerSmarts < Smarts
-    field :training_algorithm, type: String
-    field :training_compound_ids, type: Array
-    field :training_feature_id, type: BSON::ObjectId
-    field :training_parameters, type: Hash
+    field :pValue, type: Float
+    field :effect, type: String
+    field :dataset_id 
     def initialize params
       super params
       supervised = true

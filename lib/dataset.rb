@@ -3,13 +3,32 @@ require 'tempfile'
 
 module OpenTox
 
+  class LazarPrediction < Dataset
+    field :creator, type: String
+  end
+
+  class FminerDataset < Dataset
+    field :training_algorithm, type: String
+    field :training_dataset_id, type: BSON::ObjectId
+    field :training_feature_id, type: BSON::ObjectId
+    field :training_parameters, type: Hash
+  end
+
   class Dataset
     include Mongoid::Document
 
+    attr_accessor :bulk
+
+    # associations like has_many, belongs_to deteriorate performance
     field :feature_ids, type: Array, default: []
     field :compound_ids, type: Array, default: []
     field :source, type: String
     field :warnings, type: Array, default: []
+
+    def initialize params=nil
+      super params
+      @bulk = []
+    end
 
     # Readers
 
@@ -19,6 +38,49 @@ module OpenTox
 
     def features
       self.feature_ids.collect{|id| OpenTox::Feature.find(id)}
+    end
+
+    def [](compound,feature)
+      bad_request_error "Incorrect parameter type. The first argument is a OpenTox::Compound the second a OpenTox::Feature." unless compound.is_a? Compound and feature.is_a? Feature
+      DataEntry.where(dataset_id: self.id, compound_id: compound.id, feature_id: feature.id).distinct(:value).first
+    end
+
+    def fingerprint(compound)
+      data_entries[compound.id]
+    end
+
+    def data_entries
+      unless @data_entries
+        entries = {}
+        t = Time.now
+        DataEntry.where(dataset_id: self.id).each do |de|
+          entries[de.compound_id] ||= {}
+          entries[de.compound_id][de.feature_id] = de.value.first
+        end
+        $logger.debug "Retrieving data: #{Time.now-t}"
+        t = Time.now
+        @data_entries = {}
+        # TODO: check performance overhead
+        compound_ids.each do |cid|
+          @data_entries[cid] = []
+          feature_ids.each_with_index do |fid,i|
+            @data_entries[cid][i] = entries[cid][fid]
+          end
+        end
+        $logger.debug "Create @data_entries: #{Time.now-t}"
+      end
+      @data_entries
+    end
+
+    # Find data entry values for a given compound and feature
+    # @param compound [OpenTox::Compound] OpenTox Compound object
+    # @param feature [OpenTox::Feature] OpenTox Feature object
+    # @return [Array] Data entry values
+    def values(compound, feature)
+      data_entries.where(:compound_id => compound.id, :feature_id => feature.id).distinct(:value)
+      #rows = (0 ... compound_ids.length).select { |r| compound_ids[r] == compound.id }
+      #col = feature_ids.index feature.id
+      #rows.collect{|row| data_entries[row][col]}
     end
 
     # Writers
@@ -151,21 +213,40 @@ module OpenTox
     #def self.from_sdf_file
     #end
 
+    def bulk_write
+      time = Time.now
+      # Workaround for mongo bulk insertions (insertion of single data_entries is far too slow)
+      # Skip ruby JSON serialisation:
+      #   - to_json is too slow to write to file
+      #   - json (or bson) serialisation is probably causing very long parse times of Mongo::BulkWrite, or any other ruby insert operation
+      # this method causes a noticeable overhead compared to direct string serialisation (e.g. total processing time 16" instead of 12" for rat fminer dataset), but it can be reused at different places
+      dataset_id = self.id.to_s
+      f = Tempfile.new("#{dataset_id}.json","/tmp")
+      f.puts @bulk.collect{|row| "{'dataset_id': {'$oid': '#{dataset_id}'},'compound_id': {'$oid': '#{row[0]}'}, 'feature_id': {'$oid': '#{row[1]}'}, 'value': #{row[2]}}"}.join("\n")
+      f.close
+      $logger.debug "Write JSON file: #{Time.now-time}"
+      # TODO DB name from config
+      puts `mongoimport --db opentox --collection data_entries --type json --file #{f.path}  2>&1`
+      $logger.debug "Bulk import: #{Time.now-time}"
+      @bulk = []
+    end
+
     def self.from_csv_file file, source=nil, bioassay=true
       source ||= file
       table = CSV.read file, :skip_blanks => true
-      from_table table, source, bioassay
+      parse_table table, source, bioassay
     end
 
     # parse data in tabular format (e.g. from csv)
     # does a lot of guesswork in order to determine feature types
-    def self.from_table table, source, bioassay=true
+    def self.parse_table table, source, bioassay=true
 
       time = Time.now
 
       # features
       feature_names = table.shift.collect{|f| f.strip}
       dataset = Dataset.new(:source => source)
+      dataset_id = dataset.id.to_s
       dataset.warnings << "Duplicate features in table header." unless feature_names.size == feature_names.uniq.size
       compound_format = feature_names.shift.strip
       bad_request_error "#{compound_format} is not a supported compound format. Accepted formats: SMILES, InChI." unless compound_format =~ /SMILES|InChI/i
@@ -175,7 +256,7 @@ module OpenTox
       feature_names.each_with_index do |f,i|
         values = table.collect{|row| val=row[i+1].to_s.strip; val.blank? ? nil : val }.uniq.compact
         types = values.collect{|v| v.numeric? ? true : false}.uniq
-        metadata = {"name" => f, "source" => source}
+        metadata = {"name" => File.basename(f), "source" => source}
         if values.size == 0 # empty feature
         elsif  values.size > 5 and types.size == 1 and types.first == true # 5 max classes
           metadata["numeric"] = true
@@ -208,7 +289,6 @@ module OpenTox
 
       # compounds and values
       r = -1
-      csv = ["compound_id,feature_id,value"]
 
       compound_time = 0
       value_time = 0
@@ -246,36 +326,23 @@ module OpenTox
             dataset.warnings << "Empty value for compound '#{identifier}' (row #{r+2}) and feature '#{feature_names[i]}' (column #{i+2})."
             next
           elsif numeric[i]
-            csv << "#{cid},#{feature_ids[i]},#{v.to_f}" # retrieving ids from dataset.{compounds|features} kills performance
+            dataset.bulk << [cid,feature_ids[i],v.to_f]
           else
-            csv << "#{cid},#{feature_ids[i]},#{v.strip}" # retrieving ids from dataset.{compounds|features} kills performance
+            dataset.bulk << [cid,feature_ids[i],v.split]
           end
         end
       end
-      dataset.compounds.duplicates.each do |duplicates|
-        # TODO fix and check
+      dataset.compounds.duplicates.each do |compound|
         positions = []
-        compounds.each_with_index{|c,i| positions << i+1 if !c.blank? and c == compound}
+        dataset.compounds.each_with_index{|c,i| positions << i+1 if !c.blank? and c.inchi == compound.inchi}
         dataset.warnings << "Duplicate compound #{compound.inchi} at rows #{positions.join(', ')}. Entries are accepted, assuming that measurements come from independent experiments." 
       end
       
       $logger.debug "Value parsing: #{Time.now-time} (Compound creation: #{compound_time})"
       time = Time.now
+      dataset.bulk_write
+      dataset.save
 
-      # Workaround for mongo bulk insertions (insertion of single data_entries is far too slow)
-      # Skip ruby JSON serialisation:
-      #   - to_json is too slow to write to file
-      #   - json (or bson) serialisation is probably causing very long parse times of Mongo::BulkWrite, or any other ruby insert operation
-      f = Tempfile.new("#{dataset.id.to_s}.csv","/tmp")
-      f.puts csv.join("\n")
-      f.close
-      $logger.debug "Write file: #{Time.now-time}"
-      time = Time.now
-      # TODO DB name from config
-      `mongoimport --db opentox --collection data_entries --type csv --headerline --file #{f.path}`
-      $logger.debug "Bulk insert: #{Time.now-time}"
-      time = Time.now
-      
       dataset
     end
   end
