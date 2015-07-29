@@ -18,10 +18,12 @@ module OpenTox
     include Mongoid::Document
 
     attr_accessor :bulk
+    attr_accessor :data_entries
 
     # associations like has_many, belongs_to deteriorate performance
     field :feature_ids, type: Array, default: []
     field :compound_ids, type: Array, default: []
+    field :data_entries_id, type: BSON::ObjectId
     field :source, type: String
     field :warnings, type: Array, default: []
 
@@ -30,44 +32,41 @@ module OpenTox
       @bulk = []
     end
 
+    def save_all
+      dump = Marshal.dump(@data_entries)
+      file = Mongo::Grid::File.new(dump, :filename => "#{self.id.to_s}.data_entries")
+      data_entries_id = $gridfs.insert_one(file)
+      update(:data_entries_id => data_entries_id)
+      save
+    end
+
     # Readers
 
     def compounds
-      self.compound_ids.collect{|id| OpenTox::Compound.find id}
+      @compounds ||= self.compound_ids.collect{|id| OpenTox::Compound.find id}
+      @compounds
     end
 
     def features
-      self.feature_ids.collect{|id| OpenTox::Feature.find(id)}
+      @features ||= self.feature_ids.collect{|id| OpenTox::Feature.find(id)}
+      @features
     end
 
     def [](compound,feature)
       bad_request_error "Incorrect parameter type. The first argument is a OpenTox::Compound the second a OpenTox::Feature." unless compound.is_a? Compound and feature.is_a? Feature
-      DataEntry.where(dataset_id: self.id, compound_id: compound.id, feature_id: feature.id).distinct(:value).first
+      #DataEntry.where(dataset_id: self.id, compound_id: compound.id, feature_id: feature.id).distinct(:value).first
+      data_entries[compound_ids.index(compound.id)][feature_ids.index(feature.id)]
     end
 
     def fingerprint(compound)
-      data_entries[compound.id]
+      data_entries[compound_ids.index(compound.id)]
     end
 
     def data_entries
       unless @data_entries
-        entries = {}
         t = Time.now
-        DataEntry.where(dataset_id: self.id).each do |de|
-          entries[de.compound_id] ||= {}
-          entries[de.compound_id][de.feature_id] = de.value.first
-        end
+        @data_entries = Marshal.load($gridfs.find_one(_id: data_entries_id).data)
         $logger.debug "Retrieving data: #{Time.now-t}"
-        t = Time.now
-        @data_entries = {}
-        # TODO: check performance overhead
-        compound_ids.each do |cid|
-          @data_entries[cid] = []
-          feature_ids.each_with_index do |fid,i|
-            @data_entries[cid][i] = entries[cid][fid]
-          end
-        end
-        $logger.debug "Create @data_entries: #{Time.now-t}"
       end
       @data_entries
     end
@@ -77,10 +76,10 @@ module OpenTox
     # @param feature [OpenTox::Feature] OpenTox Feature object
     # @return [Array] Data entry values
     def values(compound, feature)
-      data_entries.where(:compound_id => compound.id, :feature_id => feature.id).distinct(:value)
-      #rows = (0 ... compound_ids.length).select { |r| compound_ids[r] == compound.id }
-      #col = feature_ids.index feature.id
-      #rows.collect{|row| data_entries[row][col]}
+      #data_entries.where(:compound_id => compound.id, :feature_id => feature.id).distinct(:value)
+      rows = (0 ... compound_ids.length).select { |r| compound_ids[r] == compound.id }
+      col = feature_ids.index feature.id
+      rows.collect{|row| data_entries[row][col]}
     end
 
     # Writers
@@ -234,29 +233,29 @@ module OpenTox
     def self.from_csv_file file, source=nil, bioassay=true
       source ||= file
       table = CSV.read file, :skip_blanks => true
-      parse_table table, source, bioassay
+      dataset = Dataset.new(:source => source, :name => File.basename(file))
+      dataset.parse_table table, bioassay
+      dataset
     end
 
     # parse data in tabular format (e.g. from csv)
     # does a lot of guesswork in order to determine feature types
-    def self.parse_table table, source, bioassay=true
+    def parse_table table, bioassay=true
 
       time = Time.now
 
       # features
       feature_names = table.shift.collect{|f| f.strip}
-      dataset = Dataset.new(:source => source)
-      dataset_id = dataset.id.to_s
-      dataset.warnings << "Duplicate features in table header." unless feature_names.size == feature_names.uniq.size
+      warnings << "Duplicate features in table header." unless feature_names.size == feature_names.uniq.size
       compound_format = feature_names.shift.strip
       bad_request_error "#{compound_format} is not a supported compound format. Accepted formats: SMILES, InChI." unless compound_format =~ /SMILES|InChI/i
 
       numeric = []
       # guess feature types
       feature_names.each_with_index do |f,i|
+        metadata = {}
         values = table.collect{|row| val=row[i+1].to_s.strip; val.blank? ? nil : val }.uniq.compact
         types = values.collect{|v| v.numeric? ? true : false}.uniq
-        metadata = {"name" => File.basename(f), "source" => source}
         if values.size == 0 # empty feature
         elsif  values.size > 5 and types.size == 1 and types.first == true # 5 max classes
           metadata["numeric"] = true
@@ -280,20 +279,21 @@ module OpenTox
             feature = NominalFeature.find_or_create_by(metadata)
           end
         end
-        dataset.feature_ids << OpenTox::Feature.find_or_create_by(metadata).id
+        feature_ids << OpenTox::Feature.find_or_create_by(metadata).id
       end
-      feature_ids = dataset.features.collect{|f| f.id.to_s}
+      #feature_ids = dataset.features.collect{|f| f.id.to_s}
       
       $logger.debug "Feature values: #{Time.now-time}"
       time = Time.now
 
-      # compounds and values
       r = -1
-
       compound_time = 0
       value_time = 0
 
-      table.each_with_index do |vals,j|
+      # compounds and values
+      @data_entries = Array.new(table.size){Array.new(table.first.size-1)}
+
+      table.each_with_index do |vals,i|
         ct = Time.now
         identifier = vals.shift
         begin
@@ -301,49 +301,52 @@ module OpenTox
           when /SMILES/i
             compound = OpenTox::Compound.from_smiles(identifier)
             if compound.inchi.empty?
-              dataset.warnings << "Cannot parse #{compound_format} compound '#{compound.strip}' at position #{j+2}, all entries are ignored."
+              warnings << "Cannot parse #{compound_format} compound '#{compound.strip}' at position #{i+2}, all entries are ignored."
               next
             end
           when /InChI/i
+      # compounds and values
             compound = OpenTox::Compound.from_inchi(identifier)
           end
         rescue
-          dataset.warnings << "Cannot parse #{compound_format} compound '#{compound}' at position #{j+2}, all entries are ignored."
+          warnings << "Cannot parse #{compound_format} compound '#{compound}' at position #{i+2}, all entries are ignored."
           next
         end
         compound_time += Time.now-ct
-        dataset.compound_ids << compound.id
+        compound_ids << compound.id
           
         r += 1
-        unless vals.size == feature_ids.size # way cheaper than accessing dataset.features
-          dataset.warnings << "Number of values at position #{j+2} is different than header size (#{vals.size} vs. #{features.size}), all entries are ignored."
+        unless vals.size == feature_ids.size # way cheaper than accessing features
+          warnings << "Number of values at position #{i+2} is different than header size (#{vals.size} vs. #{features.size}), all entries are ignored."
           next
         end
 
         cid = compound.id.to_s
-        vals.each_with_index do |v,i|
+        vals.each_with_index do |v,j|
           if v.blank?
-            dataset.warnings << "Empty value for compound '#{identifier}' (row #{r+2}) and feature '#{feature_names[i]}' (column #{i+2})."
+            warnings << "Empty value for compound '#{identifier}' (row #{r+2}) and feature '#{feature_names[j]}' (column #{j+2})."
             next
-          elsif numeric[i]
-            dataset.bulk << [cid,feature_ids[i],v.to_f]
+          elsif numeric[j]
+            @data_entries[i][j] = v.to_f
+            #dataset.bulk << [cid,feature_ids[j],v.to_f]
           else
-            dataset.bulk << [cid,feature_ids[i],v.split]
+            @data_entries[i][j] = v.strip
+            #dataset.bulk << [cid,feature_ids[j],v.strip]
           end
         end
       end
-      dataset.compounds.duplicates.each do |compound|
+      compounds.duplicates.each do |compound|
         positions = []
-        dataset.compounds.each_with_index{|c,i| positions << i+1 if !c.blank? and c.inchi == compound.inchi}
-        dataset.warnings << "Duplicate compound #{compound.inchi} at rows #{positions.join(', ')}. Entries are accepted, assuming that measurements come from independent experiments." 
+        compounds.each_with_index{|c,i| positions << i+1 if !c.blank? and c.inchi == compound.inchi}
+        warnings << "Duplicate compound #{compound.inchi} at rows #{positions.join(', ')}. Entries are accepted, assuming that measurements come from independent experiments." 
       end
       
       $logger.debug "Value parsing: #{Time.now-time} (Compound creation: #{compound_time})"
       time = Time.now
-      dataset.bulk_write
-      dataset.save
+      #dataset.bulk_write
+      save_all
+      $logger.debug "Saving: #{Time.now-time}"
 
-      dataset
     end
   end
 end
