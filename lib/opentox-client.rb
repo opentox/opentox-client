@@ -20,7 +20,7 @@ FALSE_REGEXP = /^(false|inactive|0|0.0|low tox|deactivating|non-carcinogen|non-m
 [
   "overwrite.rb",
   "rest-client-wrapper.rb", 
-  #"error.rb",
+  "error.rb",
   #"authorization.rb", 
   #"policy.rb", 
   #"otlogger.rb", 
@@ -28,7 +28,7 @@ FALSE_REGEXP = /^(false|inactive|0|0.0|low tox|deactivating|non-carcinogen|non-m
   #"task.rb",
   "compound.rb",
   "feature.rb",
-  "data_entry.rb",
+  #"data_entry.rb",
   "dataset.rb",
   #"algorithm.rb",
   #"model.rb",
