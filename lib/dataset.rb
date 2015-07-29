@@ -18,7 +18,7 @@ module OpenTox
     include Mongoid::Document
 
     attr_accessor :bulk
-    attr_accessor :data_entries
+    #attr_writer :data_entries
 
     # associations like has_many, belongs_to deteriorate performance
     field :feature_ids, type: Array, default: []
@@ -52,10 +52,27 @@ module OpenTox
       @features
     end
 
-    def [](compound,feature)
-      bad_request_error "Incorrect parameter type. The first argument is a OpenTox::Compound the second a OpenTox::Feature." unless compound.is_a? Compound and feature.is_a? Feature
+    def fill_nil_with n
+      (0 .. compound_ids.size-1).each do |i|
+        @data_entries[i] ||= []
+        (0 .. feature_ids.size-1).each do |j|
+          @data_entries[i][j] ||= n
+        end
+      end
+    end
+
+    def [](row,col)
+      #bad_request_error "Incorrect parameter type. The first argument is a OpenTox::Compound the second a OpenTox::Feature." unless compound.is_a? Compound and feature.is_a? Feature
       #DataEntry.where(dataset_id: self.id, compound_id: compound.id, feature_id: feature.id).distinct(:value).first
-      data_entries[compound_ids.index(compound.id)][feature_ids.index(feature.id)]
+      #data_entries[compound_ids.index(compound.id)][feature_ids.index(feature.id)]
+      @data_entries[row,col]
+    end
+
+    def []=(row,col,v)
+      @data_entries ||= []
+      @data_entries[row] ||= []
+      #@data_entries ||= Array.new(compound_ids.size){Array.new(feature_ids.size)}
+      @data_entries[row][col] = v
     end
 
     def fingerprint(compound)
@@ -66,6 +83,9 @@ module OpenTox
       unless @data_entries
         t = Time.now
         @data_entries = Marshal.load($gridfs.find_one(_id: data_entries_id).data)
+        bad_request_error "Data entries (#{data_entries_id}) are not a 2D-Array" unless @data_entries.is_a? Array and @data_entries.first.is_a? Array
+        bad_request_error "Data entries (#{data_entries_id}) have #{@data_entries.size} rows, but dataset (#{id}) has #{compound_ids.size} compounds" unless @data_entries.size == compound_ids.size
+        bad_request_error "Data entries (#{data_entries_id}) have #{@data_entries..first.size} columns, but dataset (#{id}) has #{feature_ids.size} features" unless @data_entries.first.size == feature_ids.size
         $logger.debug "Retrieving data: #{Time.now-t}"
       end
       @data_entries
