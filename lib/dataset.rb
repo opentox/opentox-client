@@ -18,7 +18,7 @@ module OpenTox
     include Mongoid::Document
 
     attr_accessor :bulk
-    #attr_writer :data_entries
+    attr_writer :data_entries
 
     # associations like has_many, belongs_to deteriorate performance
     field :feature_ids, type: Array, default: []
@@ -62,17 +62,27 @@ module OpenTox
     end
 
     def [](row,col)
-      #bad_request_error "Incorrect parameter type. The first argument is a OpenTox::Compound the second a OpenTox::Feature." unless compound.is_a? Compound and feature.is_a? Feature
-      #DataEntry.where(dataset_id: self.id, compound_id: compound.id, feature_id: feature.id).distinct(:value).first
-      #data_entries[compound_ids.index(compound.id)][feature_ids.index(feature.id)]
       @data_entries[row,col]
     end
 
     def []=(row,col,v)
       @data_entries ||= []
       @data_entries[row] ||= []
-      #@data_entries ||= Array.new(compound_ids.size){Array.new(feature_ids.size)}
       @data_entries[row][col] = v
+    end
+
+    # merge dataset (i.e. append features)
+    def +(dataset)
+      bad_request_error "Dataset merge failed because the argument is not a OpenTox::Dataset but a #{dataset.class}" unless dataset.is_a? Dataset
+      bad_request_error "Dataset merge failed because compounds are unequal in datasets #{self.id} and #{dataset.id}" unless compound_ids == dataset.compound_ids
+      self.feature_ids ||= []
+      self.feature_ids = self.feature_ids + dataset.feature_ids
+      @data_entries ||= Array.new(compound_ids.size){[]}
+      @data_entries.each_with_index do |row,i|
+        @data_entries[i] = row + dataset.fingerprint(compounds[i])
+      end
+      self
+
     end
 
     def fingerprint(compound)
@@ -231,24 +241,6 @@ module OpenTox
     # TODO
     #def self.from_sdf_file
     #end
-
-    def bulk_write
-      time = Time.now
-      # Workaround for mongo bulk insertions (insertion of single data_entries is far too slow)
-      # Skip ruby JSON serialisation:
-      #   - to_json is too slow to write to file
-      #   - json (or bson) serialisation is probably causing very long parse times of Mongo::BulkWrite, or any other ruby insert operation
-      # this method causes a noticeable overhead compared to direct string serialisation (e.g. total processing time 16" instead of 12" for rat fminer dataset), but it can be reused at different places
-      dataset_id = self.id.to_s
-      f = Tempfile.new("#{dataset_id}.json","/tmp")
-      f.puts @bulk.collect{|row| "{'dataset_id': {'$oid': '#{dataset_id}'},'compound_id': {'$oid': '#{row[0]}'}, 'feature_id': {'$oid': '#{row[1]}'}, 'value': #{row[2]}}"}.join("\n")
-      f.close
-      $logger.debug "Write JSON file: #{Time.now-time}"
-      # TODO DB name from config
-      puts `mongoimport --db opentox --collection data_entries --type json --file #{f.path}  2>&1`
-      $logger.debug "Bulk import: #{Time.now-time}"
-      @bulk = []
-    end
 
     def self.from_csv_file file, source=nil, bioassay=true
       source ||= file

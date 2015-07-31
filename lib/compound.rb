@@ -73,12 +73,13 @@ module OpenTox
     # Get sdf
     # @return [String] SDF string
     def sdf
-      if sdf_id.nil?
+      if self.sdf_id.nil? 
         sdf = obconversion(inchi,"inchi","sdf")
         file = Mongo::Grid::File.new(sdf, :filename => "#{id}.sdf",:content_type => "chemical/x-mdl-sdfile")
         sdf_id = $gridfs.insert_one file
+        update :sdf_id => sdf_id
       end
-      $gridfs.find_one(_id: sdf_id).data
+      $gridfs.find_one(_id: self.sdf_id).data
     end
 
     # Get png image
@@ -86,12 +87,12 @@ module OpenTox
     #   image = compound.png
     # @return [image/png] Image data
     def png
-      if image_id.nil?
+      if self.image_id.nil?
        png = obconversion(inchi,"inchi","_png2")
        file = Mongo::Grid::File.new(Base64.encode64(png), :filename => "#{id}.png", :content_type => "image/png")
        update(:image_id => $gridfs.insert_one(file))
       end
-      Base64.decode64($gridfs.find_one(_id: image_id).data)
+      Base64.decode64($gridfs.find_one(_id: self.image_id).data)
 
     end
 
@@ -134,11 +135,11 @@ module OpenTox
         OpenBabel::OBOp.find_type("Gen3D").do(obmol) 
         sdf = obconversion.write_string(obmol)
         if sdf.match(/.nan/)
-          $logger.warn "3D generation failed for compound #{compound.inchi}, trying to calculate 2D structure"
+          $logger.warn "3D generation failed for compound #{identifier}, trying to calculate 2D structure"
           OpenBabel::OBOp.find_type("Gen2D").do(obmol) 
           sdf = obconversion.write_string(obmol)
           if sdf.match(/.nan/)
-            $logger.warn "2D generation failed for compound #{compound.inchi}"
+            $logger.warn "2D generation failed for compound #{identifier}"
             sdf = nil
           end
         end

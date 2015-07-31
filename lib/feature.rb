@@ -56,8 +56,9 @@ module OpenTox
   end
 
   class PhysChemDescriptor < NumericFeature
-    field :algorithm, type: String
+    field :algorithm, type: String, default: "OpenTox::Algorithm::Descriptor.physchem"
     field :parameters, type: Hash
+    field :creator, type: String
   end
 
 end
