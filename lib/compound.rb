@@ -1,3 +1,7 @@
+# TODO: check
+# *** Open Babel Error  in ParseFile
+#    Could not find contribution data file.
+# 3d creation??
 CACTUS_URI="http://cactus.nci.nih.gov/chemical/structure/"
 require 'openbabel'
 require "base64"

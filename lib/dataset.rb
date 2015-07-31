@@ -7,7 +7,11 @@ module OpenTox
     field :creator, type: String
   end
 
-  class FminerDataset < Dataset
+  class DescriptorDataset < Dataset
+    field :feature_calculation_algorithm, type: String
+  end
+
+  class FminerDataset < DescriptorDataset
     field :training_algorithm, type: String
     field :training_dataset_id, type: BSON::ObjectId
     field :training_feature_id, type: BSON::ObjectId
