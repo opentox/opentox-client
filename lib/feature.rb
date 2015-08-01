@@ -9,7 +9,6 @@ module OpenTox
     field :supervised, type: Boolean
     field :source, as: :title, type: String
     #belongs_to :dataset
-    #belongs_to :data_entry
   end
 
   class NominalFeature < Feature

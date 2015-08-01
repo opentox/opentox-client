@@ -5,6 +5,10 @@ module OpenTox
 
   class LazarPrediction < Dataset
     field :creator, type: String
+    def value compound
+    end
+    def confidence compound
+    end
   end
 
   class DescriptorDataset < Dataset
@@ -21,7 +25,6 @@ module OpenTox
   class Dataset
     include Mongoid::Document
 
-    attr_accessor :bulk
     attr_writer :data_entries
 
     # associations like has_many, belongs_to deteriorate performance
@@ -30,11 +33,6 @@ module OpenTox
     field :data_entries_id, type: BSON::ObjectId
     field :source, type: String
     field :warnings, type: Array, default: []
-
-    def initialize params=nil
-      super params
-      @bulk = []
-    end
 
     def save_all
       dump = Marshal.dump(@data_entries)
@@ -344,10 +342,8 @@ module OpenTox
             next
           elsif numeric[j]
             @data_entries[i][j] = v.to_f
-            #dataset.bulk << [cid,feature_ids[j],v.to_f]
           else
             @data_entries[i][j] = v.strip
-            #dataset.bulk << [cid,feature_ids[j],v.strip]
           end
         end
       end
@@ -359,7 +355,6 @@ module OpenTox
       
       $logger.debug "Value parsing: #{Time.now-time} (Compound creation: #{compound_time})"
       time = Time.now
-      #dataset.bulk_write
       save_all
       $logger.debug "Saving: #{Time.now-time}"
 

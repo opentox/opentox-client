@@ -10,7 +10,7 @@ require 'mongoid'
 ENV["MONGOID_ENV"] = "development"
 Mongoid.load!("#{ENV['HOME']}/.opentox/config/mongoid.yml")
 
-CLASSES = ["Compound", "Feature", "DataEntry","Dataset"]#, "Validation", "Task", "Investigation"]
+CLASSES = ["Compound", "Feature", "Dataset"]#, "Validation", "Task", "Investigation"]
 #CLASSES = ["Feature", "Dataset", "Validation", "Task", "Investigation"]
 
 # Regular expressions for parsing classification data
