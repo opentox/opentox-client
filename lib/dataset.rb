@@ -5,9 +5,10 @@ module OpenTox
 
   class LazarPrediction < Dataset
     field :creator, type: String
-    def value compound
-    end
-    def confidence compound
+    field :prediction_feature_id, type: String
+
+    def prediction_feature
+      Feature.find prediction_feature_id
     end
   end
 
@@ -159,80 +160,32 @@ module OpenTox
       end
     end
 
-    # Methods for for validation service
-
-    # create a new dataset with the specified compounds and features
-    # @param compound_indices [Array] compound indices (integers)
-    # @param feats [Array] features objects
-    # @param metadata [Hash]
-    # @return [OpenTox::Dataset]
-    # TODO
-    def split( compound_indices, feats, metadata)
-
-      bad_request_error "Dataset.split : Please give compounds as indices" if compound_indices.size==0 or !compound_indices[0].is_a?(Fixnum)
-      bad_request_error "Dataset.split : Please give features as feature objects (given: #{feats})" if feats!=nil and feats.size>0 and !feats[0].is_a?(OpenTox::Feature)
-      dataset = OpenTox::Dataset.new
-      dataset.metadata = metadata
-      dataset.features = (feats ? feats : self.features)
-      compound_indices.each do |c_idx|
-        d = [ self.compounds[c_idx] ]
-        dataset.features.each_with_index.each do |f,f_idx|
-          d << (self.data_entries[c_idx] ? self.data_entries[c_idx][f_idx] : nil)
-        end
-        dataset << d
+    # split dataset into n folds
+    def folds n
+      len = self.compound_ids.size
+      indices = (0..len-1).to_a.shuffle
+      mid = (len/n)
+      chunks = []
+      start = 0
+      1.upto(n) do |i|
+        last = start+mid
+        last = last-1 unless len%n >= i
+        test_idxs = indices[start..last] || []
+        test_cids = test_idxs.collect{|i| self.compound_ids[i]}
+        test_data_entries = test_idxs.collect{|i| self.data_entries[i]}
+        test_dataset = self.class.new(:compound_ids => test_cids, :feature_ids => self.feature_ids, :data_entries => test_data_entries)
+        training_idxs = indices-test_idxs
+        training_cids = training_idxs.collect{|i| self.compound_ids[i]}
+        training_data_entries = training_idxs.collect{|i| self.data_entries[i]}
+        training_dataset = self.class.new(:compound_ids => training_cids, :feature_ids => self.feature_ids, :data_entries => training_data_entries)
+        test_dataset.save_all
+        training_dataset.save_all
+        chunks << [training_dataset,test_dataset]
+        start = last+1
       end
-      dataset.put
-      dataset
+      chunks
     end
 
-
-    # maps a compound-index from another dataset to a compound-index from this dataset
-    # mapping works as follows:
-    # (compound c is the compound identified by the compound-index of the other dataset)
-    # * c occurs only once in this dataset? map compound-index of other dataset to index in this dataset
-    # * c occurs >1 in this dataset?
-    # ** number of occurences is equal in both datasets? assume order is preserved(!) and map accordingly
-    # ** number of occurences is not equal in both datasets? cannot map, raise error
-    # @param dataset [OpenTox::Dataset] dataset that should be mapped to this dataset (fully loaded)
-    # @param compound_index [Fixnum], corresponding to dataset
-    # TODO
-    def compound_index( dataset, compound_index )
-      compound_inchi = dataset.compounds[compound_index].inchi
-      self_indices = compound_indices(compound_inchi)
-      if self_indices==nil
-        nil
-      else
-        dataset_indices = dataset.compound_indices(compound_inchi)
-        if self_indices.size==1
-          self_indices.first
-        elsif self_indices.size==dataset_indices.size
-          # we do assume that the order is preseverd (i.e., the nth occurences in both datasets are mapped to each other)!
-          self_indices[dataset_indices.index(compound_index)]
-        else
-          raise "cannot map compound #{compound_inchi} from dataset #{dataset.id} to dataset #{self.id}, "+
-            "compound occurs #{dataset_indices.size} times and #{self_indices.size} times"
-        end
-      end
-    end
-
-    # returns the inidices of the compound in the dataset
-    # @param compound_inchi [String]
-    # @return [Array] compound index (position) of the compound in the dataset, array-size is 1 unless multiple occurences
-    # TODO
-    def compound_indices( compound_inchi )
-      unless defined?(@cmp_indices) and @cmp_indices.has_key?(compound_inchi)
-        @cmp_indices = {}
-        compounds().size.times do |i|
-          c = self.compounds[i].inchi
-          if @cmp_indices[c]==nil
-            @cmp_indices[c] = [i]
-          else
-            @cmp_indices[c] = @cmp_indices[c]+[i]
-          end
-        end
-      end
-      @cmp_indices[compound_inchi]
-    end
 
     # Adding data methods
     # (Alternatively, you can directly change @data["feature_ids"] and @data["compounds"])
@@ -247,7 +200,7 @@ module OpenTox
     def self.from_csv_file file, source=nil, bioassay=true
       source ||= file
       table = CSV.read file, :skip_blanks => true
-      dataset = Dataset.new(:source => source, :name => File.basename(file))
+      dataset = self.new(:source => source, :name => File.basename(file))
       dataset.parse_table table, bioassay
       dataset
     end
@@ -295,7 +248,6 @@ module OpenTox
         end
         feature_ids << OpenTox::Feature.find_or_create_by(metadata).id
       end
-      #feature_ids = dataset.features.collect{|f| f.id.to_s}
       
       $logger.debug "Feature values: #{Time.now-time}"
       time = Time.now
@@ -319,7 +271,6 @@ module OpenTox
               next
             end
           when /InChI/i
-      # compounds and values
             compound = OpenTox::Compound.from_inchi(identifier)
           end
         rescue

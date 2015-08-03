@@ -32,7 +32,7 @@ FALSE_REGEXP = /^(false|inactive|0|0.0|low tox|deactivating|non-carcinogen|non-m
   "dataset.rb",
   #"algorithm.rb",
   #"model.rb",
-  "validation.rb"
+  #"validation.rb"
 ].each{ |f| require_relative f }
 
 #if defined?($aa) and $aa[:uri] 
