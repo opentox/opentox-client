@@ -10,6 +10,7 @@ module OpenTox
     def prediction_feature
       Feature.find prediction_feature_id
     end
+
   end
 
   class DescriptorDataset < Dataset
@@ -74,6 +75,18 @@ module OpenTox
       @data_entries[row][col] = v
     end
 
+    def correlation_plot training_dataset
+      R.assign "features", data_entries
+      R.assign "activities", training_dataset.data_entries.collect{|de| de.first}
+      R.eval "featurePlot(features,activities)"
+    end
+
+    def density_plot
+      R.assign "acts", data_entries.collect{|r| r.first }#.compact
+      R.eval "plot(density(log(acts),na.rm= TRUE), main='log(#{features.first.name})')"
+      # TODO kill Rserve plots
+    end
+
     # merge dataset (i.e. append features)
     def +(dataset)
       bad_request_error "Dataset merge failed because the argument is not a OpenTox::Dataset but a #{dataset.class}" unless dataset.is_a? Dataset
@@ -89,7 +102,8 @@ module OpenTox
     end
 
     def fingerprint(compound)
-      data_entries[compound_ids.index(compound.id)]
+      i = compound_ids.index(compound.id)
+      i.nil? ? nil : data_entries[i] 
     end
 
     def data_entries
@@ -209,6 +223,8 @@ module OpenTox
     # does a lot of guesswork in order to determine feature types
     def parse_table table, bioassay=true
 
+      # TODO: remove empty entries + write tests
+
       time = Time.now
 
       # features
@@ -220,7 +236,7 @@ module OpenTox
       numeric = []
       # guess feature types
       feature_names.each_with_index do |f,i|
-        metadata = {}
+        metadata = {:name => f}
         values = table.collect{|row| val=row[i+1].to_s.strip; val.blank? ? nil : val }.uniq.compact
         types = values.collect{|v| v.numeric? ? true : false}.uniq
         if values.size == 0 # empty feature
@@ -246,7 +262,7 @@ module OpenTox
             feature = NominalFeature.find_or_create_by(metadata)
           end
         end
-        feature_ids << OpenTox::Feature.find_or_create_by(metadata).id
+        feature_ids << feature.id
       end
       
       $logger.debug "Feature values: #{Time.now-time}"
@@ -262,6 +278,11 @@ module OpenTox
       table.each_with_index do |vals,i|
         ct = Time.now
         identifier = vals.shift
+        #if vals.compact.empty?
+          #warnings << "No values for compound at position #{i+2}, all entries are ignored."
+          #@data_entries.pop
+          #next
+        #end
         begin
           case compound_format
           when /SMILES/i

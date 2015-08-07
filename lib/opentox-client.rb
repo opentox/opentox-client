@@ -5,12 +5,14 @@ require 'yaml'
 require 'json'
 require 'logger'
 require 'mongoid'
+require 'rserve'
 
 # TODO store development/test, validation, production in separate databases
 ENV["MONGOID_ENV"] = "development"
 Mongoid.load!("#{ENV['HOME']}/.opentox/config/mongoid.yml")
+R = Rserve::Connection.new
 
-CLASSES = ["Compound", "Feature", "Dataset"]#, "Validation", "Task", "Investigation"]
+CLASSES = ["Feature","Compound",  "Dataset"]#, "Validation", "Task", "Investigation"]
 #CLASSES = ["Feature", "Dataset", "Validation", "Task", "Investigation"]
 
 # Regular expressions for parsing classification data
@@ -26,8 +28,8 @@ FALSE_REGEXP = /^(false|inactive|0|0.0|low tox|deactivating|non-carcinogen|non-m
   #"otlogger.rb", 
   "opentox.rb",
   #"task.rb",
-  "compound.rb",
   "feature.rb",
+  "compound.rb",
   #"data_entry.rb",
   "dataset.rb",
   #"algorithm.rb",

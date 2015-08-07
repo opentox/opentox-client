@@ -27,7 +27,8 @@ module OpenTox
   end
 
   class Smarts < NominalFeature
-    field :name, as: :smarts, type: String # causes warnings
+    field :smarts, type: String 
+    #field :name, as: :smarts, type: String # causes warnings
     field :algorithm, type: String, default: "OpenTox::Algorithm::Descriptors.smarts_match"
     field :parameters, type: Hash, default: {:count => false}
     def initialize params
@@ -44,6 +45,10 @@ module OpenTox
       super params
       supervised = true
     end
+  end
+
+  class FingerprintSmarts < Smarts
+    field :count, type: Integer
   end
 
   class NominalBioAssay < NominalFeature
