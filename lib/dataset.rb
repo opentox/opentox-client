@@ -123,8 +123,7 @@ module OpenTox
     # @param feature [OpenTox::Feature] OpenTox Feature object
     # @return [Array] Data entry values
     def values(compound, feature)
-      #data_entries.where(:compound_id => compound.id, :feature_id => feature.id).distinct(:value)
-      rows = (0 ... compound_ids.length).select { |r| compound_ids[r] == compound.id }
+      rows = compound_ids.each_index.select{|r| compound_ids[r] == compound.id }
       col = feature_ids.index feature.id
       rows.collect{|row| data_entries[row][col]}
     end

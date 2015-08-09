@@ -11,32 +11,31 @@ module OpenTox
   class Compound
     include OpenTox
 
-# OpenBabel FP4 fingerprints
-# OpenBabel http://open-babel.readthedocs.org/en/latest/Fingerprints/intro.html
-# TODO store in DB
-fp4 = FingerprintSmarts.find
-unless fp4
-  fp4 = []
-  File.open(File.join(File.dirname(__FILE__),"SMARTS_InteLigand.txt")).each do |l| 
-    l.strip!
-    unless l.empty? or l.match /^#/
-      name,smarts = l.split(': ')
-      fp4 << OpenTox::FingerprintSmarts.find_or_create_by(:name => name, :smarts => smarts) unless smarts.nil?
+    # OpenBabel FP4 fingerprints
+    # OpenBabel http://open-babel.readthedocs.org/en/latest/Fingerprints/intro.html
+    fp4 = FingerprintSmarts.all
+    unless fp4
+      fp4 = []
+      File.open(File.join(File.dirname(__FILE__),"SMARTS_InteLigand.txt")).each do |l| 
+        l.strip!
+        unless l.empty? or l.match /^#/
+          name,smarts = l.split(': ')
+          fp4 << OpenTox::FingerprintSmarts.find_or_create_by(:name => name, :smarts => smarts) unless smarts.nil?
+        end
+      end
     end
-  end
-end
-FP4 = fp4
+    FP4 = fp4
 
-# TODO investigate other types of fingerprints (MACCS)
-# OpenBabel http://open-babel.readthedocs.org/en/latest/Fingerprints/intro.html
-# http://www.dalkescientific.com/writings/diary/archive/2008/06/26/fingerprint_background.html
-# OpenBabel MNA http://openbabel.org/docs/dev/FileFormats/Multilevel_Neighborhoods_of_Atoms_(MNA).html#multilevel-neighborhoods-of-atoms-mna
-# Morgan ECFP, FCFP
-# http://cdk.github.io/cdk/1.5/docs/api/org/openscience/cdk/fingerprint/CircularFingerprinter.html
-# http://www.rdkit.org/docs/GettingStartedInPython.html
-# Chemfp
-# https://chemfp.readthedocs.org/en/latest/using-tools.html
-# CACTVS/PubChem
+    # TODO investigate other types of fingerprints (MACCS)
+    # OpenBabel http://open-babel.readthedocs.org/en/latest/Fingerprints/intro.html
+    # http://www.dalkescientific.com/writings/diary/archive/2008/06/26/fingerprint_background.html
+    # OpenBabel MNA http://openbabel.org/docs/dev/FileFormats/Multilevel_Neighborhoods_of_Atoms_(MNA).html#multilevel-neighborhoods-of-atoms-mna
+    # Morgan ECFP, FCFP
+    # http://cdk.github.io/cdk/1.5/docs/api/org/openscience/cdk/fingerprint/CircularFingerprinter.html
+    # http://www.rdkit.org/docs/GettingStartedInPython.html
+    # Chemfp
+    # https://chemfp.readthedocs.org/en/latest/using-tools.html
+    # CACTVS/PubChem
 
     field :inchi, type: String
     attr_readonly :inchi
@@ -170,15 +169,16 @@ FP4 = fp4
       self["chemblid"]
     end
 
-    def neighbors threshold=0.3
+    def neighbors threshold=0.7
       # from http://blog.matt-swain.com/post/87093745652/chemical-similarity-search-in-mongodb
       qn = fp4.size
-      qmin = qn * threshold
-      qmax = qn / threshold
+      #qmin = qn * threshold
+      #qmax = qn / threshold
       #not sure if it is worth the effort of keeping feature counts up to date (compound deletions, additions, ...)
       #reqbits = [count['_id'] for count in db.mfp_counts.find({'_id': {'$in': qfp}}).sort('count', 1).limit(qn - qmin + 1)]
       aggregate = [
         #{'$match': {'mfp.count': {'$gte': qmin, '$lte': qmax}, 'mfp.bits': {'$in': reqbits}}},
+        {'$match':  {'_id': {'$ne': self.id}}}, # remove self
         {'$project': {
           'tanimoto': {'$let': {
             'vars': {'common': {'$size': {'$setIntersection': ['$fp4', fp4]}}},
@@ -190,7 +190,8 @@ FP4 = fp4
         {'$sort': {'tanimoto': -1}}
       ]
       
-      $mongo["compounds"].aggregate(aggregate).collect { |r| [Compound.find(r["_id"]), r["tanimoto"]]}
+      $mongo["compounds"].aggregate(aggregate).collect{ |r| [r["_id"], r["tanimoto"]] }
+        
     end
 
     private
