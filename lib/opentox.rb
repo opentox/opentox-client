@@ -1,7 +1,8 @@
 # defaults to stderr, may be changed to file output (e.g in opentox-service)
 $logger = OTLogger.new(STDERR) 
 $logger.level = Logger::DEBUG
-
+#$logger.level = ENV['RACK_ENV'] == 'production' ? Logger::ERROR : Logger::DEBUG
+ 
 module OpenTox
   #include RDF CH: leads to namespace clashes with URI class
 

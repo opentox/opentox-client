@@ -46,7 +46,7 @@ check_utils "rbenv find"
 check_log $SELF
 
 # Adjust ruby version here!
-RUBY_NUM_VER="2.0.0-p481"
+RUBY_NUM_VER="2.2.2"
 
 # ruby
 install_ruby

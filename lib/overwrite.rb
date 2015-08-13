@@ -6,6 +6,11 @@ class Object
     respond_to?(:empty?) ? empty? : !self
   end
 
+  # Returns dimension of nested arrays
+  def dimension
+    self.class == Array ? 1 + self[0].dimension : 0
+  end
+
   def numeric?
     true if Float(self) rescue false
   end
