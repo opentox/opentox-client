@@ -57,10 +57,10 @@ module OpenTox
             response.follow_redirection(request, result)
           elsif response.code >= 400 and !URI.task?(uri)
             #TODO add parameters to error-report
-            #parameters = request.args
-            #parameters[:headers][:subjectid] = "REMOVED" if parameters[:headers] and parameters[:headers][:subjectid]
-            #parameters[:url] = parameters[:url].gsub(/(http|https|)\:\/\/[a-zA-Z0-9\-]+\:[a-zA-Z0-9]+\@/, "REMOVED@") if parameters[:url]
-            #message += "\nREST parameters:\n#{parameters.inspect}" 
+            parameters = request.args
+            parameters[:headers][:subjectid] = "REMOVED" if parameters[:headers] and parameters[:headers][:subjectid]
+            parameters[:url] = parameters[:url].gsub(/(http|https|)\:\/\/[a-zA-Z0-9\-]+\:[a-zA-Z0-9]+\@/, "REMOVED@") if parameters[:url]
+            message += "\nREST parameters:\n#{parameters.inspect}" 
             error = known_errors.collect{|e| e if e[:code] == response.code}.compact.first
             begin # errors are returned as error reports in turtle, try to parse
               content = {} 
