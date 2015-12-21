@@ -71,6 +71,7 @@ module OpenTox
               cause = content[RDF::OT.errorCause].to_s
               raise if msg.size==0 && cause.size==0 # parsing failed
             rescue # parsing error failed, use complete content as message
+              uri = uri.gsub(/(http|https)\:\/\/[a-zA-Z0-9\-]+\:[a-zA-Z0-9]+\@/, "***@")
               msg = "Could not parse error response from rest call '#{method}' to '#{uri}':\n#{response}"
               cause = nil
             end
